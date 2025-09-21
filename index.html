@@ -105,11 +105,14 @@
 
     <!-- Botón para analizar -->
     <button id="analyze-button" class="button w-full mt-4" disabled>Analizar Archivos</button>
+    
+    <!-- Botón para ver historial (Actualizado) -->
+    <a href="histo.html" class="button w-full text-center inline-block mt-4">Ver Historial</a>
 
     <!-- Caja de chat -->
     <div id="chat-box" class="mt-8 hidden">
         <div class="flex items-center space-x-2 mb-4">
-            <img src="public/left.png" alt="Avatar de IA" class="w-10 h-10 rounded-full">
+            <img src="public/izquierda.png" alt="Avatar de IA" class="w-10 h-10 rounded-full">
             <h2 class="text-xl font-semibold text-gray-800">Tu Asistente de IA</h2>
         </div>
         
@@ -181,7 +184,16 @@
             analyzeButton.disabled = false;
         } else {
             // No se admiten archivos que no sean PDF, CSV o imagen
-            alert('Por favor, sube solo archivos PDF, CSV, PNG, o JPG.');
+            const modal = document.createElement('div');
+            modal.className = 'modal';
+            modal.innerHTML = `
+                <div class="modal-content text-center">
+                    <p class="text-gray-700 font-semibold">Por favor, sube solo archivos PDF, CSV, PNG, o JPG.</p>
+                    <button class="button mt-4" onclick="this.closest('.modal').style.display='none'">Cerrar</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            modal.style.display = 'flex';
         }
     }
 
