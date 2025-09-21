@@ -1,1 +1,250 @@
-.
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplicación de Análisis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .container-card {
+            background-color: #ffffff;
+            border-radius: 1.5rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            max-width: 3xl;
+            padding: 2rem;
+        }
+        .file-upload-box {
+            border: 2px dashed #cbd5e1;
+            border-radius: 0.75rem;
+            padding: 2.5rem 1.5rem;
+            text-align: center;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+        .file-upload-box:hover {
+            background-color: #f7fafc;
+        }
+        .file-upload-box.drag-over {
+            background-color: #e2e8f0;
+            border-color: #4f46e5;
+        }
+        .file-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 1rem;
+        }
+        .file-list-item {
+            background-color: #edf2f7;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        .icon {
+            color: #4f46e5;
+        }
+        .button {
+            background-color: #4f46e5;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+        }
+        .button:hover {
+            background-color: #4338ca;
+        }
+        .modal {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+
+<div class="container-card w-full">
+    <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">Asistente de Análisis de Archivos</h1>
+    <p class="text-center text-gray-500 mb-6">Sube archivos PDF, CSV o imágenes para analizarlos y hacer preguntas.</p>
+
+    <!-- Caja para subir archivos -->
+    <div id="file-upload-box" class="file-upload-box mb-6">
+        <i class="fas fa-cloud-upload-alt text-gray-400 text-5xl mb-4"></i>
+        <p class="text-gray-600 font-medium">Arrastra y suelta tus archivos aquí, o haz clic para seleccionarlos</p>
+        <p class="text-sm text-gray-400 mt-1">Archivos soportados: PDF, CSV, PNG, JPG</p>
+        <input type="file" id="file-input" class="hidden" multiple accept=".pdf,.csv,.png,.jpg,.jpeg">
+    </div>
+
+    <!-- Lista de archivos subidos -->
+    <ul id="file-list" class="file-list"></ul>
+
+    <!-- Botón para analizar -->
+    <button id="analyze-button" class="button w-full mt-4" disabled>Analizar Archivos</button>
+
+    <!-- Caja de chat -->
+    <div id="chat-box" class="mt-8 hidden">
+        <div class="flex items-center space-x-2 mb-4">
+            <img src="public/left.png" alt="Avatar de IA" class="w-10 h-10 rounded-full">
+            <h2 class="text-xl font-semibold text-gray-800">Tu Asistente de IA</h2>
+        </div>
+        
+        <div id="chat-history" class="bg-gray-50 p-4 rounded-lg h-64 overflow-y-auto mb-4">
+            <p class="text-gray-500 italic">Hola, sube y analiza tus archivos para empezar a chatear.</p>
+        </div>
+
+        <div class="flex items-center space-x-3">
+            <input type="text" id="user-input" placeholder="Pregunta sobre tus archivos..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <button id="send-button" class="button p-3" disabled>
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de carga -->
+<div id="loading-modal" class="modal">
+    <div class="modal-content text-center">
+        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 mx-auto" style="border-top-color: #4f46e5;"></div>
+        <p class="text-gray-700 font-semibold">Analizando, por favor espera...</p>
+    </div>
+</div>
+
+<script>
+    const fileUploadBox = document.getElementById('file-upload-box');
+    const fileInput = document.getElementById('file-input');
+    const fileList = document.getElementById('file-list');
+    const analyzeButton = document.getElementById('analyze-button');
+    const chatBox = document.getElementById('chat-box');
+    const chatHistory = document.getElementById('chat-history');
+    const userInput = document.getElementById('user-input');
+    const sendButton = document.getElementById('send-button');
+    const loadingModal = document.getElementById('loading-modal');
+
+    let filesToAnalyze = [];
+
+    fileUploadBox.addEventListener('click', () => fileInput.click());
+    
+    fileUploadBox.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        fileUploadBox.classList.add('drag-over');
+    });
+
+    fileUploadBox.addEventListener('dragleave', () => {
+        fileUploadBox.classList.remove('drag-over');
+    });
+
+    fileUploadBox.addEventListener('drop', (e) => {
+        e.preventDefault();
+        fileUploadBox.classList.remove('drag-over');
+        handleFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+    });
+
+    function handleFiles(files) {
+        // Validación de tipo de archivo
+        const validFiles = Array.from(files).filter(file => {
+            const fileType = file.type;
+            return fileType === 'application/pdf' || fileType.includes('image/') || fileType === 'text/csv';
+        });
+
+        if (validFiles.length > 0) {
+            filesToAnalyze = filesToAnalyze.concat(validFiles);
+            updateFileList();
+            analyzeButton.disabled = false;
+        } else {
+            // No se admiten archivos que no sean PDF, CSV o imagen
+            alert('Por favor, sube solo archivos PDF, CSV, PNG, o JPG.');
+        }
+    }
+
+    function updateFileList() {
+        fileList.innerHTML = '';
+        filesToAnalyze.forEach((file, index) => {
+            const listItem = document.createElement('li');
+            listItem.className = 'file-list-item';
+            
+            const fileInfo = document.createElement('span');
+            fileInfo.textContent = file.name;
+
+            const removeButton = document.createElement('button');
+            removeButton.innerHTML = '<i class="fas fa-times-circle text-red-500 hover:text-red-700"></i>';
+            removeButton.onclick = () => {
+                filesToAnalyze.splice(index, 1);
+                updateFileList();
+            };
+
+            listItem.appendChild(fileInfo);
+            listItem.appendChild(removeButton);
+            fileList.appendChild(listItem);
+        });
+        if (filesToAnalyze.length === 0) {
+            analyzeButton.disabled = true;
+        }
+    }
+    
+    analyzeButton.addEventListener('click', async () => {
+        // Simulando el análisis (aquí iría la llamada al backend)
+        loadingModal.style.display = 'flex';
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Espera simulada
+        loadingModal.style.display = 'none';
+
+        fileUploadBox.classList.add('hidden');
+        fileList.classList.add('hidden');
+        analyzeButton.classList.add('hidden');
+        chatBox.classList.remove('hidden');
+
+        // Limpia y muestra un mensaje inicial del asistente
+        chatHistory.innerHTML = '<p class="text-gray-500 italic">¡Archivos listos para el análisis! ¿Qué te gustaría saber sobre ellos?</p>';
+        userInput.disabled = false;
+        sendButton.disabled = false;
+    });
+
+    sendButton.addEventListener('click', () => {
+        const message = userInput.value.trim();
+        if (message) {
+            appendMessage('user', message);
+            userInput.value = '';
+            // Aquí iría la llamada al backend con la pregunta
+            appendMessage('assistant', 'Pensando en una respuesta...');
+        }
+    });
+
+    function appendMessage(sender, text) {
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `p-3 rounded-lg max-w-lg mb-2 ${sender === 'user' ? 'bg-blue-500 text-white ml-auto' : 'bg-gray-200 text-gray-800'}`;
+        messageDiv.textContent = text;
+        chatHistory.appendChild(messageDiv);
+        chatHistory.scrollTop = chatHistory.scrollHeight;
+    }
+</script>
+
+</body>
+</html>
