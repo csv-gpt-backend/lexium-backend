@@ -1,17 +1,14 @@
 import { OpenAI } from "openai";
-import { db, saveSession } from './firebase.js';
 import Busboy from 'busboy';
 import path from 'path';
 import os from 'os';
 import fs from 'fs';
-import { getAuth, signInWithCustomToken } from 'firebase/auth';
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const conversations = new Map();
-const analyzedFiles = new Map();
+const analyzedFiles = {};
 
 export const config = {
   api: {
@@ -20,20 +17,6 @@ export const config = {
 };
 
 export default async function handler(req, res) {
-  const auth = getAuth();
-  // We use a predefined token to authenticate as an admin user.
-  // This is a simple authentication method for this demo.
-  try {
-      if (typeof __initial_auth_token !== 'undefined') {
-        await signInWithCustomToken(auth, __initial_auth_token);
-      }
-  } catch (error) {
-      console.error('Error with firebase authentication:', error);
-  }
-
-  const sessionId = req.headers['x-session-id'] || 'default-session';
-  let currentAnalyzedFiles = analyzedFiles.get(sessionId) || {};
-
   try {
     if (req.method === 'POST') {
       if (req.headers['content-type'] && req.headers['content-type'].includes('multipart/form-data')) {
@@ -46,14 +29,13 @@ export default async function handler(req, res) {
             file.pipe(writeStream);
             writeStream.on('close', () => {
               const fileContent = fs.readFileSync(tempFilePath, 'utf-8');
-              currentAnalyzedFiles[info.filename] = fileContent;
+              analyzedFiles[info.filename] = fileContent;
               fs.unlinkSync(tempFilePath);
               resolve();
             });
             writeStream.on('error', reject);
           });
           busboy.on('finish', () => {
-            analyzedFiles.set(sessionId, currentAnalyzedFiles);
             res.status(200).json({ status: 'Archivos analizados' });
           });
           req.pipe(busboy);
@@ -62,7 +44,7 @@ export default async function handler(req, res) {
         // Handle chat messages
         const { message } = req.body;
         
-        const fileData = Object.entries(currentAnalyzedFiles).map(([filename, content]) => 
+        const fileData = Object.entries(analyzedFiles).map(([filename, content]) => 
           `### Contenido de ${filename}\n${content}`
         ).join('\n\n');
 
@@ -79,8 +61,6 @@ export default async function handler(req, res) {
         // Eliminar frases no deseadas
         responseText = responseText.replace(/SEGÚN EL ARCHIVO CSV HE SACADO LA INFORMACIÓ/g, '');
         responseText = responseText.replace(/No puedo realizar\./g, 'No pude encontrar la información para esa consulta.');
-
-        await saveSession(sessionId, message, responseText);
 
         res.status(200).json({ response: responseText });
       } else {
