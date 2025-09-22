@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asistente de Análisis de Datos L</title>
+    <title>Asistente de Análisis de Datos</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -79,9 +79,10 @@
 <body class="bg-white">
     <div class="fixed-top w-full">
         <div class="flex items-center justify-center space-x-4 mb-4 w-full">
-            <img id="image-left" src="https://placehold.co/150x150/e2e8f0/a0aec0?text=Izquierda" alt="Imagen Izquierda" class="rounded-lg">
-            <video id="video-center" src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4" controls muted playsinline class="rounded-lg w-1/2"></video>
-            <img id="image-right" src="https://placehold.co/150x150/e2e8f0/a0aec0?text=Derecha" alt="Imagen Derecha" class="rounded-lg">
+            <!-- Se corrigió la ruta de las imágenes y el tamaño del video -->
+            <img id="image-left" src="left.png" alt="Imagen Izquierda" class="rounded-lg" onerror="this.src='https://placehold.co/150x150/e2e8f0/a0aec0?text=Izquierda'">
+            <video id="video-center" src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4" controls muted playsinline class="rounded-lg w-1/3"></video>
+            <img id="image-right" src="right.png" alt="Imagen Derecha" class="rounded-lg" onerror="this.src='https://placehold.co/150x150/e2e8f0/a0aec0?text=Derecha'">
         </div>
         <div class="flex items-center justify-center space-x-4 mb-4 w-full">
             <input type="text" id="user-input" placeholder="Ingresa tu pregunta..." class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1">
