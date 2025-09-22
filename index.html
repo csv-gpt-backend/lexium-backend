@@ -171,16 +171,32 @@
             };
         }
 
+        // Lógica de selección de voz mejorada para asegurar que siempre sea femenina
         function speak(text) {
             if (isSpeaking) {
                 window.speechSynthesis.cancel();
             }
             const utterance = new SpeechSynthesisUtterance(text);
             const voices = window.speechSynthesis.getVoices();
-            const femaleVoice = voices.find(voice => voice.name.includes('es-MX') || voice.name.includes('es-EC') || voice.lang.includes('es') && voice.name.includes('Femenino'));
+            
+            // Prioriza voces femeninas específicas en español de México/Ecuador
+            let femaleVoice = voices.find(voice => 
+                (voice.lang === 'es-MX' || voice.lang === 'es-EC') && voice.name.toLowerCase().includes('femenina') || voice.name.toLowerCase().includes('mujer')
+            );
+
+            // Si no se encuentra una específica, busca una voz femenina en cualquier español
+            if (!femaleVoice) {
+                femaleVoice = voices.find(voice => 
+                    voice.lang.startsWith('es-') && (voice.name.toLowerCase().includes('femenina') || voice.name.toLowerCase().includes('female'))
+                );
+            }
+
             if (femaleVoice) {
                 utterance.voice = femaleVoice;
+            } else {
+                console.warn("No se encontró una voz femenina en español. La respuesta podría no ser femenina.");
             }
+
             window.speechSynthesis.speak(utterance);
             isSpeaking = true;
         }
