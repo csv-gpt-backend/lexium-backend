@@ -3,53 +3,43 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Aplicación de Análisis</title>
+    <title>Asistente de Análisis de Datos</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f0f4f8;
-        }
-        .container-card {
             background-color: #ffffff;
-            border-radius: 1.5rem;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            max-width: 3xl;
-            padding: 2rem;
-        }
-        .file-upload-box {
-            border: 2px dashed #cbd5e1;
-            border-radius: 0.75rem;
-            padding: 2.5rem 1.5rem;
-            text-align: center;
-            transition: all 0.2s ease-in-out;
-            cursor: pointer;
-        }
-        .file-upload-box:hover {
-            background-color: #f7fafc;
-        }
-        .file-upload-box.drag-over {
-            background-color: #e2e8f0;
-            border-color: #4f46e5;
-        }
-        .file-list {
-            list-style: none;
-            padding: 0;
-            margin-top: 1rem;
-        }
-        .file-list-item {
-            background-color: #edf2f7;
-            border-radius: 0.5rem;
-            padding: 0.75rem 1rem;
+            color: #1a202c;
             display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
+            flex-direction: column;
+            min-height: 100vh;
         }
-        .icon {
-            color: #4f46e5;
+        .fixed-top {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .content-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            padding: 1rem;
+        }
+        .text-section, .table-section {
+            background-color: #f7fafc;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
         }
         .button {
             background-color: #4f46e5;
@@ -58,205 +48,218 @@
             border-radius: 0.75rem;
             font-weight: 600;
             transition: background-color 0.2s;
+            cursor: pointer;
         }
         .button:hover {
             background-color: #4338ca;
         }
-        .modal {
-            background-color: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(5px);
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
+        .button-red {
+            background-color: #ef4444;
         }
-        .modal-content {
-            background-color: white;
-            border-radius: 1rem;
-            padding: 2rem;
-            max-width: 90%;
-            max-height: 90%;
-            overflow-y: auto;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1);
+        .button-red:hover {
+            background-color: #dc2626;
+        }
+        .button-yellow {
+            background-color: #f59e0b;
+        }
+        .button-yellow:hover {
+            background-color: #d97706;
+        }
+        .input-area {
+            display: flex;
+            width: 100%;
+            margin-top: 1rem;
+            align-items: center;
+        }
+        .input-area input {
+            flex-grow: 1;
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen flex items-center justify-center p-4">
-
-<div class="container-card w-full">
-    <h1 class="text-3xl font-bold text-center text-gray-800 mb-2">Asistente de Análisis de Archivos</h1>
-    <p class="text-center text-gray-500 mb-6">Sube archivos PDF, CSV o imágenes para analizarlos y hacer preguntas.</p>
-
-    <!-- Caja para subir archivos -->
-    <div id="file-upload-box" class="file-upload-box mb-6">
-        <i class="fas fa-cloud-upload-alt text-gray-400 text-5xl mb-4"></i>
-        <p class="text-gray-600 font-medium">Arrastra y suelta tus archivos aquí, o haz clic para seleccionarlos</p>
-        <p class="text-sm text-gray-400 mt-1">Archivos soportados: PDF, CSV, PNG, JPG</p>
-        <input type="file" id="file-input" class="hidden" multiple accept=".pdf,.csv,.png,.jpg,.jpeg">
-    </div>
-
-    <!-- Lista de archivos subidos -->
-    <ul id="file-list" class="file-list"></ul>
-
-    <!-- Botón para analizar -->
-    <button id="analyze-button" class="button w-full mt-4" disabled>Analizar Archivos</button>
-    
-    <!-- Botón para ver historial (Actualizado) -->
-    <a href="histo.html" class="button w-full text-center inline-block mt-4">Ver Historial</a>
-
-    <!-- Caja de chat -->
-    <div id="chat-box" class="mt-8 hidden">
-        <div class="flex items-center space-x-2 mb-4">
-            <img src="derecha.png" alt="Avatar de IA" class="w-10 h-10 rounded-full">
-            <h2 class="text-xl font-semibold text-gray-800">Tu Asistente de IA</h2>
+<body class="bg-white">
+    <div class="fixed-top w-full">
+        <div class="flex items-center justify-center space-x-4 mb-4 w-full">
+            <img id="image-left" src="https://placehold.co/150x150/e2e8f0/a0aec0?text=Izquierda" alt="Imagen Izquierda" class="rounded-lg">
+            <video id="video-center" src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4" controls muted playsinline class="rounded-lg w-1/2"></video>
+            <img id="image-right" src="https://placehold.co/150x150/e2e8f0/a0aec0?text=Derecha" alt="Imagen Derecha" class="rounded-lg">
         </div>
-        
-        <div id="chat-history" class="bg-gray-50 p-4 rounded-lg h-64 overflow-y-auto mb-4">
-            <p class="text-gray-500 italic">Hola, sube y analiza tus archivos para empezar a chatear.</p>
-        </div>
-
-        <div class="flex items-center space-x-3">
-            <input type="text" id="user-input" placeholder="Pregunta sobre tus archivos..." class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500">
-            <button id="send-button" class="button p-3" disabled>
+        <div class="flex items-center justify-center space-x-4 mb-4 w-full">
+            <input type="text" id="user-input" placeholder="Ingresa tu pregunta..." class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1">
+            <button id="dictate-button" class="p-3 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors">
+                <i class="fas fa-microphone"></i>
+            </button>
+            <button id="send-button" class="button p-3 rounded-full">
                 <i class="fas fa-paper-plane"></i>
             </button>
         </div>
+        <div class="flex items-center justify-center space-x-4 mb-4 w-full">
+            <button id="export-button" class="button">Exportar</button>
+            <button id="silence-button" class="button button-red">Silenciar Voz</button>
+            <button id="clear-button" class="button">Limpiar</button>
+            <button id="new-session-button" class="button button-yellow">Nueva Sesión</button>
+            <button id="history-button" class="button">Ver Historial</button>
+        </div>
+        
     </div>
-</div>
-
-<!-- Modal de carga -->
-<div id="loading-modal" class="modal">
-    <div class="modal-content text-center">
-        <div class="loader ease-linear rounded-full border-4 border-t-4 border-gray-200 h-12 w-12 mb-4 mx-auto" style="border-top-color: #4f46e5;"></div>
-        <p class="text-gray-700 font-semibold">Analizando, por favor espera...</p>
-    </div>
-</div>
-
-<script>
-    const fileUploadBox = document.getElementById('file-upload-box');
-    const fileInput = document.getElementById('file-input');
-    const fileList = document.getElementById('file-list');
-    const analyzeButton = document.getElementById('analyze-button');
-    const chatBox = document.getElementById('chat-box');
-    const chatHistory = document.getElementById('chat-history');
-    const userInput = document.getElementById('user-input');
-    const sendButton = document.getElementById('send-button');
-    const loadingModal = document.getElementById('loading-modal');
-
-    let filesToAnalyze = [];
-
-    fileUploadBox.addEventListener('click', () => fileInput.click());
     
-    fileUploadBox.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        fileUploadBox.classList.add('drag-over');
-    });
+    <div class="content-area mt-4 w-full px-4">
+        <h2 class="text-xl font-semibold mb-2">Respuesta del Asistente</h2>
+        <div id="text-section" class="text-section h-64">
+            <p class="text-gray-500 italic">Aquí aparecerá el texto de la respuesta.</p>
+        </div>
 
-    fileUploadBox.addEventListener('dragleave', () => {
-        fileUploadBox.classList.remove('drag-over');
-    });
+        <h2 class="text-xl font-semibold mb-2 mt-4">Tablas y Listados</h2>
+        <div id="table-section" class="table-section h-64">
+            <p class="text-gray-500 italic">Aquí se mostrarán las tablas y listados.</p>
+        </div>
+    </div>
+    
+    <script>
+        const video = document.getElementById('video-center');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const dictateButton = document.getElementById('dictate-button');
+        const silenceButton = document.getElementById('silence-button');
+        const clearButton = document.getElementById('clear-button');
+        const newSessionButton = document.getElementById('new-session-button');
+        const exportButton = document.getElementById('export-button');
+        const historyButton = document.getElementById('history-button');
+        const textSection = document.getElementById('text-section');
+        const tableSection = document.getElementById('table-section');
 
-    fileUploadBox.addEventListener('drop', (e) => {
-        e.preventDefault();
-        fileUploadBox.classList.remove('drag-over');
-        handleFiles(e.dataTransfer.files);
-    });
+        let isVideoPlaying = false;
+        let isSpeaking = false;
+        let recognition;
+        let sessionData = []; // Para guardar el contexto de la sesión
 
-    fileInput.addEventListener('change', (e) => {
-        handleFiles(e.target.files);
-    });
-
-    function handleFiles(files) {
-        // Validación de tipo de archivo
-        const validFiles = Array.from(files).filter(file => {
-            const fileType = file.type;
-            return fileType === 'application/pdf' || fileType.includes('image/') || fileType === 'text/csv';
-        });
-
-        if (validFiles.length > 0) {
-            filesToAnalyze = filesToAnalyze.concat(validFiles);
-            updateFileList();
-            analyzeButton.disabled = false;
-        } else {
-            // No se admiten archivos que no sean PDF, CSV o imagen
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.innerHTML = `
-                <div class="modal-content text-center">
-                    <p class="text-gray-700 font-semibold">Por favor, sube solo archivos PDF, CSV, PNG, o JPG.</p>
-                    <button class="button mt-4" onclick="this.closest('.modal').style.display='none'">Cerrar</button>
-                </div>
-            `;
-            document.body.appendChild(modal);
-            modal.style.display = 'flex';
+        // Simula la conexión con el backend
+        async function getBackendResponse(prompt) {
+            // Aquí iría la lógica para enviar la pregunta y los archivos al backend
+            // El backend se comunicaría con GPT-5
+            return new Promise(resolve => setTimeout(() => {
+                const isTableRequest = prompt.toLowerCase().includes('tabla') || prompt.toLowerCase().includes('listado');
+                const responseText = isTableRequest ? "Aquí tienes la tabla que solicitaste." : "Esta es una respuesta de prueba a tu pregunta.";
+                const tableContent = isTableRequest ? `<table class="min-w-full divide-y divide-gray-200 mt-4"><thead><tr><th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th><th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Puntuación</th></tr></thead><tbody><tr><td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Juan</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">85</td></tr><tr><td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">María</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">92</td></tr></tbody></table>` : '';
+                resolve({ text: responseText, tables: tableContent });
+            }, 1500));
         }
-    }
 
-    function updateFileList() {
-        fileList.innerHTML = '';
-        filesToAnalyze.forEach((file, index) => {
-            const listItem = document.createElement('li');
-            listItem.className = 'file-list-item';
+        async function processPrompt(prompt) {
+            textSection.innerHTML = '<p class="italic text-gray-500">Analizando...</p>';
+            tableSection.innerHTML = '<p class="italic text-gray-500">Analizando...</p>';
             
-            const fileInfo = document.createElement('span');
-            fileInfo.textContent = file.name;
+            // Simula el análisis de la IA
+            const result = await getBackendResponse(prompt);
+            
+            // Mostrar la respuesta en la interfaz
+            textSection.innerHTML = `<p>${result.text}</p>`;
+            tableSection.innerHTML = result.tables;
 
-            const removeButton = document.createElement('button');
-            removeButton.innerHTML = '<i class="fas fa-times-circle text-red-500 hover:text-red-700"></i>';
-            removeButton.onclick = () => {
-                filesToAnalyze.splice(index, 1);
-                updateFileList();
+            // Almacenar en la memoria de la sesión
+            sessionData.push({ prompt, response: result.text, tables: result.tables });
+
+            // Iniciar la reproducción del video y la voz
+            video.play();
+            isVideoPlaying = true;
+            speak(result.text);
+
+            // Detener el video cuando la voz termine
+            window.speechSynthesis.onend = () => {
+                video.pause();
+                isVideoPlaying = false;
             };
+        }
 
-            listItem.appendChild(fileInfo);
-            listItem.appendChild(removeButton);
-            fileList.appendChild(listItem);
+        function speak(text) {
+            if (isSpeaking) {
+                window.speechSynthesis.cancel();
+            }
+            const utterance = new SpeechSynthesisUtterance(text);
+            const voices = window.speechSynthesis.getVoices();
+            const femaleVoice = voices.find(voice => voice.name.includes('es-MX') || voice.name.includes('es-EC') || voice.lang.includes('es') && voice.name.includes('Femenino'));
+            if (femaleVoice) {
+                utterance.voice = femaleVoice;
+            }
+            window.speechSynthesis.speak(utterance);
+            isSpeaking = true;
+        }
+
+        // Event Listeners para los botones
+        sendButton.addEventListener('click', () => {
+            const prompt = userInput.value.trim();
+            if (prompt) {
+                processPrompt(prompt);
+                userInput.value = '';
+            }
         });
-        if (filesToAnalyze.length === 0) {
-            analyzeButton.disabled = true;
-        }
-    }
-    
-    analyzeButton.addEventListener('click', async () => {
-        // Simulando el análisis (aquí iría la llamada al backend)
-        loadingModal.style.display = 'flex';
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Espera simulada
-        loadingModal.style.display = 'none';
 
-        fileUploadBox.classList.add('hidden');
-        fileList.classList.add('hidden');
-        analyzeButton.classList.add('hidden');
-        chatBox.classList.remove('hidden');
+        dictateButton.addEventListener('click', () => {
+            if (typeof SpeechRecognition !== 'undefined' || typeof webkitSpeechRecognition !== 'undefined') {
+                recognition = new (SpeechRecognition || webkitSpeechRecognition)();
+                recognition.lang = 'es-MX';
+                recognition.interimResults = false;
+                recognition.maxAlternatives = 1;
 
-        // Limpia y muestra un mensaje inicial del asistente
-        chatHistory.innerHTML = '<p class="text-gray-500 italic">¡Archivos listos para el análisis! ¿Qué te gustaría saber sobre ellos?</p>';
-        userInput.disabled = false;
-        sendButton.disabled = false;
-    });
+                dictateButton.classList.add('animate-pulse');
 
-    sendButton.addEventListener('click', () => {
-        const message = userInput.value.trim();
-        if (message) {
-            appendMessage('user', message);
+                recognition.start();
+
+                recognition.onresult = (event) => {
+                    const speechResult = event.results[0][0].transcript;
+                    userInput.value = speechResult;
+                    dictateButton.classList.remove('animate-pulse');
+                    processPrompt(speechResult);
+                };
+
+                recognition.onspeechend = () => {
+                    recognition.stop();
+                    dictateButton.classList.remove('animate-pulse');
+                };
+
+                recognition.onerror = (event) => {
+                    console.error('Error de reconocimiento de voz:', event.error);
+                    dictateButton.classList.remove('animate-pulse');
+                };
+            } else {
+                alert('El reconocimiento de voz no es soportado por este navegador.');
+            }
+        });
+        
+        silenceButton.addEventListener('click', () => {
+            if (isSpeaking) {
+                window.speechSynthesis.cancel();
+                isSpeaking = false;
+                video.pause();
+                isVideoPlaying = false;
+            }
+        });
+
+        clearButton.addEventListener('click', () => {
+            textSection.innerHTML = '<p class="text-gray-500 italic">Aquí aparecerá el texto de la respuesta.</p>';
+            tableSection.innerHTML = '<p class="text-gray-500 italic">Aquí se mostrarán las tablas y listados.</p>';
             userInput.value = '';
-            // Aquí iría la llamada al backend con la pregunta
-            appendMessage('assistant', 'Pensando en una respuesta...');
-        }
-    });
+        });
 
-    function appendMessage(sender, text) {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `p-3 rounded-lg max-w-lg mb-2 ${sender === 'user' ? 'bg-blue-500 text-white ml-auto' : 'bg-gray-200 text-gray-800'}`;
-        messageDiv.textContent = text;
-        chatHistory.appendChild(messageDiv);
-        chatHistory.scrollTop = chatHistory.scrollHeight;
-    }
-</script>
+        newSessionButton.addEventListener('click', () => {
+            sessionData = []; // Borra el contexto
+            clearButton.click(); // Usa la función del botón de limpiar
+            // Aquí se enviaría una solicitud al backend para borrar la sesión
+            alert("Nueva sesión iniciada. El contexto de la memoria ha sido borrado.");
+        });
 
+        historyButton.addEventListener('click', () => {
+            window.location.href = "histo.html";
+        });
+        
+        exportButton.addEventListener('click', () => {
+            // Lógica para exportar a PDF, DOC, o XLS
+            alert("La funcionalidad de exportar se encuentra en desarrollo.");
+        });
+
+        window.onload = () => {
+            window.speechSynthesis.getVoices();
+        };
+
+    </script>
 </body>
 </html>
