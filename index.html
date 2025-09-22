@@ -1,282 +1,701 @@
-<!DOCTYPE html>
+# Proyecto: csv-gpt-backend (RAÍZ)
+
+A continuación tienes **todos los archivos necesarios** ubicados en la **raíz del proyecto** (salvo la carpeta `api/` que es obligatoria para las funciones de Vercel). Copia/crea cada archivo tal como aparece aquí.
+
+---
+
+## 📄 `index.html`
+
+```html
+<!doctype html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asistente de Análisis de Datos</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <style>
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #ffffff;
-            color: #1a202c;
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-        .fixed-top {
-            position: sticky;
-            top: 0;
-            z-index: 10;
-            background-color: #ffffff;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-            padding: 1rem;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        .content-area {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            padding: 1rem;
-        }
-        .text-section, .table-section {
-            background-color: #f7fafc;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            overflow-y: auto;
-            border: 1px solid #e2e8f0;
-        }
-        .button {
-            background-color: #4f46e5;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            border-radius: 0.75rem;
-            font-weight: 600;
-            transition: background-color 0.2s;
-            cursor: pointer;
-        }
-        .button:hover {
-            background-color: #4338ca;
-        }
-        .button-red {
-            background-color: #ef4444;
-        }
-        .button-red:hover {
-            background-color: #dc2626;
-        }
-        .button-yellow {
-            background-color: #f59e0b;
-        }
-        .button-yellow:hover {
-            background-color: #d97706;
-        }
-        .input-area {
-            display: flex;
-            width: 100%;
-            margin-top: 1rem;
-            align-items: center;
-        }
-        .input-area input {
-            flex-grow: 1;
-        }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Lexium – Consulta de CSV/PDF con GPT-5</title>
+  <link rel="icon" href="data:," />
+  <style>
+    :root {
+      --bg: #ffffff;
+      --ink: #111827; /* zinc-900 */
+      --muted: #6b7280; /* gray-500 */
+      --accent: #2563eb; /* blue-600 */
+      --accent-2: #f59e0b; /* amber-500 */
+      --border: #e5e7eb; /* gray-200 */
+      --ok: #059669; /* emerald-600 */
+      --danger: #dc2626; /* red-600 */
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; background: var(--bg); color: var(--ink); font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Noto Sans', 'Helvetica Neue', Arial, "Apple Color Emoji", "Segoe UI Emoji"; }
+
+    /* Layout principal: header fijo + 2 zonas con scroll independiente */
+    .page { display: grid; grid-template-rows: auto 1fr 1fr; height: 100dvh; }
+
+    /* PRIMERA PARTE (fija arriba) */
+    header {
+      position: sticky; top: 0; z-index: 1000; background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 10px 12px;
+    }
+
+    .media-row {
+      display: grid; grid-template-columns: 1fr 2fr 1fr; gap: 10px; align-items: center; width: 100%;
+    }
+    .media-row img { width: 100%; height: 120px; object-fit: cover; border-radius: 12px; border: 1px solid var(--border); }
+    .media-row video { width: 100%; height: 120px; object-fit: cover; border-radius: 12px; border: none; }
+
+    .controls { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 8px; }
+    textarea { width: min(1100px, 98%); height: 70px; padding: 10px 12px; resize: vertical; border-radius: 12px; border: 1px solid var(--border); font-size: 15px; }
+    .btn { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); background: #fff; cursor: pointer; font-weight: 600; }
+    .btn:hover { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
+    .btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+    .btn.yellow { background: var(--accent-2); color: #111; border-color: var(--accent-2); }
+    .btn.danger { background: var(--danger); color: white; border-color: var(--danger); }
+    .btn.mic { font-size: 18px; padding: 12px 18px; }
+    select { padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); background: #fff; font-weight: 600; }
+
+    /* SEGUNDA y TERCERA PARTE (áreas scrolleables) */
+    main { display: grid; grid-template-rows: 1fr 1fr; height: 100%; }
+    .panel { padding: 12px; overflow-y: auto; }
+    .panel + .panel { border-top: 1px solid var(--border); }
+    .panel h2 { margin: 4px 0 10px; font-size: 16px; color: var(--muted); font-weight: 700; letter-spacing: 0.2px; }
+    .result { max-width: 1200px; margin: 0 auto; line-height: 1.55; font-size: 15px; }
+    .result p { margin: 0 0 10px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 13px; color: #111; background: #fafafa; border: 1px dashed var(--border); border-radius: 12px; padding: 10px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { border: 1px solid var(--border); padding: 6px 8px; text-align: left; }
+    th { background: #f8fafc; }
+  </style>
+  <!-- Export helpers -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
-<body class="bg-white">
-    <div class="fixed-top w-full">
-        <div class="flex items-center justify-center space-x-4 mb-4 w-full">
-            <!-- Se corrigió la ruta de las imágenes y el tamaño del video -->
-            <img id="image-left" src="left.png" alt="Imagen Izquierda" class="rounded-lg" onerror="this.src='https://placehold.co/150x150/e2e8f0/a0aec0?text=Izquierda'">
-            <video id="video-center" src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4" controls muted playsinline class="rounded-lg w-1/3"></video>
-            <img id="image-right" src="right.png" alt="Imagen Derecha" class="rounded-lg" onerror="this.src='https://placehold.co/150x150/e2e8f0/a0aec0?text=Derecha'">
-        </div>
-        <div class="flex items-center justify-center space-x-4 mb-4 w-full">
-            <input type="text" id="user-input" placeholder="Ingresa tu pregunta..." class="p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1">
-            <button id="dictate-button" class="p-3 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors">
-                <i class="fas fa-microphone"></i>
-            </button>
-            <button id="send-button" class="button p-3 rounded-full">
-                <i class="fas fa-paper-plane"></i>
-            </button>
-        </div>
-        <div class="flex items-center justify-center space-x-4 mb-4 w-full">
-            <button id="export-button" class="button">Exportar</button>
-            <button id="silence-button" class="button button-red">Silenciar Voz</button>
-            <button id="clear-button" class="button">Limpiar</button>
-            <button id="new-session-button" class="button button-yellow">Nueva Sesión</button>
-            <button id="history-button" class="button">Ver Historial</button>
-        </div>
-        
-    </div>
-    
-    <div class="content-area mt-4 w-full px-4">
-        <h2 class="text-xl font-semibold mb-2">Respuesta del Asistente</h2>
-        <div id="text-section" class="text-section h-64">
-            <p class="text-gray-500 italic">Aquí aparecerá el texto de la respuesta.</p>
-        </div>
+<body>
+  <div class="page">
+    <!-- PRIMERA PARTE: fijo arriba -->
+    <header>
+      <div class="media-row">
+        <img id="leftImg" alt="left" src="left.png" />
+        <video id="heroVideo" src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4" muted playsinline></video>
+        <img id="rightImg" alt="right" src="right.png" />
+      </div>
+      <div class="controls" style="margin-top:10px;">
+        <textarea id="question" placeholder="Escribe tu pregunta (o usa dictado)"></textarea>
+      </div>
+      <div class="controls">
+        <button id="sendBtn" class="btn primary">Enviar</button>
+        <button id="micBtn" class="btn mic">🎤 Dictado</button>
+        <select id="exportType">
+          <option value="pdf">PDF</option>
+          <option value="xlsx">XLSX</option>
+          <option value="doc">DOC</option>
+        </select>
+        <button id="exportBtn" class="btn">Exportar</button>
+        <button id="muteBtn" class="btn">🔇 Silenciar voz</button>
+        <button id="clearBtn" class="btn">🧹 Limpiar</button>
+        <button id="newSessionBtn" class="btn yellow">🆕 Nueva sesión</button>
+        <a class="btn" href="historial.html">📜 Historial</a>
+      </div>
+    </header>
 
-        <h2 class="text-xl font-semibold mb-2 mt-4">Tablas y Listados</h2>
-        <div id="table-section" class="table-section h-64">
-            <p class="text-gray-500 italic">Aquí se mostrarán las tablas y listados.</p>
-        </div>
-    </div>
-    
-    <script>
-        const video = document.getElementById('video-center');
-        const userInput = document.getElementById('user-input');
-        const sendButton = document.getElementById('send-button');
-        const dictateButton = document.getElementById('dictate-button');
-        const silenceButton = document.getElementById('silence-button');
-        const clearButton = document.getElementById('clear-button');
-        const newSessionButton = document.getElementById('new-session-button');
-        const exportButton = document.getElementById('export-button');
-        const historyButton = document.getElementById('history-button');
-        const textSection = document.getElementById('text-section');
-        const tableSection = document.getElementById('table-section');
+    <!-- SEGUNDA PARTE: texto -->
+    <main>
+      <section class="panel" id="textPanel">
+        <h2>Resultado (Texto e información general)</h2>
+        <div id="textOutput" class="result"></div>
+      </section>
 
-        let isVideoPlaying = false;
-        let isSpeaking = false;
-        let recognition;
-        let sessionData = []; // Para guardar el contexto de la sesión
+      <!-- TERCERA PARTE: tablas/listas -->
+      <section class="panel" id="tablePanel">
+        <h2>Listas / Tablas</h2>
+        <div id="tableOutput" class="result"></div>
+      </section>
+    </main>
+  </div>
 
-        // Simula la conexión con el backend
-        async function getBackendResponse(prompt) {
-            // Aquí iría la lógica para enviar la pregunta y los archivos al backend
-            // El backend se comunicaría con GPT-5
-            return new Promise(resolve => setTimeout(() => {
-                const isTableRequest = prompt.toLowerCase().includes('tabla') || prompt.toLowerCase().includes('listado');
-                const responseText = isTableRequest ? "Aquí tienes la tabla que solicitaste." : "Esta es una respuesta de prueba a tu pregunta.";
-                const tableContent = isTableRequest ? `<table class="min-w-full divide-y divide-gray-200 mt-4"><thead><tr><th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nombre</th><th class="px-6 py-3 bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Puntuación</th></tr></thead><tbody><tr><td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Juan</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">85</td></tr><tr><td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">María</td><td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">92</td></tr></tbody></table>` : '';
-                resolve({ text: responseText, tables: tableContent });
-            }, 1500));
-        }
+<script>
+(() => {
+  // ====== Estado de sesión ======
+  let sessionId = newSessionId();
+  let ttsEnabled = true; // control por botón "Silenciar voz"
+  let typing = false;     // para sincronizar con el video
 
-        async function processPrompt(prompt) {
-            textSection.innerHTML = '<p class="italic text-gray-500">Analizando...</p>';
-            tableSection.innerHTML = '<p class="italic text-gray-500">Analizando...</p>';
-            
-            // Simula el análisis de la IA
-            const result = await getBackendResponse(prompt);
-            
-            // Mostrar la respuesta en la interfaz
-            textSection.innerHTML = `<p>${result.text}</p>`;
-            tableSection.innerHTML = result.tables;
+  function newSessionId() {
+    return 'S-' + new Date().toISOString().replace(/[:.]/g,'-');
+  }
+  function saveEvent(type, payload) {
+    const key = 'lexium_sessions';
+    const data = JSON.parse(localStorage.getItem(key) || '{}');
+    if (!data[sessionId]) data[sessionId] = { createdAt: new Date().toISOString(), events: [] };
+    data[sessionId].events.push({ ts: new Date().toISOString(), type, payload });
+    localStorage.setItem(key, JSON.stringify(data));
+  }
 
-            // Almacenar en la memoria de la sesión
-            sessionData.push({ prompt, response: result.text, tables: result.tables });
+  // ====== Utilidades ======
+  const heroVideo = document.getElementById('heroVideo');
+  const questionEl = document.getElementById('question');
+  const textOutput = document.getElementById('textOutput');
+  const tableOutput = document.getElementById('tableOutput');
 
-            // Iniciar la reproducción del video y la voz
-            video.play();
-            isVideoPlaying = true;
-            speak(result.text);
+  function stripAsterisks(s) { return (s || '').replace(/\*/g, ''); }
 
-            // Detener el video cuando la voz termine
-            window.speechSynthesis.onend = () => {
-                video.pause();
-                isVideoPlaying = false;
-            };
-        }
+  function pickSpanishFemaleVoice() {
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || !voices.length) return null;
+    const preferred = [
+      // nombres comunes en navegadores
+      'Microsoft Sabina Online (Natural) - Spanish (Mexico)',
+      'Microsoft Dalia Online (Natural) - Spanish (Mexico)',
+      'Google español de Estados Unidos',
+      'Google español',
+      'Paulina', 'Lucia', 'Conchita', 'Camila', 'Lupe'
+    ];
+    // Preferir es-MX / es-
+    let candidate = voices.find(v => /es-|es_/.test(v.lang || '') && /female|mujer|woman/i.test(v.name));
+    if (candidate) return candidate;
+    for (const name of preferred) {
+      const v = voices.find(v => (v.name||'').includes(name));
+      if (v) return v;
+    }
+    return voices.find(v => (v.lang||'').startsWith('es')) || voices[0];
+  }
 
-        // Lógica de selección de voz mejorada para asegurar que siempre sea femenina
-        function speak(text) {
-            if (isSpeaking) {
-                window.speechSynthesis.cancel();
-            }
-            const utterance = new SpeechSynthesisUtterance(text);
-            const voices = window.speechSynthesis.getVoices();
-            
-            // Prioriza voces femeninas específicas en español de México/Ecuador
-            let femaleVoice = voices.find(voice => 
-                (voice.lang === 'es-MX' || voice.lang === 'es-EC') && voice.name.toLowerCase().includes('femenina') || voice.name.toLowerCase().includes('mujer')
-            );
+  function speak(text) {
+    if (!ttsEnabled) return Promise.resolve();
+    return new Promise((resolve) => {
+      const utter = new SpeechSynthesisUtterance((text||'').replace(/\*/g,''));
+      const setVoice = () => {
+        const voice = pickSpanishFemaleVoice();
+        if (voice) utter.voice = voice;
+        utter.lang = (voice && voice.lang) || 'es-MX';
+        utter.rate = 1; utter.pitch = 1; utter.volume = 1;
+        window.speechSynthesis.speak(utter);
+        heroVideo.play().catch(()=>{});
+      };
+      if (window.speechSynthesis.getVoices().length) setVoice();
+      else window.speechSynthesis.onvoiceschanged = setVoice;
+      utter.onend = () => { if (!typing) heroVideo.pause(); resolve(); };
+      utter.onerror = () => { if (!typing) heroVideo.pause(); resolve(); };
+    });
+  }
 
-            // Si no se encuentra una específica, busca una voz femenina en cualquier español
-            if (!femaleVoice) {
-                femaleVoice = voices.find(voice => 
-                    voice.lang.startsWith('es-') && (voice.name.toLowerCase().includes('femenina') || voice.name.toLowerCase().includes('female'))
-                );
-            }
+  async function typeInto(el, text, delay = 8) {
+    typing = true; heroVideo.play().catch(()=>{});
+    el.innerHTML = '';
+    for (let i = 0; i < text.length; i++) {
+      el.innerHTML += text[i] === '\n' ? '<br/>' : text[i];
+      if (i % 3 === 0) await new Promise(r => setTimeout(r, delay));
+    }
+    typing = false; heroVideo.pause();
+  }
 
-            if (femaleVoice) {
-                utterance.voice = femaleVoice;
-            } else {
-                console.warn("No se encontró una voz femenina en español. La respuesta podría no ser femenina.");
-            }
+  function renderTablesMarkdown(md) {
+    if (!md || !md.trim()) { tableOutput.innerHTML = ''; return; }
+    // Render muy simple: si contiene tablas markdown, conviértelas a HTML.
+    const blocks = md.split(/\n\n+/);
+    const htmlParts = blocks.map(block => {
+      if (/^\s*\|/.test(block) && /---/.test(block)) {
+        // Convertir markdown table a HTML
+        const lines = block.trim().split(/\n/);
+        const header = lines[0].split('|').slice(1,-1).map(s=>s.trim());
+        const sep = lines[1];
+        const rows = lines.slice(2).map(l => l.split('|').slice(1,-1).map(s => s.trim()));
+        const thead = '<thead><tr>' + header.map(h=>`<th>${h}</th>`).join('') + '</tr></thead>';
+        const tbody = '<tbody>' + rows.map(r=>'<tr>'+r.map(c=>`<td>${c}</td>`).join('')+'</tr>').join('') + '</tbody>';
+        return `<table>${thead}${tbody}</table>`;
+      }
+      // Listas numeradas horizontales simples
+      if (/^#\s*\d+/.test(block)) {
+        return `<div class="mono">${block.replace(/\n/g,'<br/>')}</div>`;
+      }
+      return `<p>${block.replace(/\n/g,'<br/>')}</p>`;
+    });
+    tableOutput.innerHTML = htmlParts.join('\n');
+  }
 
-            window.speechSynthesis.speak(utterance);
-            isSpeaking = true;
-        }
+  async function ask(question) {
+    const q = stripAsterisks(question||'').trim();
+    if (!q) return;
+    saveEvent('user_question', { q });
+    document.getElementById('sendBtn').disabled = true;
+    try {
+      // Mostrar progreso mínimo
+      await typeInto(textOutput, 'Procesando…');
 
-        // Event Listeners para los botones
-        sendButton.addEventListener('click', () => {
-            const prompt = userInput.value.trim();
-            if (prompt) {
-                processPrompt(prompt);
-                userInput.value = '';
-            }
+      const resp = await fetch('/api/ask', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q, sessionId })
+      });
+      if (!resp.ok) throw new Error('Error en API');
+      const data = await resp.json();
+
+      const texto = (data.texto || data.text || '').replace(/\*/g,'');
+      const tablas = (data.tablas_markdown || data.tables_markdown || '').replace(/\*/g,'');
+
+      await typeInto(textOutput, texto);
+      renderTablesMarkdown(tablas);
+      saveEvent('assistant_answer', { texto, tablas });
+
+      // Voz: hablar el texto (sin asteriscos)
+      await speak(texto);
+    } catch (e) {
+      const msg = 'Ocurrió un problema. Revisa la conexión o vuelve a intentar.';
+      await typeInto(textOutput, msg);
+    } finally {
+      document.getElementById('sendBtn').disabled = false;
+    }
+  }
+
+  // ====== Botones ======
+  document.getElementById('sendBtn').addEventListener('click', () => ask(questionEl.value));
+  questionEl.addEventListener('keydown', (e) => { if ((e.ctrlKey||e.metaKey) && e.key==='Enter') ask(questionEl.value); });
+  document.getElementById('clearBtn').addEventListener('click', () => { textOutput.innerHTML=''; tableOutput.innerHTML=''; saveEvent('clear',{}); });
+  document.getElementById('muteBtn').addEventListener('click', () => { ttsEnabled = !ttsEnabled; saveEvent('tts_toggle',{enabled: ttsEnabled}); });
+  document.getElementById('newSessionBtn').addEventListener('click', () => {
+    sessionId = newSessionId();
+    textOutput.innerHTML=''; tableOutput.innerHTML=''; questionEl.value='';
+    saveEvent('new_session', { sessionId });
+  });
+
+  // ====== Dictado ======
+  const micBtn = document.getElementById('micBtn');
+  let rec = null, listening = false;
+  function ensureRecognizer() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return null;
+    const r = new SR();
+    r.lang = 'es-MX';
+    r.interimResults = true; r.continuous = false;
+    return r;
+  }
+  micBtn.addEventListener('click', () => {
+    if (!rec) rec = ensureRecognizer();
+    if (!rec) { alert('Dictado no disponible en este navegador.'); return; }
+    if (!listening) {
+      rec.start(); listening = true; micBtn.classList.add('primary');
+      rec.onresult = (e) => {
+        const t = Array.from(e.results).map(r=>r[0].transcript).join(' ');
+        questionEl.value = (questionEl.value + ' ' + t).trim();
+      };
+      rec.onend = () => { listening = false; micBtn.classList.remove('primary'); };
+      rec.onerror = () => { listening = false; micBtn.classList.remove('primary'); };
+    } else {
+      rec.stop(); listening = false; micBtn.classList.remove('primary');
+    }
+  });
+
+  // ====== Exportar ======
+  document.getElementById('exportBtn').addEventListener('click', async () => {
+    const type = document.getElementById('exportType').value;
+    const container = document.createElement('div');
+    container.innerHTML = `
+      <h1>Sesión ${sessionId}</h1>
+      <h2>Pregunta</h2><div class="mono">${(questionEl.value||'').replace(/</g,'&lt;')}</div>
+      <h2>Resultado</h2><div>${textOutput.innerHTML}</div>
+      <h2>Listas / Tablas</h2><div>${tableOutput.innerHTML}</div>
+    `;
+
+    if (type === 'pdf') {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const padding = 16;
+      const canvas = await html2canvas(container, { scale: 2, windowWidth: 1000 });
+      const imgData = canvas.toDataURL('image/png');
+      const imgProps = pdf.getImageProperties(imgData);
+      const ratio = Math.min((pageWidth - padding*2) / imgProps.width, 1);
+      const imgHeight = imgProps.height * ratio;
+      pdf.addImage(imgData, 'PNG', padding, padding, imgProps.width*ratio, imgHeight);
+      pdf.save(`sesion-${sessionId}.pdf`);
+    } else if (type === 'xlsx') {
+      const wb = XLSX.utils.book_new();
+      // Hoja 1: Texto (plano)
+      const texto = textOutput.innerText || '';
+      const wsTexto = XLSX.utils.aoa_to_sheet([[`Sesión ${sessionId}`], ['Resultado'], [texto]]);
+      XLSX.utils.book_append_sheet(wb, wsTexto, 'Texto');
+      // Hoja 2..n: Cada tabla HTML a sheet
+      const tables = Array.from(tableOutput.querySelectorAll('table'));
+      if (!tables.length) {
+        const ws = XLSX.utils.aoa_to_sheet([["No hay tablas"]]);
+        XLSX.utils.book_append_sheet(wb, ws, 'Tablas');
+      } else {
+        tables.forEach((tbl, idx) => {
+          const rows = Array.from(tbl.querySelectorAll('tr')).map(tr => Array.from(tr.children).map(td => td.innerText));
+          const ws = XLSX.utils.aoa_to_sheet(rows);
+          XLSX.utils.book_append_sheet(wb, ws, `Tabla_${idx+1}`);
         });
-
-        dictateButton.addEventListener('click', () => {
-            if (typeof SpeechRecognition !== 'undefined' || typeof webkitSpeechRecognition !== 'undefined') {
-                recognition = new (SpeechRecognition || webkitSpeechRecognition)();
-                recognition.lang = 'es-MX';
-                recognition.interimResults = false;
-                recognition.maxAlternatives = 1;
-
-                dictateButton.classList.add('animate-pulse');
-
-                recognition.start();
-
-                recognition.onresult = (event) => {
-                    const speechResult = event.results[0][0].transcript;
-                    userInput.value = speechResult;
-                    dictateButton.classList.remove('animate-pulse');
-                    processPrompt(speechResult);
-                };
-
-                recognition.onspeechend = () => {
-                    recognition.stop();
-                    dictateButton.classList.remove('animate-pulse');
-                };
-
-                recognition.onerror = (event) => {
-                    console.error('Error de reconocimiento de voz:', event.error);
-                    dictateButton.classList.remove('animate-pulse');
-                };
-            } else {
-                alert('El reconocimiento de voz no es soportado por este navegador.');
-            }
-        });
-        
-        silenceButton.addEventListener('click', () => {
-            if (isSpeaking) {
-                window.speechSynthesis.cancel();
-                isSpeaking = false;
-                video.pause();
-                isVideoPlaying = false;
-            }
-        });
-
-        clearButton.addEventListener('click', () => {
-            textSection.innerHTML = '<p class="text-gray-500 italic">Aquí aparecerá el texto de la respuesta.</p>';
-            tableSection.innerHTML = '<p class="text-gray-500 italic">Aquí se mostrarán las tablas y listados.</p>';
-            userInput.value = '';
-        });
-
-        newSessionButton.addEventListener('click', () => {
-            sessionData = []; // Borra el contexto
-            clearButton.click(); // Usa la función del botón de limpiar
-            // Aquí se enviaría una solicitud al backend para borrar la sesión
-            alert("Nueva sesión iniciada. El contexto de la memoria ha sido borrado.");
-        });
-
-        historyButton.addEventListener('click', () => {
-            window.location.href = "histo.html";
-        });
-        
-        exportButton.addEventListener('click', () => {
-            // Lógica para exportar a PDF, DOC, o XLS
-            alert("La funcionalidad de exportar se encuentra en desarrollo.");
-        });
-
-        window.onload = () => {
-            window.speechSynthesis.getVoices();
-        };
-
-    </script>
+      }
+      XLSX.writeFile(wb, `sesion-${sessionId}.xlsx`);
+    } else {
+      // DOC simple (HTML) desde primera línea
+      const blob = new Blob([
+        `<!doctype html><html><head><meta charset='utf-8'></head><body>${container.innerHTML}</body></html>`
+      ], { type: 'application/msword' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `sesion-${sessionId}.doc`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    }
+    saveEvent('export', { type });
+  });
+})();
+</script>
 </body>
 </html>
+```
+
+---
+
+## 📄 `historial.html`
+
+```html
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Historial de Sesiones – Lexium</title>
+  <style>
+    body { margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Noto Sans', 'Helvetica Neue', Arial; background: #fff; color: #111; }
+    header { position: sticky; top: 0; background: #fff; border-bottom: 1px solid #e5e7eb; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; }
+    main { padding: 12px; max-width: 1100px; margin: 0 auto; }
+    .card { border: 1px solid #e5e7eb; border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 13px; background: #fafafa; border: 1px dashed #e5e7eb; border-radius: 12px; padding: 10px; }
+    a.btn { padding: 8px 12px; border: 1px solid #e5e7eb; border-radius: 10px; text-decoration: none; color: #111; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>📜 Historial de sesiones</h1>
+    <a class="btn" href="index.html">↩ Volver</a>
+  </header>
+  <main>
+    <div id="list"></div>
+  </main>
+<script>
+(function(){
+  const key = 'lexium_sessions';
+  const data = JSON.parse(localStorage.getItem(key) || '{}');
+  const list = document.getElementById('list');
+  const ids = Object.keys(data).sort();
+  if (!ids.length) { list.innerHTML = '<p>No hay sesiones guardadas.</p>'; return; }
+  ids.forEach(id => {
+    const s = data[id];
+    const card = document.createElement('div'); card.className = 'card';
+    const btn = document.createElement('button'); btn.textContent = 'Mostrar/ocultar'; btn.style.marginBottom='6px';
+    const content = document.createElement('div'); content.style.display='none';
+
+    const eventsHtml = s.events.map(ev => `
+      <details>
+        <summary><strong>${ev.type}</strong> – <small>${ev.ts}</small></summary>
+        <pre class="mono">${(JSON.stringify(ev.payload, null, 2)).replace(/[&<>]/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]))}</pre>
+      </details>
+    `).join('');
+
+    content.innerHTML = `
+      <div><strong>Creada:</strong> ${s.createdAt}</div>
+      <div><strong>Sesión:</strong> ${id}</div>
+      <hr/>
+      ${eventsHtml}
+    `;
+
+    btn.onclick = () => { content.style.display = content.style.display==='none' ? 'block' : 'none'; };
+
+    card.innerHTML = `<h3>Sesión ${id}</h3>`;
+    card.appendChild(btn); card.appendChild(content);
+    list.appendChild(card);
+  });
+})();
+</script>
+</body>
+</html>
+```
+
+---
+
+## 📄 `api/ask.js`
+
+```js
+// Node 20+ en Vercel. Función Serverless en /api/ask
+// Estricto: usa GPT-5 (configurable por env OPENAI_MODEL)
+
+import OpenAI from 'openai';
+import fs from 'fs/promises';
+import path from 'path';
+import pdfParse from 'pdf-parse';
+import { parse as parseCsv } from 'csv-parse/sync';
+
+const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const MODEL = process.env.OPENAI_MODEL || 'gpt-5.1'; // Ajusta si tu cuenta usa otro alias
+
+let CACHE = null; // cache simple en caliente de Lambda
+
+async function readMaybeLocal(file) {
+  try {
+    const p = path.join(process.cwd(), file);
+    const buf = await fs.readFile(p);
+    return buf;
+  } catch { return null; }
+}
+
+async function fetchAsBuffer(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('No se pudo descargar: ' + url);
+  const ab = await res.arrayBuffer();
+  return Buffer.from(ab);
+}
+
+async function loadSources() {
+  if (CACHE) return CACHE;
+
+  const csvFile = process.env.CSV_FILE || 'decimo.csv';
+  const csvURL  = process.env.CSV_URL  || '';
+  const pdfFiles = (process.env.PDF_FILES || 'emocionales.pdf,lexium.pdf,evaluaciones.pdf')
+    .split(',').map(s => s.trim()).filter(Boolean);
+  const pdfURLs = (process.env.PDF_URLS || '').split(',').map(s => s.trim()).filter(Boolean);
+
+  // CSV
+  let csvBuf = await readMaybeLocal(csvFile);
+  if (!csvBuf && csvURL) csvBuf = await fetchAsBuffer(csvURL);
+  let csvRaw = '';
+  let csvRows = [];
+  if (csvBuf) {
+    csvRaw = csvBuf.toString('utf8');
+    try {
+      csvRows = parseCsv(csvRaw, { columns: true, skip_empty_lines: true });
+    } catch (e) {
+      // Intentar con ; como separador
+      csvRows = parseCsv(csvRaw, { columns: true, skip_empty_lines: true, delimiter: ';' });
+    }
+  }
+
+  // PDFs
+  const pdfTexts = [];
+  // Primero intentar locales
+  for (const f of pdfFiles) {
+    const buf = await readMaybeLocal(f);
+    if (buf) {
+      const data = await pdfParse(buf);
+      pdfTexts.push(`# ${f}\n` + (data.text || ''));
+    }
+  }
+  // Luego URLs si faltan
+  for (const url of pdfURLs) {
+    if (!url) continue;
+    const buf = await fetchAsBuffer(url);
+    const data = await pdfParse(buf);
+    pdfTexts.push(`# ${url}\n` + (data.text || ''));
+  }
+
+  CACHE = { csvRaw, csvRows, pdfText: pdfTexts.join('\n\n---\n\n') };
+  return CACHE;
+}
+
+function buildSystemPrompt() {
+  return `Eres una analista senior (voz femenina, español Ecuador/México). Reglas duras:
+- Responde SIEMPRE en español neutral latino (MX/EC). No uses asteriscos.
+- NO digas frases del tipo "Según el CSV..." ni "No puedo realizar...". Si falta dato, deduce con lo disponible y explica brevemente.
+- Obedece órdenes de ordenamiento/filtrado exactamente.
+- Realiza cálculos psicométricos, promedios, razonamientos numéricos/lógicos, regresiones/progresiones y estadísticas cuando se pidan.
+- Cuando el usuario pida listas/listados/tablas de estudiantes, entrega TABLAS en formato Markdown (cabeceras y filas numeradas). Nombres y puntuaciones en horizontal según columnas solicitadas.
+- Separa SIEMPRE tu salida en dos campos JSON: { "texto": string, "tablas_markdown": string }.
+- Nada de prefacios; SOLO devuelve JSON válido.\n`;
+}
+
+function buildUserPrompt(question, csvRaw, csvRows, pdfText) {
+  // Reducir csv si es extremadamente grande (evitar rebasar tokens)
+  let csvSnippet = csvRaw;
+  if (csvRaw && csvRaw.length > 250_000) csvSnippet = csvRaw.slice(0, 250_000);
+
+  // Unir todo el contexto
+  return `PREGUNTA: ${question}\n\nCONTEXTOS DISPONIBLES:\n- CSV (decimo):\n${csvSnippet}\n\n- PDFs (emocionales/lexium/evaluaciones):\n${pdfText}\n\nINSTRUCCIONES DE FORMATO:\nDevuelve SOLO un JSON con esta forma exacta:\n{\n  "texto": "explicación en español sin asteriscos, cumpliendo filtros/ordenes, con cálculos cuando aplique",\n  "tablas_markdown": "si se pidieron listas/tablas, entrega tablas Markdown; de lo contrario, cadena vacía"\n}`;
+}
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') { res.status(405).json({ error: 'Método no permitido' }); return; }
+  try {
+    const { question = '', sessionId = '' } = await req.json?.() || req.body || {};
+    const q = String(question || '').replace(/\*/g,'').trim();
+    if (!q) return res.status(400).json({ error: 'Pregunta vacía' });
+
+    const { csvRaw, csvRows, pdfText } = await loadSources();
+
+    const messages = [
+      { role: 'system', content: buildSystemPrompt() },
+      { role: 'user', content: buildUserPrompt(q, csvRaw, csvRows, pdfText) }
+    ];
+
+    // Chat Completions clásico (JSON estricto)
+    const completion = await client.chat.completions.create({
+      model: MODEL,
+      messages,
+      temperature: 0.2,
+      response_format: { type: 'json_object' }
+    });
+
+    const raw = completion.choices?.[0]?.message?.content || '{}';
+    let parsed = {};
+    try { parsed = JSON.parse(raw); }
+    catch { parsed = { texto: raw, tablas_markdown: '' }; }
+
+    // Sanear asteriscos por última vez
+    const safe = {
+      texto: String(parsed.texto || parsed.text || '').replace(/\*/g,''),
+      tablas_markdown: String(parsed.tablas_markdown || parsed.tables_markdown || '').replace(/\*/g,'')
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.status(200).end(JSON.stringify(safe));
+  } catch (err) {
+    res.status(200).json({ texto: 'Ocurrió un problema procesando la consulta. Intenta nuevamente o verifica los archivos.', tablas_markdown: '' });
+  }
+}
+```
+
+---
+
+## 📄 `.env.example`
+
+```bash
+# Reemplaza y renombra a .env.local en Vercel (Project Settings → Environment Variables)
+OPENAI_API_KEY=tu_api_key_de_openai
+OPENAI_MODEL=gpt-5.1
+
+# Si dejas los archivos en la RAÍZ del proyecto, no necesitas URLs.
+# Nombres por defecto que buscará la función:
+CSV_FILE=decimo.csv
+PDF_FILES=emocionales.pdf,lexium.pdf,evaluaciones.pdf
+
+# Alternativa (si prefieres alojarlos en GitHub u otra URL RAW):
+# CSV_URL=https://raw.githubusercontent.com/usuario/repo/main/decimo.csv
+# PDF_URLS=https://.../emocionales.pdf,https://.../lexium.pdf,https://.../evaluaciones.pdf
+```
+
+---
+
+## 📄 `package.json`
+
+```json
+{
+  "name": "csv-gpt-backend",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "vercel dev --listen 3000",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "csv-parse": "^5.5.6",
+    "openai": "^4.55.0",
+    "pdf-parse": "^1.1.1"
+  }
+}
+```
+
+---
+
+## 📄 `vercel.json`
+
+```json
+{
+  "cleanUrls": true,
+  "trailingSlash": false,
+  "headers": [
+    { "source": "/api/(.*)", "headers": [
+      { "key": "Access-Control-Allow-Origin", "value": "*" },
+      { "key": "Access-Control-Allow-Methods", "value": "GET,POST,OPTIONS" },
+      { "key": "Access-Control-Allow-Headers", "value": "Content-Type, Authorization" }
+    ]}
+  ],
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" }
+  ]
+}
+```
+
+---
+
+## 📄 `.gitignore`
+
+```gitignore
+# Node
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store
+
+# Vercel
+.vercel
+.env
+.env.*
+```
+
+---
+
+## ✅ Pasos para dejarlo operativo (RAÍZ)
+
+1. **Crea/organiza archivos en la raíz** tal como arriba. Asegúrate de que existan (si los tienes locales):
+
+   * `decimo.csv`
+   * `emocionales.pdf`, `lexium.pdf`, `evaluaciones.pdf`
+   * `left.png`, `right.png`
+   * Si prefieres alojarlos en GitHub, elimina los locales y define las variables `CSV_URL` y `PDF_URLS` en Vercel.
+
+2. **Configura variables en Vercel** (Project → Settings → Environment Variables):
+
+   * `OPENAI_API_KEY` = tu llave.
+   * (Opcional) `OPENAI_MODEL` = `gpt-5.1`.
+   * (Opcional) `CSV_FILE`, `PDF_FILES` o `CSV_URL`, `PDF_URLS`.
+
+3. **Instala dependencias localmente** (solo si vas a probar con `vercel dev`):
+
+   ```bash
+   npm i
+   ```
+
+4. **Despliega**:
+
+   * Con la CLI: `vercel` → `vercel --prod`
+   * O conecta el repo a Vercel y haz *Deploy*.
+
+5. **Prueba en producción**: abre `https://csv-gpt-backend.vercel.app/`.
+
+6. **Uso**:
+
+   * Escribe o dicta una pregunta (la app ignora asteriscos).
+   * La respuesta hablará con **voz femenina** en español (MX/EC) y reproducirá el video mientras habla.
+   * El texto aparece en la **parte 2** (scroll), y si hay **tablas/listados** en la **parte 3**.
+   * Puedes **Exportar** a PDF/XLSX/DOC todo el contenido de la sesión.
+   * **Nueva sesión** (botón amarillo) borra el contexto en el navegador y crea un nuevo `sessionId`.
+   * **Historial** muestra sesiones guardadas en `localStorage` (lado cliente).
+
+7. **Notas**:
+
+   * Si te daba 404 antes, al tener **todo en raíz** y `api/ask.js` dentro de `/api/` (obligatorio de Vercel), no debería ocurrir.
+   * Si un PDF/CSV es muy grande, el backend recorta un *snippet* para evitar límites de tokens, pero mantiene lo esencial. Puedes ajustar el límite en `api/ask.js`.
+   * Si deseas forzar **solo GPT‑5**, asegúrate de que tu cuenta tenga acceso y define `OPENAI_MODEL=gpt-5.1`.
+
+---
+
+## 🧪 Verificación rápida
+
+* **Video** se reproduce cuando empieza la locución y se **pausa** al terminar de escribir/hablar.
+* **Dictado** funciona en Chrome y navegadores con Web Speech API.
+* **Exportación** genera archivos que empiezan desde la **primera línea** del documento generado.
+* **Tablas**: si la respuesta incluye tablas Markdown (`| Col | ... |`), se renderizan abajo como HTML.
+
+---
+
+## 🚀 Extensiones futuras (opcionales)
+
+* Persistencia de sesiones en **Vercel KV** o **Postgres** (en lugar de `localStorage`).
+* Carga de múltiples CSV/PDF dinámicamente con un selector.
+* Panel de **filtros/sorting** en el cliente para reordenar tablas sin volver a preguntar.
+
+```
+```
