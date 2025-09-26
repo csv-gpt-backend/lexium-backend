@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lexium Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f9;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+    }
+
+    header {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 20px;
+      background-color: #004aad;
+      color: white;
+    }
+
+    header img {
+      height: 50px;
+    }
+
+    main {
+      max-width: 900px;
+      width: 90%;
+      margin: 20px auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      text-align: center;
+      color: #004aad;
+    }
+
+    textarea {
+      width: 100%;
+      height: 80px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      resize: none;
+      font-size: 14px;
+    }
+
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background-color: #004aad;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #003080;
+    }
+
+    #resultado {
+      margin-top: 20px;
+      padding: 15px;
+      background: #f8f9fa;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      min-height: 80px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+      font-size: 14px;
+    }
+
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #004aad;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="left.png" alt="Logo Izquierdo" />
+    <h2>Lexium Demo</h2>
+    <img src="right.png" alt="Logo Derecho" />
+  </header>
+
+  <main>
+    <h1>Consulta de Datos</h1>
+    <textarea id="pregunta" placeholder="Escribe tu consulta aquí..."></textarea>
+    <button onclick="consultar()">Enviar</button>
+
+    <div id="resultado">Esperando consulta...</div>
+  </main>
+
+  <script>
+    const API_URL = "https://lexium-api-383217514425.southamerica-west1.run.app/api/answer";
+
+    async function consultar() {
+      const pregunta = document.getElementById('pregunta').value.trim();
+      const resultado = document.getElementById('resultado');
+
+      if (!pregunta) {
+        resultado.innerHTML = "<span style='color:red;'>Por favor escribe una pregunta.</span>";
+        return;
+      }
+
+      resultado.innerHTML = "Procesando tu consulta... ⏳";
+
+      try {
+        const response = await fetch(`${API_URL}?q=${encodeURIComponent(pregunta)}`);
+        const data = await response.json();
+
+        if (!data.ok) {
+          resultado.innerHTML = `<span style='color:red;'>Error: ${data.error || 'Error desconocido'}</span>`;
+          return;
+        }
+
+        // Mostrar texto general
+        let html = `<p>${data.answer.general || 'Sin resumen disponible'}</p>`;
+
+        // Mostrar tablas
+        if (data.answer.tables && data.answer.tables.length > 0) {
+          data.answer.tables.forEach(table => {
+            html += `<h3>${table.title}</h3>`;
+            html += "<table><thead><tr>";
+            table.columns.forEach(col => html += `<th>${col}</th>`);
+            html += "</tr></thead><tbody>";
+            table.rows.forEach(row => {
+              html += "<tr>";
+              row.forEach(cell => html += `<td>${cell}</td>`);
+              html += "</tr>";
+            });
+            html += "</tbody></table>";
+          });
+        }
+
+        resultado.innerHTML = html;
+
+      } catch (err) {
+        resultado.innerHTML = `<span style='color:red;'>Error de conexión: ${err.message}</span>`;
+      }
+    }
+  </script>
+</body>
+</html>
