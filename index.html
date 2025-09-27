@@ -1,167 +1,332 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LLexium Demo</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Consulta de Datos</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background-color: #f4f6f9;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: flex-start;
-      min-height: 100vh;
+    :root{
+      --bg:#f6f8fb;
+      --card:#ffffff;
+      --primary:#0b57d0;
+      --text:#0b1530;
+      --muted:#667085;
+      --ok:#127c48;
+      --err:#d92d20;
+      --table:#e6ebf5;
     }
-
-    header {
-      width: 100%;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 20px;
-      background-color: #004aad;
-      color: white;
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Ubuntu,Helvetica,Arial,sans-serif;
+      background:var(--bg);
+      color:var(--text);
+      line-height:1.5;
     }
-
-    header img {
-      height: 50px;
+    .wrap{
+      max-width:1100px;
+      margin:32px auto 64px;
+      padding:0 16px;
     }
-
-    main {
-      max-width: 900px;
-      width: 90%;
-      margin: 20px auto;
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    h1{
+      font-size:clamp(24px,3.5vw,38px);
+      line-height:1.2;
+      margin:0 0 24px;
+      color:#0b3ea8;
+      text-align:center;
     }
-
-    h1 {
-      text-align: center;
-      color: #004aad;
+    .card{
+      background:var(--card);
+      border-radius:14px;
+      box-shadow:0 8px 24px rgba(16,24,40,.06);
+      padding:20px;
+      margin-bottom:18px;
     }
-
-    textarea {
-      width: 100%;
-      height: 80px;
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      resize: none;
-      font-size: 14px;
+    label{display:block;margin:0 0 8px;font-weight:600;color:var(--muted)}
+    textarea{
+      width:100%;
+      min-height:140px;
+      resize:vertical;
+      padding:14px 12px;
+      border:1px solid #d0d5dd;
+      border-radius:10px;
+      font-size:15px;
+      outline:none;
+      background:#fff;
     }
-
-    button {
-      margin-top: 10px;
-      padding: 10px 20px;
-      background-color: #004aad;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
+    .row{
+      display:flex;
+      gap:10px;
+      flex-wrap:wrap;
+      align-items:center;
+      margin-top:12px;
     }
-
-    button:hover {
-      background-color: #003080;
+    button{
+      appearance:none;
+      border:0;
+      background:var(--primary);
+      color:#fff;
+      padding:10px 16px;
+      border-radius:10px;
+      font-size:15px;
+      cursor:pointer;
+      transition:filter .15s ease, transform .02s ease;
     }
-
-    #resultado {
-      margin-top: 20px;
-      padding: 15px;
-      background: #f8f9fa;
-      border: 1px solid #ccc;
-      border-radius: 5px;
-      min-height: 80px;
+    button.secondary{
+      background:#eef2ff;
+      color:#2c4cff;
     }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-      font-size: 14px;
+    button:active{transform:translateY(1px)}
+    .note{font-size:13px;color:var(--muted)}
+    .status{
+      margin-top:8px;
+      font-size:14px;
     }
-
-    th, td {
-      border: 1px solid #ddd;
-      padding: 8px;
-      text-align: left;
+    .status.ok{color:var(--ok)}
+    .status.err{color:var(--err)}
+    .out{
+      min-height:120px;
+      white-space:pre-wrap;
     }
-
-    th {
-      background-color: #004aad;
-      color: white;
+    .section-title{
+      font-size:18px;
+      font-weight:700;
+      margin:18px 0 8px;
     }
+    /* listas */
+    .list-block{margin:12px 0}
+    .list-block h4{margin:0 0 6px}
+    .list-block ol{
+      padding-left:20px;
+      margin:6px 0 0;
+    }
+    /* tablas */
+    table{
+      border-collapse:collapse;
+      width:100%;
+      margin:8px 0 18px;
+      background:#fff;
+      border-radius:10px;
+      overflow:hidden;
+      border:1px solid #e4e7ec;
+    }
+    thead th{
+      background:var(--table);
+      color:#1f2a44;
+      font-weight:700;
+      font-size:14px;
+      padding:10px;
+      text-align:left;
+      border-bottom:1px solid #dce3f1;
+    }
+    tbody td{
+      padding:10px;
+      border-bottom:1px solid #eef1f6;
+      font-size:14px;
+    }
+    .loading{
+      display:inline-flex;
+      gap:10px;
+      align-items:center;
+      color:var(--muted);
+      font-size:14px;
+    }
+    .dot{width:8px;height:8px;border-radius:999px;background:#9aa7c7;box-shadow:16px 0 0 #9aa7c7,32px 0 0 #9aa7c7;animation:blink 1.2s infinite}
+    @keyframes blink{0%{opacity:.2}50%{opacity:1}100%{opacity:.2}}
+    .footer{margin-top:12px;color:var(--muted);font-size:12px;text-align:center}
   </style>
 </head>
 <body>
-  <header>
-    <img src="left.png" alt="Logo Izquierdo" />
-    <h2>Lexium Demo</h2>
-    <img src="right.png" alt="Logo Derecho" />
-  </header>
-
-  <main>
+  <div class="wrap">
     <h1>Consulta de Datos</h1>
-    <textarea id="pregunta" placeholder="Escribe tu consulta aquí..."></textarea>
-    <button onclick="consultar()">Enviar</button>
 
-    <div id="resultado">Esperando consulta...</div>
-  </main>
+    <div class="card">
+      <label for="pregunta">Escribe tu pregunta</label>
+      <textarea id="pregunta" placeholder="Ejemplos:
+- lista de estudiantes
+- promedio de AUTOESTIMA
+- compara la MEDIANA de TENSION entre A y B"></textarea>
+
+      <div class="row">
+        <button id="btnEnviar">Enviar</button>
+        <button id="btnLimpiar" class="secondary">Limpiar</button>
+        <span class="note">El resultado puede incluir texto, listas numeradas y tablas.</span>
+      </div>
+
+      <div id="status" class="status"></div>
+    </div>
+
+    <div class="card">
+      <div class="section-title">Respuesta</div>
+      <div id="general" class="out"></div>
+      <div id="listas"></div>
+      <div id="tablas"></div>
+    </div>
+
+    <div class="footer">Frontend mínimo para tu backend de Cloud Run · Soporta esquemas de respuesta con/ sin <code>answer</code>.</div>
+  </div>
 
   <script>
-    const API_URL = "https://lexium-api-383217514425.southamerica-west1.run.app/api/answer";
+    // === CONFIG ===
+    const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
+
+    // === UI refs ===
+    const $q = document.getElementById("pregunta");
+    const $enviar = document.getElementById("btnEnviar");
+    const $limpiar = document.getElementById("btnLimpiar");
+    const $status = document.getElementById("status");
+    const $out = document.getElementById("general");
+    const $listas = document.getElementById("listas");
+    const $tablas = document.getElementById("tablas");
+
+    function setStatus(text, kind="") {
+      $status.className = `status ${kind}`;
+      $status.textContent = text || "";
+    }
+
+    function clearOutput() {
+      $out.textContent = "";
+      $listas.innerHTML = "";
+      $tablas.innerHTML = "";
+      setStatus("");
+    }
+
+    function loadingOn() {
+      setStatus("");
+      $status.innerHTML = `<span class="loading"><span class="dot"></span>Procesando…</span>`;
+      $enviar.disabled = true;
+      $limpiar.disabled = true;
+    }
+
+    function loadingOff() {
+      $enviar.disabled = false;
+      $limpiar.disabled = false;
+    }
+
+    function withTimeout(ms, promise) {
+      let t;
+      const timeout = new Promise((_, rej) => t = setTimeout(() => rej(new Error("Tiempo de espera agotado")), ms));
+      return Promise.race([promise.finally(() => clearTimeout(t)), timeout]);
+    }
+
+    function normalizePayload(data) {
+      // Soporta: {answer:{general,lists,tables}} o {general,lists,tables}
+      return data?.answer ?? data ?? {};
+    }
+
+    function renderGeneral(text) {
+      $out.textContent = text ?? "Sin texto de respuesta.";
+    }
+
+    function renderListas(lists = []) {
+      $listas.innerHTML = "";
+      for (const block of lists) {
+        const wrap = document.createElement("div");
+        wrap.className = "list-block";
+        const h = document.createElement("h4");
+        h.textContent = block?.title ?? "Lista";
+        wrap.appendChild(h);
+        const ol = document.createElement("ol");
+        // Numeramos desde 1: el <ol> ya lo hace, pero por si quieres prefijo explícito usa li.textContent = `${i+1}. ${item}`
+        for (const item of block?.items ?? []) {
+          const li = document.createElement("li");
+          li.textContent = item;
+          ol.appendChild(li);
+        }
+        wrap.appendChild(ol);
+        $listas.appendChild(wrap);
+      }
+    }
+
+    function renderTablas(tables = []) {
+      $tablas.innerHTML = "";
+      for (const tbl of tables) {
+        const h = document.createElement("h4");
+        h.textContent = tbl?.title ?? "Tabla";
+        $tablas.appendChild(h);
+
+        const table = document.createElement("table");
+        const thead = document.createElement("thead");
+        const trh = document.createElement("tr");
+
+        for (const c of tbl?.columns ?? []) {
+          const th = document.createElement("th");
+          th.textContent = c;
+          trh.appendChild(th);
+        }
+        thead.appendChild(trh);
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        for (const row of tbl?.rows ?? []) {
+          const tr = document.createElement("tr");
+          for (const cell of row) {
+            const td = document.createElement("td");
+            td.textContent = cell;
+            tr.appendChild(td);
+          }
+          tbody.appendChild(tr);
+        }
+        table.appendChild(tbody);
+        $tablas.appendChild(table);
+      }
+    }
 
     async function consultar() {
-      const pregunta = document.getElementById('pregunta').value.trim();
-      const resultado = document.getElementById('resultado');
-
-      if (!pregunta) {
-        resultado.innerHTML = "<span style='color:red;'>Por favor escribe una pregunta.</span>";
+      const q = $q.value.trim();
+      if (!q) {
+        setStatus("Escribe una consulta primero.", "err");
         return;
       }
 
-      resultado.innerHTML = "Procesando tu consulta... ⏳";
+      clearOutput();
+      loadingOn();
 
       try {
-        const response = await fetch(`${API_URL}?q=${encodeURIComponent(pregunta)}`);
-        const data = await response.json();
+        const url = `${API_BASE}/api/answer?q=${encodeURIComponent(q)}`;
+        const res = await withTimeout(
+          90000, // 90s defensivo
+          fetch(url, { headers: { "Accept": "application/json" }})
+        );
 
-        if (!data.ok) {
-          resultado.innerHTML = `<span style='color:red;'>Error: ${data.error || 'Error desconocido'}</span>`;
+        // Puede devolver JSON o texto plano
+        const text = await res.text();
+        let data;
+        try { data = JSON.parse(text); } catch { data = { general: text }; }
+
+        if (!res.ok) {
+          const errMsg = data?.error || res.statusText || "Error desconocido";
+          setStatus(`Error HTTP ${res.status}: ${errMsg}`, "err");
           return;
         }
 
-        // Mostrar texto general
-        let html = `<p>${data.answer.general || 'Sin resumen disponible'}</p>`;
+        const payload = normalizePayload(data);
+        renderGeneral(payload?.general ?? "Sin texto de respuesta.");
+        renderListas(payload?.lists ?? []);
+        renderTablas(payload?.tables ?? []);
 
-        // Mostrar tablas
-        if (data.answer.tables && data.answer.tables.length > 0) {
-          data.answer.tables.forEach(table => {
-            html += `<h3>${table.title}</h3>`;
-            html += "<table><thead><tr>";
-            table.columns.forEach(col => html += `<th>${col}</th>`);
-            html += "</tr></thead><tbody>";
-            table.rows.forEach(row => {
-              html += "<tr>";
-              row.forEach(cell => html += `<td>${cell}</td>`);
-              html += "</tr>";
-            });
-            html += "</tbody></table>";
-          });
-        }
-
-        resultado.innerHTML = html;
-
+        setStatus("Listo ✅", "ok");
       } catch (err) {
-        resultado.innerHTML = `<span style='color:red;'>Error de conexión: ${err.message}</span>`;
+        setStatus(`Error de conexión: ${err?.message ?? String(err)}`, "err");
+      } finally {
+        loadingOff();
       }
     }
+
+    $enviar.addEventListener("click", consultar);
+    $limpiar.addEventListener("click", () => {
+      $q.value = "";
+      clearOutput();
+      $q.focus();
+    });
+
+    // UX: Enter + Ctrl/Cmd+Enter
+    $q.addEventListener("keydown", (ev) => {
+      if ((ev.ctrlKey || ev.metaKey) && ev.key === "Enter") {
+        consultar();
+      }
+    });
   </script>
 </body>
 </html>
-
