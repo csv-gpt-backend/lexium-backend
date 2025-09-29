@@ -1,274 +1,501 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Asistente · Lexium2</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-  <style>
-    :root{
-      --bg:#ffffff; --ink:#111; --muted:#6b7280;
-      --line:#e5e7eb; --accent:#f7c948; --accent-ink:#3a2d00;
-      --btn:#f3f4f6; --btn-ink:#111; --btn-line:#e5e7eb;
-      --brand:#0f6fff;
-    }
-    *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui}
-    .shell{max-width:1200px;margin:0 auto;padding:18px}
-    .top{display:flex;justify-content:space-between;align-items:center}
-    .logo img{height:28px}
-    .videoWrap{margin-top:12px;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-    video{display:block;width:100%;height:auto}
-    .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px;border:1px solid var(--line);border-top:none;border-radius:0 0 10px 10px;background:#fafafa}
-    .bar .sp{flex:1}
-    .controls{display:flex;gap:8px;flex-wrap:wrap}
-    .btn{background:var(--btn);color:var(--btn-ink);border:1px solid var(--btn-line);padding:8px 12px;border-radius:10px;cursor:pointer}
-    .btn:hover{filter:brightness(0.97)}
-    .btn-acc{background:var(--accent);color:var(--accent-ink);border-color:#dfb436}
-    .btn-blue{background:var(--brand);color:#fff;border-color:#0b4ad6}
-    .muted{color:var(--muted);font-size:12px}
-    .askRow{margin-top:12px;display:flex;gap:10px}
-    .askRow input{flex:1;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px}
-    .respTitle{margin:16px 0 8px;font-weight:700}
-    .out{display:grid;gap:12px;margin-bottom:24px}
-    .card{border:1px solid var(--line);border-radius:10px;padding:12px;background:#fff}
-    .tbl{width:100%;border-collapse:collapse}
-    .tbl th,.tbl td{border:1px solid var(--line);padding:8px}
-    .tbl th{background:#f8fafc;text-align:left}
-    .small{font-size:12px}
-    .right{margin-left:auto}
-    .exportMenu{position:relative}
-    .menu{position:absolute;right:0;top:38px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 6px 18px rgba(0,0,0,.08);display:none;min-width:140px}
-    .menu button{display:block;width:100%;text-align:left;background:#fff;border:0;padding:10px 12px;cursor:pointer}
-    .menu button:hover{background:#f3f4f6}
-    .camPreview{position:fixed;right:18px;bottom:18px;background:#000;border:2px solid #fff;border-radius:10px;overflow:hidden;display:none}
-    .camPreview video{width:280px;height:auto;display:block}
-    .help{margin-top:6px}
-  </style>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Asistente Lexium GG</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- Export helpers (PDF y XLS). No hacen llamadas externas al ejecutarse. -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#fff; --ink:#111; --muted:#6b7280; --line:#e5e7eb;
+    --btn:#f3f4f6; --btn-ink:#111; --btn-line:#e5e7eb; --brand:#0f6fff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:#fff;color:var(--ink);font-family:Inter,system-ui}
+  /* --- LAYOUT: TOP (65%) y BOTTOM (35%) --- */
+  .topFixed{
+    position:fixed; left:0; top:0; right:0; height:65vh; background:#fff; z-index:10;
+    border-bottom:1px solid var(--line);
+  }
+  .bottomPane{
+    position:fixed; left:0; right:0; bottom:0; top:65vh; overflow:auto; background:#fff;
+  }
+  .wrap{max-width:1200px;margin:0 auto;padding:14px}
+  /* --- CABECERA con HISTORIAL --- */
+  .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .histBtn{position:absolute; right:14px; top:10px}
+  .btn{background:var(--btn); color:var(--btn-ink); border:1px solid var(--btn-line);
+       padding:8px 12px; border-radius:10px; cursor:pointer}
+  .btn:hover{filter:brightness(.97)}
+  .btn-blue{background:var(--brand); color:#fff; border-color:#0b4ad6}
+  /* --- ZONA MEDIA con IMÁGENES + VIDEO --- */
+  .mediaRow{
+    display:grid; grid-template-columns:1fr 2.6fr 1fr; gap:10px; align-items:center;
+    height:calc(65vh - 44px); /* 44px ~ cabecera */
+  }
+  .sideImg{width:100%; height:100%; object-fit:cover; border:none; display:block}
+  .mainVideoWrap{width:100%; height:100%; overflow:hidden; border:none}
+  .mainVideo{width:100%; height:100%; object-fit:cover; border:none; display:block}
+  /* --- BOTTOM: ENTRADA + BOTONERA + SALIDA --- */
+  .askBox{display:flex; flex-direction:column; gap:10px}
+  .askArea{
+    width:100%; padding:10px 12px; font-size:15px; line-height:1.35;
+    border:1px solid var(--line); border-radius:10px; resize:none; height:64px;
+  }
+  .toolbar{
+    display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center
+  }
+  .toolbar .btn{white-space:nowrap}
+  .toolRight{margin-left:auto}
+  .status{color:var(--muted); font-size:12px}
+  .exportSel{
+    padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:#fff
+  }
+  .out{display:grid; gap:12px; margin:14px 0 28px}
+  .card{border:1px solid var(--line); border-radius:10px; padding:14px; background:#fff}
+  .tbl{width:100%; border-collapse:collapse}
+  .tbl th,.tbl td{border:1px solid var(--line); padding:8px}
+  .tbl th{background:#f8fafc; text-align:left}
+  /* HISTORIAL modal */
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:9999}
+  .modal > div{background:#fff; border-radius:12px; width:min(680px,92vw); max-height:82vh; overflow:auto; padding:16px}
+  .link{color:#0f6fff; text-decoration:none}
+  .muted{color:var(--muted)}
+</style>
 </head>
 <body>
-<div class="shell">
-  <!-- Barra superior -->
-  <div class="top">
-    <div class="logo">
-      <!-- CAMBIA EL LOGO AQUÍ -->
-      <img src="https://upload.wikimedia.org/wikipedia/commons/4/4f/Santillana_logo.svg" alt="Santillana"/>
-    </div>
-    <div class="muted small">Backend: <span id="apiHost"></span></div>
-  </div>
 
-  <!-- Video principal -->
-  <div class="videoWrap">
-    <!-- CAMBIA EL VIDEO AQUÍ (src y/o poster) -->
-    <video id="mainVideo" controls playsinline
-           poster="https://images.unsplash.com/photo-1524253482453-3fed8d2fe12b?q=80&w=1200"
-           src="https://cdn.coverr.co/videos/coverr-woman-at-home-5864/1080p.mp4"></video>
-    <div class="bar">
-      <div class="controls">
-        <button class="btn btn-blue" id="btnSend">Enviar</button>
-        <button class="btn" id="btnDictar">🎙️ Dictar</button>
-        <button class="btn btn-acc" id="btnAV">⏺️ Voz/Video</button>
-        <button class="btn" id="btnTTS">🔈 Reproducir voz</button>
-        <button class="btn" id="btnClear">🧹 Limpiar</button>
-        <button class="btn" id="btnNew">🆕 Nueva sesión</button>
-        <div class="exportMenu">
-          <button class="btn" id="btnExport">⤓ Exportar… ▾</button>
-          <div class="menu" id="menuExport">
-            <button data-x="txt">TXT (respuesta)</button>
-            <button data-x="csv">CSV (última tabla)</button>
-          </div>
-        </div>
+<!-- ====== TOP (video + imágenes) ====== -->
+<section class="topFixed">
+  <div class="wrap">
+    <div class="head">
+      <div class="status" id="status">Listo</div>
+      <button class="btn histBtn" id="btnHistorial">Historial</button>
+    </div>
+
+    <div class="mediaRow">
+      <!-- Cambia los src a tus imágenes exactas -->
+      <img src="left.png" alt="Left" class="sideImg" id="imgLeft">
+      <div class="mainVideoWrap">
+        <video id="mainVideo"
+               class="mainVideo"
+               muted
+               playsinline
+               preload="auto"
+               poster=""
+               src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
       </div>
-      <div class="sp"></div>
-      <div id="status" class="muted small">Listo</div>
+      <img src="right.png" alt="Right" class="sideImg" id="imgRight">
     </div>
   </div>
+</section>
 
-  <!-- Entrada de consulta -->
-  <div class="askRow">
-    <input id="ask" type="text" placeholder="Escribe tu pregunta (ej.: promedio de AUTOESTIMA por paralelo)…">
+<!-- ====== BOTTOM (entrada, botones y salida) ====== -->
+<section class="bottomPane">
+  <div class="wrap">
+    <div class="askBox">
+      <!-- Caja de texto de 2 líneas -->
+      <textarea id="ask" class="askArea" placeholder="Escribe tu pregunta (puede incluir cálculos, listados, tablas)…"></textarea>
+
+      <!-- Botonera en una sola línea, centrada -->
+      <div class="toolbar">
+        <button class="btn btn-blue" id="btnSend">ENVIAR</button>
+        <button class="btn" id="btnDictar">DICTAR</button>
+        <button class="btn" id="btnAV">PARAR/ACTIVAR VOZ Y VIDEO</button>
+        <button class="btn" id="btnReplay">REPRODUCIR NUEVAMENTE</button>
+        <button class="btn" id="btnNew">NUEVA SESIÓN</button>
+        <button class="btn" id="btnClear">LIMPIAR</button>
+        <!-- Selector de exportación que dispara al cambiar -->
+        <select id="exportSel" class="exportSel" title="Exportar todo lo generado">
+          <option value="">Exportar…</option>
+          <option value="pdf">PDF</option>
+          <option value="xls">XLS</option>
+          <option value="doc">DOC</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Respuestas -->
+    <div class="out" id="out"></div>
   </div>
+</section>
 
-  <!-- Ayuda -->
-  <div class="help muted small">
-    <b>Ayuda:</b> <a href="javascript:void(0)" onclick="preset('lista de estudiantes')">Enviar</a> analiza; 
-    <a href="javascript:void(0)" onclick="toggleDictado()">Dictar</a> voz→texto; 
-    <a href="javascript:void(0)" onclick="toggleAV()">Voz/Video</a> locución y video; 
-    <a href="javascript:void(0)" onclick="tts()">Reproducir voz</a> lee todo; 
-    <a href="javascript:void(0)" onclick="clearAll()">Limpiar</a> borra; 
-    <a href="javascript:void(0)" onclick="newSession()">Nueva sesión</a> reinicia; 
-    <a href="javascript:void(0)" onclick="openExport()">Exportar…</a> descarga.
+<!-- ====== MODAL HISTORIAL ====== -->
+<div class="modal" id="mdlHist">
+  <div>
+    <div style="display:flex;justify-content:space-between;align-items:center; gap:10px">
+      <h3 style="margin:4px 0">Historial de sesiones</h3>
+      <button class="btn" id="btnCloseHist">Cerrar</button>
+    </div>
+    <div id="histList" class="muted" style="margin-top:10px"></div>
   </div>
-
-  <!-- Respuesta -->
-  <div class="respTitle">Respuesta (texto, listas y tablas)</div>
-  <div id="out" class="out"></div>
 </div>
 
-<!-- Vista previa cámara/mic -->
-<div class="camPreview" id="camBox"><video id="cam" muted autoplay playsinline></video></div>
-
 <script>
-  // ========= CONFIG =========
-  const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app"; // Cambia si usas otra URL
-  document.getElementById('apiHost').textContent = API_BASE.replace(/^https?:\/\//,'');
+/* =======================
+   CONFIG
+======================= */
+const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app"; // <- tu Cloud Run
+// El backend es quien debe usar GPT-5 y analizar estrictamente decimo.csv, evaluacion.txt, ubicacion.txt y emocionales.txt
 
-  // ========= Refs UI =========
-  const $ask = document.getElementById('ask');
-  const $out = document.getElementById('out');
-  const $status = document.getElementById('status');
-  const $btnSend = document.getElementById('btnSend');
-  const $btnDictar = document.getElementById('btnDictar');
-  const $btnAV = document.getElementById('btnAV');
-  const $btnTTS = document.getElementById('btnTTS');
-  const $btnClear = document.getElementById('btnClear');
-  const $btnNew = document.getElementById('btnNew');
-  const $btnExport = document.getElementById('btnExport');
-  const $menuExport = document.getElementById('menuExport');
-  const $mainVideo = document.getElementById('mainVideo');
-  const $camBox = document.getElementById('camBox');
-  const $cam = document.getElementById('cam');
+/* =======================
+   REFS UI
+======================= */
+const $status = document.getElementById('status');
+const $ask = document.getElementById('ask');
+const $out = document.getElementById('out');
+const $video = document.getElementById('mainVideo');
 
-  // ========= Estado =========
-  let lastGeneral = "";
-  let lastTable = null;
-  let rec = null;         // SpeechRecognition
-  let recOn = false;
-  let mediaStream = null; // getUserMedia
+const $btnSend = document.getElementById('btnSend');
+const $btnDictar = document.getElementById('btnDictar');
+const $btnAV = document.getElementById('btnAV');
+const $btnReplay = document.getElementById('btnReplay');
+const $btnNew = document.getElementById('btnNew');
+const $btnClear = document.getElementById('btnClear');
+const $exportSel = document.getElementById('exportSel');
+const $btnHistorial = document.getElementById('btnHistorial');
+const $mdlHist = document.getElementById('mdlHist');
+const $btnCloseHist = document.getElementById('btnCloseHist');
+const $histList = document.getElementById('histList');
 
-  // ========= Helpers =========
-  const esc = s => String(s).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-  function setStatus(t){ $status.textContent = t; }
-  function addCard(html){ const d=document.createElement('div'); d.className='card'; d.innerHTML=html; $out.appendChild(d); }
-  function clearAll(){ $out.innerHTML=''; $ask.value=''; lastGeneral=""; lastTable=null; setStatus('Listo'); }
-  function newSession(){ clearAll(); speechSynthesis.cancel(); }
-  function preset(q){ $ask.value=q; send(); }
+/* =======================
+   ESTADO DE SESIÓN
+======================= */
+let sessionId = Date.now().toString();
+let sessionItems = [];   // guarda cada bloque mostrado (texto/lista/tabla)
+let lastGeneral = "";
+let lastTables = [];     // puede haber varias
+let lastSpoken = "";     // última locución
+let voices = [];
+let speaking = false;
+let recOn = false;       // dictado
+let rec;                 // SpeechRecognition
+let mediaStream = null;  // cam/mic
 
-  // ========= Backend =========
-  async function send(){
-    const q = $ask.value.trim();
-    if(!q){ setStatus('Escribe una consulta…'); return; }
-    setStatus('Consultando…');
-    try{
-      const res = await fetch(`${API_BASE}/api/answer?q=${encodeURIComponent(q)}`, {headers:{Accept:'application/json'}});
-      const txt = await res.text();
-      let data; try{ data = JSON.parse(txt); } catch{ data = { ok:true, general:txt, lists:[], tables:[] }; }
-      render(data);
-      setStatus('Listo');
-    }catch(e){
-      console.error(e);
-      setStatus('Error de conexión');
-    }
+function setStatus(t){ $status.textContent=t; }
+function addCard(html){ const d=document.createElement('div'); d.className='card'; d.innerHTML=html; $out.appendChild(d); }
+function clearOut(){ $out.innerHTML=''; lastGeneral=""; lastTables=[]; sessionItems=[]; }
+function saveItem(item){ sessionItems.push(item); persistSession(); }
+function persistSession(){
+  const all = JSON.parse(localStorage.getItem('lexium-sessions')||'{}');
+  all[sessionId] = all[sessionId] || {created: sessionId, items:[]};
+  all[sessionId].items = sessionItems;
+  localStorage.setItem('lexium-sessions', JSON.stringify(all));
+}
+function newSession(){
+  // guarda y crea nueva
+  persistSession();
+  sessionId = Date.now().toString();
+  sessionItems = [];
+  clearOut(); stopSpeech(); stopAV();
+  setStatus('Nueva sesión');
+}
+
+/* =======================
+   RENDER RESPUESTAS
+======================= */
+function render(data){
+  // texto
+  if(data.general){
+    lastGeneral = data.general;
+    addCard(`<div>${escapeHtml(data.general)}</div>`);
+    saveItem({type:'text', value:data.general});
   }
+  // listas
+  (data.lists||[]).forEach(lst=>{
+    const html = `<div style="font-weight:700;margin-bottom:6px">${escapeHtml(lst.title||'Lista')}</div>
+                  <ol>${(lst.items||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>`;
+    addCard(html); saveItem({type:'list', title:lst.title||'Lista', items:lst.items||[]});
+  });
+  // tablas (numeradas)
+  (data.tables||[]).forEach(tbl=>{
+    const cols = ['#', ...(tbl.columns||[])];
+    const rows = (tbl.rows||[]).map((r,i)=>[String(i+1), ...r]);
+    lastTables.push({title:tbl.title||'Tabla', columns:cols, rows});
+    const thead = `<tr>${cols.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
+    const tbody = rows.map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
+    addCard(`${tbl.title?`<div style="font-weight:700;margin-bottom:6px">${escapeHtml(tbl.title)}</div>`:''}
+            <table class="tbl"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`);
+    saveItem({type:'table', title:tbl.title||'Tabla', columns:cols, rows});
+  });
+}
 
-  function render(data){
-    $out.innerHTML='';
+/* =======================
+   ENVÍO AL BACKEND (GPT-5)
+======================= */
+async function send(){
+  const q = $ask.value.trim();
+  if(!q){ setStatus('Escribe tu consulta…'); return; }
+  setStatus('Analizando…');
+  try{
+    const res = await fetch(`${API_BASE}/api/answer?q=${encodeURIComponent(q)}`, {headers:{Accept:'application/json'}});
+    const txt = await res.text();
+    let data; try{ data = JSON.parse(txt); } catch{ data={ ok:true, general:txt, lists:[], tables:[] }; }
+    render(data);
+    // voz + video
     if(data.general){
-      lastGeneral = data.general;
-      addCard(`<div>${esc(data.general)}</div>`);
-    }else{ lastGeneral = ""; }
-
-    (data.lists||[]).forEach(lst=>{
-      addCard(`<div style="font-weight:700;margin-bottom:6px">${esc(lst.title||'Lista')}</div>
-               <ul>${lst.items.map(i=>`<li>${esc(i)}</li>`).join('')}</ul>`);
-    });
-
-    lastTable = null;
-    (data.tables||[]).forEach(tbl=>{
-      lastTable = tbl; // guarda la última
-      const thead = `<tr>${tbl.columns.map(c=>`<th>${esc(c)}</th>`).join('')}</tr>`;
-      const tbody = (tbl.rows||[]).map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('');
-      addCard(`${tbl.title?`<div style="font-weight:700;margin-bottom:6px">${esc(tbl.title)}</div>`:''}
-              <div class="small muted">Filas: ${(tbl.rows||[]).length}</div>
-              <table class="tbl"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`);
-    });
-  }
-
-  // ========= Dictado (Web Speech API) =========
-  function toggleDictado(){
-    try{
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if(!SR){ alert('Este navegador no soporta reconocimiento de voz.'); return; }
-      if(recOn){ rec.stop(); return; }
-      rec = new SR(); rec.lang='es-ES'; rec.interimResults=false; rec.maxAlternatives=1;
-      rec.onresult = e => {
-        const t = e.results[0][0].transcript;
-        $ask.value = ($ask.value? $ask.value+' ' : '') + t;
-      };
-      rec.onend = () => { recOn=false; $btnDictar.textContent='🎙️ Dictar'; setStatus('Dictado detenido'); };
-      rec.onerror = () => { recOn=false; $btnDictar.textContent='🎙️ Dictar'; setStatus('Error dictado'); };
-      rec.start(); recOn=true; $btnDictar.textContent='⏹️ Detener dictado'; setStatus('Dictando…');
-    }catch(e){ console.error(e); alert('No se pudo iniciar el dictado.'); }
-  }
-
-  // ========= Voz/Video (getUserMedia) =========
-  async function toggleAV(){
-    if(mediaStream){
-      mediaStream.getTracks().forEach(t=>t.stop());
-      mediaStream = null; $camBox.style.display='none';
-      $btnAV.textContent='⏺️ Voz/Video'; setStatus('Voz/Video apagado'); return;
+      speak(data.general); // habla
     }
-    try{
-      mediaStream = await navigator.mediaDevices.getUserMedia({audio:true, video:true});
-      $cam.srcObject = mediaStream; $camBox.style.display='block';
-      $btnAV.textContent='⏹️ Detener Voz/Video'; setStatus('Voz/Video encendido');
-    }catch(e){ console.error(e); alert('Permite acceso al micrófono/cámara para usar Voz/Video.'); }
+    setStatus('Listo');
+  }catch(e){
+    console.error(e);
+    addCard(`<div class="muted">Error de conexión</div>`);
+    setStatus('Error');
+  }
+}
+
+/* =======================
+   VOZ (ES mujer) + VIDEO
+======================= */
+function pickSpanishFemale(voiceList){
+  // intenta es-EC/es-MX/es-ES femenino
+  const pref = ['es-EC','es-MX','es-ES','es'];
+  // Heurística para femenino
+  let best = null;
+  for(const p of pref){
+    const candidates = voiceList.filter(v => (v.lang||'').toLowerCase().startsWith(p));
+    // busca pistas "female", "mujer"
+    const femaleFirst = candidates.find(v => /female|mujer/ig.test(v.name||''));
+    if(femaleFirst) return femaleFirst;
+    if(!best && candidates.length) best = candidates[0];
+  }
+  return best || voiceList[0] || null;
+}
+function splitForTTS(text, maxLen=300){
+  // trocea para respuestas largas y mantener video activo
+  const parts=[]; let cur='';
+  const chunks = text.split(/([.!?]\s+)/);
+  for(const c of chunks){
+    if((cur + c).length > maxLen){ if(cur) parts.push(cur); cur=c; }
+    else cur += c;
+  }
+  if(cur) parts.push(cur);
+  return parts;
+}
+function speak(text){
+  stopSpeech();
+  if(!text) return;
+  lastSpoken = text;
+
+  // reproduce video mientras habla
+  try{ $video.currentTime = 0; $video.play().catch(()=>{}); }catch{}
+
+  const parts = splitForTTS(text);
+  let i=0; speaking=true;
+
+  const playNext = ()=>{
+    if(i>=parts.length){ speaking=false; try{$video.pause();}catch{} setStatus('Listo'); return; }
+    const u = new SpeechSynthesisUtterance(parts[i++]);
+    const vv = pickSpanishFemale(voices);
+    if(vv) u.voice = vv;
+    u.lang = vv?.lang || 'es-ES';
+    u.rate = 1; u.pitch=1;
+
+    u.onend = ()=> {
+      // si aún quedan partes, el video sigue; si no, se detiene
+      if(i>=parts.length){ try{$video.pause();}catch{} }
+      playNext();
+    };
+    u.onerror = ()=> { playNext(); };
+    setStatus('Hablando…');
+    speechSynthesis.speak(u);
+  };
+  playNext();
+}
+function stopSpeech(){ speechSynthesis.cancel(); speaking=false; }
+
+/* =======================
+   DICTADO + AV TOGGLE
+======================= */
+function toggleDictar(){
+  try{
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if(!SR){ alert('Dictado no soportado en este navegador.'); return; }
+    if(recOn){ rec.stop(); return; }
+    rec = new SR(); rec.lang='es-ES'; rec.interimResults=false; rec.maxAlternatives=1;
+    rec.onresult = e => {
+      const t = e.results[0][0].transcript;
+      $ask.value = ($ask.value? $ask.value+' ' : '') + t;
+    };
+    rec.onend = ()=>{ recOn=false; $btnDictar.textContent='DICTAR'; setStatus('Dictado detenido'); };
+    rec.onerror = ()=>{ recOn=false; $btnDictar.textContent='DICTAR'; setStatus('Error dictado'); };
+    rec.start(); recOn=true; $btnDictar.textContent='DETENER DICTADO'; setStatus('Dictando…');
+  }catch(e){ console.error(e); alert('No se pudo iniciar dictado.'); }
+}
+async function toggleAV(){
+  if(mediaStream){
+    stopAV(); return;
+  }
+  try{
+    mediaStream = await navigator.mediaDevices.getUserMedia({audio:true, video:true});
+    // Sólo encendemos mic/cam (no mostramos preview aquí por estética)
+    $btnAV.textContent='DETENER VOZ Y VIDEO';
+    setStatus('Voz/Video activado');
+  }catch(e){ console.error(e); alert('Permite acceso a micrófono/cámara.'); }
+}
+function stopAV(){
+  if(mediaStream){ mediaStream.getTracks().forEach(t=>t.stop()); mediaStream=null; }
+  $btnAV.textContent='PARAR/ACTIVAR VOZ Y VIDEO';
+  setStatus('Voz/Video apagado');
+}
+
+/* =======================
+   EXPORTAR (PDF / XLS / DOC)
+   Exporta TODO lo generado en la sesión actual
+======================= */
+function exportAll(kind){
+  if(!sessionItems.length){ alert('No hay contenido para exportar.'); return; }
+
+  // Prepara HTML plano de sesión
+  let html = `<h2>Sesión ${sessionId}</h2>`;
+  for(const it of sessionItems){
+    if(it.type==='text'){
+      html += `<p>${escapeHtml(it.value).replace(/\n/g,'<br>')}</p>`;
+    }else if(it.type==='list'){
+      html += `<h3>${escapeHtml(it.title)}</h3><ol>${it.items.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>`;
+    }else if(it.type==='table'){
+      const thead = `<tr>${it.columns.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
+      const tbody = it.rows.map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
+      html += `<h3>${escapeHtml(it.title)}</h3><table border="1" cellspacing="0" cellpadding="4">${thead}${tbody}</table>`;
+    }
   }
 
-  // ========= Texto a voz (Speech Synthesis) =========
-  function tts(){
-    if(!lastGeneral){ setStatus('No hay texto para leer'); return; }
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(lastGeneral);
-    u.lang = 'es-ES'; u.rate=1; u.pitch=1; u.onend=()=>setStatus('Listo');
-    speechSynthesis.speak(u); setStatus('Leyendo respuesta…');
+  if(kind==='pdf'){
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({unit:'pt', format:'a4'});
+    const margin=36, pageW=595-2*margin; // A4 width=595pt
+    // Conversión muy básica: texto sin estilo + tablas simplificadas
+    const tmp = document.createElement('div'); tmp.innerHTML = html;
+    let y = margin;
+    const addText = (t, isH) => {
+      const lines = doc.splitTextToSize(t, pageW);
+      if(y + lines.length*14 > 812){ doc.addPage(); y=margin; }
+      if(isH) doc.setFont(undefined,"bold");
+      doc.text(lines, margin, y);
+      if(isH) doc.setFont(undefined,"normal");
+      y += lines.length*14 + 8;
+    }
+    tmp.querySelectorAll('h2,h3,p,ol,table').forEach(el=>{
+      if(el.tagName==='H2' || el.tagName==='H3'){
+        addText(el.textContent, true);
+      }else if(el.tagName==='P'){
+        addText(el.textContent, false);
+      }else if(el.tagName==='OL'){
+        const items = Array.from(el.querySelectorAll('li')).map(li=>li.textContent);
+        addText(items.map((t,i)=>`${i+1}. ${t}`).join('\n'), false);
+      }else if(el.tagName==='TABLE'){
+        // simple CSV text
+        const rows = Array.from(el.querySelectorAll('tr')).map(tr=>Array.from(tr.children).map(td=>td.textContent));
+        rows.forEach(r=>{
+          addText(r.join('  |  '), false);
+        });
+      }
+    });
+    doc.save(`sesion_${sessionId}.pdf`);
   }
 
-  // ========= Exportar =========
-  function openExport(){ $menuExport.style.display = ($menuExport.style.display==='block'?'none':'block'); }
-  function closeExport(){ $menuExport.style.display='none'; }
-  function exportTXT(){
-    const blob = new Blob([(lastGeneral||'')], {type:'text/plain;charset=utf-8'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='respuesta.txt'; a.click();
-  }
-  function exportCSV(){
-    if(!lastTable){ alert('No hay tabla disponible.'); return; }
-    const rows = [lastTable.columns, ...(lastTable.rows||[])];
-    const csv = rows.map(r => r.map(x => {
-      const s = String(x??''); return /[",\n]/.test(s) ? `"${s.replace(/"/g,'""')}"` : s;
-    }).join(',')).join('\n');
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
-    a.download=(lastTable.title||'tabla')+'.csv'; a.click();
+  if(kind==='xls'){
+    // build sheet
+    const wb = XLSX.utils.book_new();
+    let idx=1;
+    for(const it of sessionItems){
+      if(it.type==='text'){
+        const ws = XLSX.utils.aoa_to_sheet([['Texto'], [it.value]]);
+        XLSX.utils.book_append_sheet(wb, ws, `Texto${idx++}`);
+      }else if(it.type==='list'){
+        const aoa = [['#','Ítem'], ...(it.items||[]).map((x,i)=>[i+1,x])];
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        XLSX.utils.book_append_sheet(wb, ws, (it.title||`Lista${idx++}`).substring(0,31));
+      }else if(it.type==='table'){
+        const aoa = [it.columns, ...it.rows];
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        XLSX.utils.book_append_sheet(wb, ws, (it.title||`Tabla${idx++}`).substring(0,31));
+      }
+    }
+    XLSX.writeFile(wb, `sesion_${sessionId}.xlsx`);
   }
 
-  // ========= Wire-up =========
-  $btnSend.onclick = send;
-  $btnDictar.onclick = toggleDictado;
-  $btnAV.onclick = toggleAV;
-  $btnTTS.onclick = tts;
-  $btnClear.onclick = clearAll;
-  $btnNew.onclick = newSession;
-  $btnExport.onclick = openExport;
-  $menuExport.addEventListener('click', e=>{
-    const t = e.target.closest('button'); if(!t) return;
-    if(t.dataset.x==='txt') exportTXT();
-    if(t.dataset.x==='csv') exportCSV();
-    closeExport();
+  if(kind==='doc'){
+    const blob = new Blob(
+      [`<!doctype html><html><head><meta charset="utf-8"></head><body>${html}</body></html>`],
+      {type:'application/msword'}
+    );
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `sesion_${sessionId}.doc`;
+    a.click();
+  }
+}
+
+/* =======================
+   HISTORIAL (localStorage)
+======================= */
+function openHist(){
+  const all = JSON.parse(localStorage.getItem('lexium-sessions')||'{}');
+  const ids = Object.keys(all).sort((a,b)=>b.localeCompare(a));
+  if(!ids.length){ $histList.innerHTML = '<p>No hay sesiones guardadas.</p>'; }
+  else{
+    $histList.innerHTML = ids.map(id=>`<div style="margin:8px 0">
+      <a href="#ver-${id}" class="link" onclick="return showSession('${id}')">Ver sesión ${id}</a>
+    </div>`).join('');
+  }
+  $mdlHist.style.display='flex';
+}
+function closeHist(){ $mdlHist.style.display='none'; }
+function showSession(id){
+  const all = JSON.parse(localStorage.getItem('lexium-sessions')||'{}');
+  const ses = all[id]; if(!ses){ alert('No encontrada'); return false; }
+  const win = window.open('about:blank','_blank');
+  let html = `<h2>Sesión ${id}</h2>`;
+  (ses.items||[]).forEach(it=>{
+    if(it.type==='text'){
+      html += `<p>${escapeHtml(it.value).replace(/\n/g,'<br>')}</p>`;
+    }else if(it.type==='list'){
+      html += `<h3>${escapeHtml(it.title)}</h3><ol>${(it.items||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>`;
+    }else if(it.type==='table'){
+      const thead = `<tr>${it.columns.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
+      const tbody = it.rows.map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
+      html += `<h3>${escapeHtml(it.title)}</h3><table border="1" cellspacing="0" cellpadding="4">${thead}${tbody}</table>`;
+    }
   });
-  document.addEventListener('click', e=>{
-    if(!e.target.closest('.exportMenu')) closeExport();
-  });
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Sesión ${id}</title>
+  <style>body{font-family:Inter,system-ui} table{border-collapse:collapse} th,td{border:1px solid #ddd;padding:6px}</style>
+  </head><body>${html}</body></html>`);
+  return false;
+}
 
-  // Enter para enviar
-  $ask.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
+/* =======================
+   HELPERS
+======================= */
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 
-  // Presets rápidos vía click en ayuda
-  window.preset = preset;
-  window.toggleDictado = toggleDictado;
-  window.toggleAV = toggleAV;
-  window.tts = tts;
-  window.clearAll = clearAll;
-  window.newSession = newSession;
-  window.openExport = openExport;
+/* =======================
+   WIRE-UP
+======================= */
+$btnSend.onclick = send;
+$btnReplay.onclick = ()=> speak(lastGeneral||'');
+$btnDictar.onclick = toggleDictar;
+$btnAV.onclick = toggleAV;
+$btnNew.onclick = newSession;
+$btnClear.onclick = ()=>{ $ask.value=''; clearOut(); };
+$exportSel.onchange = (e)=>{ const v=e.target.value; if(!v) return; exportAll(v); e.target.value=''; };
+$btnHistorial.onclick = openHist;
+$btnCloseHist.onclick = closeHist;
+$mdlHist.addEventListener('click', (e)=>{ if(e.target===$mdlHist) closeHist(); });
+
+// Enter envía
+$ask.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
+
+// Carga voces
+function loadVoices(){ voices = speechSynthesis.getVoices(); }
+speechSynthesis.onvoiceschanged = loadVoices; loadVoices();
+
+/* Mantén el video silenciado siempre (requisito) */
+$video.muted = true;
+
 </script>
 </body>
 </html>
