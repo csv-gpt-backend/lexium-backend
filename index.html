@@ -3,138 +3,65 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Asistente Lexium 11</title>
-
-<!-- ===== ESTILOS ===== -->
+<title>Asistente Lexium20</title>
 <style>
   :root{
-    --brand:#0b5fff;
-    --ui:#f5f7fb;
-    --text:#0f172a;
-    --muted:#64748b;
-    --ok:#16a34a;
-    --danger:#ef4444;
-    --shadow:0 8px 30px rgba(2,6,23,.08);
+    --brand:#0b5fff; --ui:#f5f7fb; --text:#0f172a; --muted:#64748b;
+    --ok:#16a34a; --danger:#ef4444; --shadow:0 8px 30px rgba(2,6,23,.08);
   }
-  html,body{ margin:0; padding:0; background:#fff; color:var(--text); font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue","Noto Sans",Arial; }
-
-  /* CINTA SUPERIOR: video + imágenes */
-  .hero{
-    position:sticky; top:0; z-index:3;
-    background:#fff; box-shadow:var(--shadow);
-  }
-  .hero-inner{
-    display:grid; grid-template-columns:1fr minmax(680px, 980px) 1fr;
-    gap:20px; align-items:center;
-    padding:14px 14px 8px 14px;
-    max-width:1600px; margin:0 auto;
-  }
-  .side{
-    display:flex; align-items:center; justify-content:center;
-  }
+  html,body{ margin:0; padding:0; background:#fff; color:var(--text);
+    font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue","Noto Sans",Arial; }
+  .hero{ position:sticky; top:0; z-index:3; background:#fff; box-shadow:var(--shadow); }
+  .hero-inner{ display:grid; grid-template-columns:1fr minmax(680px, 980px) 1fr;
+    gap:20px; align-items:center; padding:14px 14px 8px; max-width:1600px; margin:0 auto; }
+  .side{ display:flex; align-items:center; justify-content:center; }
   .side img{ max-height:90px; height:auto; width:auto; opacity:.9; }
-
   .video-wrap{ display:flex; align-items:center; justify-content:center; }
-  video{
-    display:block; width:100%; max-width:980px; height:auto; border:none; outline:none; border-radius:8px;
-  }
-
-  /* BOTÓN HISTORIAL */
-  .topbar{
-    position:absolute; right:14px; top:10px;
-    display:flex; gap:10px; align-items:center;
-  }
-  .btn-link{
-    appearance:none; border:1px solid #e5e7eb; background:#fff;
-    color:#111827; padding:8px 12px; border-radius:999px; font-weight:600;
-    box-shadow:var(--shadow); cursor:pointer;
-  }
+  video{ display:block; width:100%; max-width:980px; height:auto; border:none; outline:none; border-radius:8px; }
+  .topbar{ position:absolute; right:14px; top:10px; display:flex; gap:10px; align-items:center; }
+  .btn-link{ appearance:none; border:1px solid #e5e7eb; background:#fff; color:#111827; padding:8px 12px; border-radius:999px; font-weight:600; box-shadow:var(--shadow); cursor:pointer; }
   .btn-link:hover{ background:#f8fafc; }
-
-  /* ZONA DE INTERACCIÓN */
   .main{ max-width:1200px; margin:16px auto 64px; padding:0 14px; }
   .row{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:center; }
-
-  textarea{
-    width:100%; max-width:1200px; min-height:48px; max-height:96px;
-    padding:12px 14px; border:1px solid #e5e7eb; border-radius:10px; resize:vertical;
-    box-shadow:var(--shadow);
-  }
-
-  .btn{
-    appearance:none; border:none; background:var(--brand); color:#fff;
-    padding:10px 16px; border-radius:999px; font-weight:700; cursor:pointer;
-    display:inline-flex; align-items:center; gap:8px; box-shadow:var(--shadow);
-  }
-  .btn.secondary{ background:#0ea5e9; }
-  .btn.muted{ background:#334155; }
-  .btn.warning{ background:#f97316; }
+  textarea{ width:100%; max-width:1200px; min-height:48px; max-height:96px; padding:12px 14px; border:1px solid #e5e7eb; border-radius:10px; resize:vertical; box-shadow:var(--shadow); }
+  .btn{ appearance:none; border:none; background:var(--brand); color:#fff; padding:10px 16px; border-radius:999px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:var(--shadow); }
+  .btn.secondary{ background:#0ea5e9; } .btn.muted{ background:#334155; } .btn.warning{ background:#f97316; }
   .btn.ghost{ background:#fff; color:#111827; border:1px solid #e5e7eb; }
-  .btn:hover{ filter:brightness(.95); }
-  .btn:disabled{ opacity:.5; cursor:not-allowed; }
-
-  select{
-    padding:10px 12px; border-radius:999px; border:1px solid #e5e7eb; background:#fff; box-shadow:var(--shadow);
-  }
-
-  /* RESPUESTA */
-  .out{
-    margin-top:14px; background:var(--ui); border-radius:12px; padding:14px;
-    border:1px solid #e5e7eb; box-shadow:var(--shadow);
-  }
-  .out h4{ margin:.2rem 0 .6rem; }
-  .out pre{ white-space:pre-wrap; word-wrap:break-word; margin:0; }
-
-  table{ width:100%; border-collapse:collapse; margin:.75rem 0; background:#fff; }
-  th,td{ border:1px solid #e5e7eb; padding:8px 10px; text-align:left; }
-  th{ background:#f1f5f9; }
-  caption{ text-align:left; font-weight:700; margin-bottom:.25rem; }
-  .num{ text-align:right; }
-
-  /* tooltips nativo via title, nada extra */
-
-  /* Quitamos cualquier “status” flotante */
+  .btn:hover{ filter:brightness(.95); } .btn:disabled{ opacity:.5; cursor:not-allowed; }
+  select{ padding:10px 12px; border-radius:999px; border:1px solid #e5e7eb; background:#fff; box-shadow:var(--shadow); }
+  .out{ margin-top:14px; background:var(--ui); border-radius:12px; padding:14px; border:1px solid #e5e7eb; box-shadow:var(--shadow); }
+  .out h4{ margin:.2rem 0 .6rem; } .out pre{ white-space:pre-wrap; word-wrap:break-word; margin:0; }
+  table{ width:100%; border-collapse:collapse; margin:.75rem 0; background:#fff; } th,td{ border:1px solid #e5e7eb; padding:8px 10px; text-align:left; } th{ background:#f1f5f9; }
+  caption{ text-align:left; font-weight:700; margin-bottom:.25rem; } .num{ text-align:right; }
   [data-status]{ display:none !important; }
 </style>
 </head>
 <body>
 
-<!-- ===== CABECERA: video + imágenes + historial ===== -->
 <header class="hero">
   <div class="hero-inner">
-    <div class="side">
-      <img src="left.png" alt="Marca izquierda" title="Marca izquierda" />
-    </div>
-
+    <div class="side"><img src="left.png" alt="Marca izquierda" title="Marca izquierda"></div>
     <div class="video-wrap">
-      <video id="vid" autoplay muted playsinline loop preload="auto"
-             src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
+      <!-- Sin autoplay/loop; se controla por JS cuando hay voz -->
+      <video id="vid" muted playsinline preload="auto"
+        src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
     </div>
-
-    <div class="side">
-      <img src="right.png" alt="Marca derecha" title="Marca derecha" />
-    </div>
-
-    <div class="topbar">
-      <button id="btnHist" class="btn-link" title="Abrir historial de sesiones">Historial</button>
-    </div>
+    <div class="side"><img src="right.png" alt="Marca derecha" title="Marca derecha"></div>
+    <div class="topbar"><button id="btnHist" class="btn-link" title="Abrir historial de sesiones">Historial</button></div>
   </div>
 </header>
 
-<!-- ===== PRINCIPAL ===== -->
 <main class="main">
-  <!-- Consulta libre (2 líneas) -->
-  <textarea id="q" rows="2" placeholder="Escribe tu pregunta (o usa el micrófono)…&#10;Ejemplos: lista de estudiantes · P90 de TENSIÓN por paralelo · t de AUTOESTIMA A vs B"></textarea>
+  <textarea id="q" rows="2"
+    placeholder="Escribe tu pregunta (o usa el micrófono)…&#10;Ejemplos: lista de estudiantes · P90 de TENSIÓN por paralelo · t de AUTOESTIMA A vs B"></textarea>
 
-  <!-- Botones centrados -->
   <div class="row" style="margin-top:8px">
     <button id="btnSend"   class="btn"          title="Enviar la consulta al analizador">▶ Enviar</button>
-    <button id="btnDict"   class="btn secondary" title="Dictar por voz. No usa cámara">🎙 Dictar</button>
+    <button id="btnDict"   class="btn secondary" title="Dictar por voz (sin cámara)">🎙 Dictar</button>
     <button id="btnAV"     class="btn muted"    title="Pausar / reanudar voz y video (continúa desde el mismo punto)">⏯ Parar/Activar voz y video</button>
     <button id="btnReplay" class="btn warning"  title="Reproducir nuevamente la última respuesta">⟳ Reproducir nuevamente</button>
-    <button id="btnNew"    class="btn ghost"    title="Comenzar una nueva sesión (limpia la memoria local)">🆕 Nueva sesión</button>
-    <button id="btnClear"  class="btn ghost"    title="Limpiar el área de respuesta">🧹 Limpiar</button>
-
+    <button id="btnNew"    class="btn ghost"    title="Comenzar una nueva sesión (limpia memoria local)">🆕 Nueva sesión</button>
+    <button id="btnClear"  class="btn ghost"    title="Limpiar la respuesta y detener voz/video">🧹 Limpiar</button>
     <select id="selExport" title="Exportar lo generado en esta sesión (previsualiza PDF antes de descargar)">
       <option value="">Exportar…</option>
       <option value="pdf">PDF (vista previa)</option>
@@ -143,7 +70,6 @@
     </select>
   </div>
 
-  <!-- Respuesta -->
   <section id="out" class="out" aria-live="polite" aria-atomic="true">
     <h4>Respuesta</h4>
     <div id="outGeneral"></div>
@@ -152,377 +78,215 @@
   </section>
 </main>
 
-<!-- ===== SCRIPTS ===== -->
 <script>
-/* ==================== CONFIG ==================== */
+/* ============ CONFIG ============ */
 const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app"; // ← tu Cloud Run
 const STORAGE_KEY = "lexium-sessions-v1";
 
-/* ==================== DOM ==================== */
-const elQ         = document.getElementById("q");
-const elSend      = document.getElementById("btnSend");
-const elDict      = document.getElementById("btnDict");
-const elAV        = document.getElementById("btnAV");
-const elReplay    = document.getElementById("btnReplay");
-const elNew       = document.getElementById("btnNew");
-const elClear     = document.getElementById("btnClear");
-const elExport    = document.getElementById("selExport");
-const elHist      = document.getElementById("btnHist");
+/* ============ DOM ============ */
+const elQ=document.getElementById("q"), elSend=document.getElementById("btnSend"),
+  elDict=document.getElementById("btnDict"), elAV=document.getElementById("btnAV"),
+  elReplay=document.getElementById("btnReplay"), elNew=document.getElementById("btnNew"),
+  elClear=document.getElementById("btnClear"), elExport=document.getElementById("selExport"),
+  elHist=document.getElementById("btnHist"),
+  outGeneral=document.getElementById("outGeneral"),
+  outLists=document.getElementById("outLists"),
+  outTables=document.getElementById("outTables"),
+  elVideo=document.getElementById("vid");
 
-const outGeneral  = document.getElementById("outGeneral");
-const outLists    = document.getElementById("outLists");
-const outTables   = document.getElementById("outTables");
-const elVideo     = document.getElementById("vid");
-
-/* ==================== UTIL ==================== */
-const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
-
-function setOut({general="", lists=[], tables=[]}){
-  // General
-  outGeneral.innerHTML = general
-    ? `<pre>${escapeHtml(general)}</pre>` : "";
-
-  // Listas
-  outLists.innerHTML = "";
-  lists.forEach(lst=>{
-    const div = document.createElement("div");
-    div.innerHTML = `
-      <h4>${escapeHtml(lst.title || "Lista")}</h4>
-      <ol>${(lst.items||[]).map(x=>`<li>${escapeHtml(String(x))}</li>`).join("")}</ol>
-    `;
-    outLists.appendChild(div);
+/* ============ UTIL ============ */
+function escapeHtml(s){return s.replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[m]));}
+function isNumber(x){return /^-?\d+(\.\d+)?$/.test(String(x).trim());}
+function setOut({general="",lists=[],tables=[]}){
+  outGeneral.innerHTML = general ? `<pre>${escapeHtml(general)}</pre>` : "";
+  outLists.innerHTML=""; lists.forEach(lst=>{
+    const d=document.createElement("div");
+    d.innerHTML=`<h4>${escapeHtml(lst.title||"Lista")}</h4><ol>${(lst.items||[]).map(x=>`<li>${escapeHtml(String(x))}</li>`).join("")}</ol>`;
+    outLists.appendChild(d);
   });
-
-  // Tablas
-  outTables.innerHTML = "";
-  tables.forEach(tbl=>{
-    const div = document.createElement("div");
-    const caption = tbl.title ? `<caption>${escapeHtml(tbl.title)}</caption>` : "";
+  outTables.innerHTML=""; tables.forEach(tbl=>{
+    const d=document.createElement("div");
+    const caption = tbl.title?`<caption>${escapeHtml(tbl.title)}</caption>`:"";
     const head = `<tr>${(tbl.columns||[]).map(c=>`<th>${escapeHtml(c)}</th>`).join("")}</tr>`;
     const rows = (tbl.rows||[]).map(r=>`<tr>${r.map((c,i)=>`<td class="${isNumber(c)?"num":""}">${escapeHtml(String(c))}</td>`).join("")}</tr>`).join("");
-    div.innerHTML = `<table>${caption}<thead>${head}</thead><tbody>${rows}</tbody></table>`;
-    outTables.appendChild(div);
+    d.innerHTML = `<table>${caption}<thead>${head}</thead><tbody>${rows}</tbody></table>`;
+    outTables.appendChild(d);
   });
 }
 
-function escapeHtml(s){
-  return s.replace(/[&<>"']/g,m=>({
-    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
-  }[m]));
-}
-function isNumber(x){
-  return /^-?\d+(\.\d+)?$/.test(String(x).trim());
-}
-
-/* ==================== TTS (voz) ==================== */
-let voices = [];
-let currentUtter = null;
-let pausedAtChar = 0;    // Reanudación exacta
-let avEnabled = true;    // Estado control AV
-let lastSpoken = "";     // Texto completo de la última respuesta (para “reproducir nuevamente”)
-
-function loadVoices(){
-  voices = window.speechSynthesis.getVoices() || [];
-}
-window.speechSynthesis.onvoiceschanged = loadVoices;
-loadVoices();
+/* ============ TTS ============ */
+let voices=[], currentUtter=null, pausedAtChar=0, avEnabled=true, lastSpoken="";
+function loadVoices(){ voices = speechSynthesis.getVoices()||[]; }
+speechSynthesis.onvoiceschanged = loadVoices; loadVoices();
 
 function pickFemaleSpanishVoice(){
-  // Prioriza español México / España, y voces con rasgos femeninos
-  const prefer = ["es-MX","es-ES","es-419","es"];
-  const femHints = ["female","mujer","femenina","Camila","Lupe","Paulina","Monica","Luciana","Isabela","Elena"];
-  let best = null;
-
-  const vs = voices.length ? voices : window.speechSynthesis.getVoices();
+  const preferLang = ["es-MX","es-ES","es-419","es"];
+  const femaleNames = ["sabina","paulina","monica","camila","elena","lupe","isabela","español (latinoamericano)","google español","female","mujer","femenina"];
+  const vs = voices.length?voices:speechSynthesis.getVoices();
+  let best=null;
   vs.forEach(v=>{
-    const langOk = prefer.some(p=> (v.lang||"").toLowerCase().startsWith(p.toLowerCase()));
+    const langOk = preferLang.some(p=> (v.lang||"").toLowerCase().startsWith(p.toLowerCase()));
     if(!langOk) return;
-    if(!best) best = v;
-    const name = (v.name||"").toLowerCase();
-    if (femHints.some(h=>name.includes(h.toLowerCase()))){
-      best = v;
-    }
+    if(!best) best=v;
+    const name=(v.name||"").toLowerCase();
+    if(femaleNames.some(n=>name.includes(n))) best=v;
   });
   return best || vs[0] || null;
 }
-
-// Segmenta en trozos legibles para evitar cortes
-function chunkText(t, max=1200){
-  const parts = [];
-  let i = 0;
-  while(i < t.length){
-    const slice = t.slice(i, i+max);
-    // intenta cortar en punto
-    let cut = slice.lastIndexOf(". ");
-    if (cut < 400) cut = slice.lastIndexOf(" ");
-    if (cut < 0) cut = slice.length;
-    parts.push(slice.slice(0, cut+1));
-    i += cut+1;
-  }
-  return parts.filter(s=>s.trim());
-}
-
+function chunkText(t,max=1200){const out=[];let i=0;while(i<t.length){let sl=t.slice(i,i+max);let cut=sl.lastIndexOf(". ");if(cut<400) cut=sl.lastIndexOf(" ");if(cut<0) cut=sl.length;out.push(sl.slice(0,cut+1));i+=cut+1}return out.filter(s=>s.trim());}
+function stopSpeak(){ try{ speechSynthesis.cancel(); }catch(e){} currentUtter=null; }
 function speak(text){
-  stopSpeak(); // limpia anterior
-  lastSpoken = text;
-
-  const voice = pickFemaleSpanishVoice();
-  const chunks = chunkText(text);
-  let index = 0;
+  stopSpeak(); lastSpoken = text; pausedAtChar=0;
+  const v = pickFemaleSpanishVoice();
+  const chunks = chunkText(text); let idx=0;
 
   const playNext = ()=>{
-    if(!avEnabled || index >= chunks.length) return;
-    const u = new SpeechSynthesisUtterance(chunks[index]);
-    currentUtter = u;
-    if (voice) u.voice = voice;
-    u.rate = 1; u.pitch = 1; u.volume = 1;
+    if(!avEnabled || idx>=chunks.length) { try{ elVideo.pause(); }catch(e){} return; }
+    const u = new SpeechSynthesisUtterance(chunks[idx]); currentUtter=u;
+    if (v) u.voice=v;
+    u.rate = 1; u.pitch = 1.15; // un poco más agudo si la voz base es neutra
+    u.volume = 1;
 
+    u.onstart = ()=>{ try{ elVideo.play().catch(()=>{});}catch(e){} };
     u.onboundary = (ev)=>{
-      // Guardo el offset para reanudar exacto
-      pausedAtChar = 0;
-      // boundary type "word" no todas las impl. lo exponen
-      if (typeof ev.charIndex === "number") {
-        // charIndex relativo al chunk; sumamos lo ya hablado
-        let prev = 0;
-        for(let i=0;i<index;i++) prev += chunks[i].length;
-        pausedAtChar = prev + ev.charIndex;
-      }
+      let prev=0; for(let i=0;i<idx;i++) prev+=chunks[i].length;
+      if (typeof ev.charIndex==="number") pausedAtChar = prev + ev.charIndex;
     };
     u.onend = ()=>{
-      if (!avEnabled) return;
-      index++;
-      if(index < chunks.length) playNext();
+      if(!avEnabled) return;
+      idx++; if(idx<chunks.length) playNext(); else { try{ elVideo.pause(); }catch(e){} }
     };
-    window.speechSynthesis.speak(u);
-    // sincroniza video (reproducción durante habla)
-    try{ elVideo.play().catch(()=>{});}catch(e){}
+    speechSynthesis.speak(u);
   };
   playNext();
 }
-
-function stopSpeak(){
-  try{ window.speechSynthesis.cancel(); }catch(e){}
-  currentUtter = null;
-}
-
-/* Pausa/Reanuda sin perder punto */
 function toggleAV(){
   avEnabled = !avEnabled;
-  if(!avEnabled){
-    // Poner todo en pausa
-    try{ elVideo.pause(); }catch(e){}
-    stopSpeak();
-  }else{
-    // Reanudar desde pausedAtChar
-    if (lastSpoken){
+  if(!avEnabled){ try{ elVideo.pause(); }catch(e){} stopSpeak(); }
+  else{
+    if(lastSpoken){
       const rest = lastSpoken.slice(pausedAtChar);
-      if (rest.trim()){
-        speak(rest);
-      }else{
-        // si justo quedó al final, redecir completo
-        speak(lastSpoken);
-      }
+      speak(rest.trim()?rest:lastSpoken);
     }
-    try{ elVideo.play().catch(()=>{});}catch(e){}
   }
 }
+function replaySpeech(){ if(!lastSpoken) return; pausedAtChar=0; avEnabled=true; speak(lastSpoken); }
 
-/* Reproducir nuevamente: vuelve a decir todo desde el inicio */
-function replaySpeech(){
-  if(!lastSpoken) return;
-  pausedAtChar = 0;
-  avEnabled = true;
-  speak(lastSpoken);
-}
-
-/* ==================== STT (dictado, micrófono – NO cámara) ==================== */
-let recog = null;
-let dictating = false;
-
+/* ============ STT (dictado) ============ */
+let recog=null, dictating=false;
 function toggleDict(){
-  if (dictating){ stopDict(); return; }
-  startDict();
-}
-function startDict(){
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(dictating){ try{recog&&recog.stop();}catch(e){} dictating=false; return; }
+  const SR = window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){ alert("Dictado no soportado en este navegador."); return; }
-  recog = new SR();
-  recog.lang = "es-ES";
-  recog.interimResults = true;
-  recog.onresult = (ev)=>{
-    let finalText = "";
-    for (const res of ev.results){
-      const t = res[0].transcript;
-      finalText = t;
-    }
-    // dos líneas máximo visuales, el usuario puede editar
-    elQ.value = finalText;
-  };
-  recog.onerror = ()=> stopDict();
-  recog.onend = ()=> { dictating=false; };
-  recog.start();
-  dictating = true;
-}
-function stopDict(){
-  try{ recog && recog.stop(); }catch(e){}
-  dictating = false;
+  recog=new SR(); recog.lang="es-ES"; recog.interimResults=true;
+  recog.onresult=(ev)=>{ let t=""; for(const r of ev.results){ t=r[0].transcript; } elQ.value=t; };
+  recog.onerror=()=>{dictating=false;}; recog.onend=()=>{dictating=false;};
+  recog.start(); dictating=true;
 }
 
-/* ==================== FORMATEO DE RESPUESTA PARA VOZ ==================== */
+/* ============ RESPUESTA A VOZ COMPLETA ============ */
 function buildSpokenFrom(data){
-  const parts = [];
-
-  if (data?.general) parts.push(String(data.general));
-
-  (data?.lists || []).forEach(lst=>{
-    if (lst?.title) parts.push(`Lista: ${lst.title}.`);
-    const items = lst?.items || [];
-    if (items.length){
+  const parts=[];
+  if(data?.general) parts.push(String(data.general));
+  (data?.lists||[]).forEach(lst=>{
+    if(lst?.title) parts.push(`Lista: ${lst.title}.`);
+    const items=lst?.items||[];
+    if(items.length){
       parts.push(`Contiene ${items.length} elementos.`);
-      const toRead = items.length <= 12 ? items : items.slice(0,12);
-      toRead.forEach((it,i)=> parts.push(`Elemento ${i+1}: ${it}.`));
-      if (items.length > toRead.length){
-        parts.push(`… y ${items.length - toRead.length} más.`);
-      }
+      const rr = items.length<=12?items:items.slice(0,12);
+      rr.forEach((it,i)=> parts.push(`Elemento ${i+1}: ${it}.`));
+      if(items.length>rr.length) parts.push(`… y ${items.length-rr.length} más.`);
     }
   });
-
-  (data?.tables || []).forEach(tbl=>{
-    const title = tbl?.title ? `Tabla: ${tbl.title}.` : `Tabla.`;
-    const cols = tbl?.columns || [];
-    const rows = tbl?.rows || [];
-    parts.push(`${title} Tiene ${rows.length} filas y ${cols.length} columnas.`);
-    if (cols.length){ parts.push(`Columnas: ${cols.join(", ")}.`); }
-    const toRead = rows.length <= 8 ? rows : rows.slice(0,8);
-    toRead.forEach((row,i)=>{
-      const cells = row.map((c,j)=> `${cols[j]||`Columna ${j+1}`}: ${c}`).join(". ");
+  (data?.tables||[]).forEach(tbl=>{
+    const cols=tbl?.columns||[], rows=tbl?.rows||[];
+    parts.push(`${tbl?.title?`Tabla: ${tbl.title}.`:`Tabla.`} Tiene ${rows.length} filas y ${cols.length} columnas.`);
+    if(cols.length) parts.push(`Columnas: ${cols.join(", ")}.`);
+    const rr = rows.length<=8?rows:rows.slice(0,8);
+    rr.forEach((row,i)=>{
+      const cells=row.map((c,j)=>`${cols[j]||`Columna ${j+1}`}: ${c}`).join(". ");
       parts.push(`Fila ${i+1}: ${cells}.`);
     });
-    if (rows.length > toRead.length){
-      parts.push(`… y ${rows.length - toRead.length} filas adicionales.`);
-    }
+    if(rows.length>rr.length) parts.push(`… y ${rows.length-rr.length} filas adicionales.`);
   });
-
-  if (!parts.length) parts.push("No hay contenido para leer.");
-  return parts.join(" ");
+  return parts.length?parts.join(" "):"No hay contenido para leer.";
 }
 
-/* ==================== BACKEND ==================== */
+/* ============ BACKEND ============ */
+async function doQuery(q){
+  const url = `${API_BASE}/api/answer?q=${encodeURIComponent(q)}`;
+  const res = await fetch(url, { headers:{ "Accept":"application/json" } });
+  const data = await res.json().catch(()=> ({}));
+  if(!res.ok) throw new Error(data?.error||res.statusText||"Error");
+  return data;
+}
 async function send(){
-  const q = (elQ.value||"").trim();
-  if(!q) return;
-  elSend.disabled = true;
+  const q=(elQ.value||"").trim(); if(!q) return;
+  elSend.disabled=true;
   try{
-    const url = `${API_BASE}/api/answer?q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, { headers:{ "Accept":"application/json" } });
-    const data = await res.json().catch(()=> ({}));
-    if (!res.ok){ throw new Error(data?.error || res.statusText || "Error"); }
-
+    const data = await doQuery(q);
     setOut(data);
-
-    // Leer TODO lo devuelto
-    if (avEnabled){
-      const fullSpeech = buildSpokenFrom(data);
-      speak(fullSpeech);
-    }
-  }catch(err){
-    setOut({ general:`Error: ${String(err.message||err)}` });
-  }finally{
-    elSend.disabled = false;
-  }
-}
-
-/* ==================== HISTORIAL / SESIONES (localStorage simple) ==================== */
-function getSessions(){
-  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]"); }
-  catch(e){ return []; }
-}
-function saveSessionEntry(q, data){
-  const all = getSessions();
-  all.unshift({ ts: Date.now(), q, data });
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(all.slice(0,200)));
-}
-function showHistory(){
-  const all = getSessions();
-  if (!all.length){ alert("Sin historial en esta máquina."); return; }
-  const win = window.open("", "_blank");
-  win.document.write(`<title>Historial de sesiones</title><pre>${escapeHtml(JSON.stringify(all,null,2))}</pre>`);
-  win.document.close();
-}
-
-/* ==================== EXPORTACIONES ==================== */
-function exportAs(type){
-  if (!type) return;
-  if (type === "pdf"){
-    // Vista previa: nueva ventana con el HTML del bloque de salida y Print
-    const w = window.open("", "_blank");
-    const html = `
-      <html><head><title>Export PDF</title>
-        <style>
-          body{ font:14px/1.5 system-ui,Segoe UI,Roboto; padding:16px; }
-          table{ width:100%; border-collapse:collapse; margin:.75rem 0; }
-          th,td{ border:1px solid #e5e7eb; padding:6px 8px; }
-          th{ background:#f1f5f9; }
-        </style>
-      </head><body>
-        ${document.getElementById("out").innerHTML}
-      </body></html>`;
-    w.document.write(html);
-    w.document.close();
-    w.focus();
-    // deja a la persona decidir “Guardar como PDF” desde el diálogo
-    setTimeout(()=> w.print(), 300);
-  }
-  if (type === "xls" || type === "doc"){
-    // descarga un HTML básico con contenido de salida
-    const blob = new Blob([`<meta charset="utf-8">${document.getElementById("out").innerHTML}`],
-                          {type: type==="xls" ? "application/vnd.ms-excel" : "application/msword"});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = type==="xls" ? "reporte.xls" : "reporte.doc";
-    a.click();
-    setTimeout(()=> URL.revokeObjectURL(a.href), 2000);
-  }
-  elExport.value = "";
-}
-
-/* ==================== BINDINGS ==================== */
-elSend.addEventListener("click", async ()=>{
-  const q = (elQ.value||"").trim();
-  if(!q) return;
-  await send();
-  // guarda en historial simple
-  try{
-    const url = `${API_BASE}/api/answer?q=${encodeURIComponent(q)}`;
-    const res = await fetch(url, { headers:{ "Accept":"application/json" } });
-    const data = await res.json().catch(()=> ({}));
+    const full = buildSpokenFrom(data);
+    // Guardamos SIEMPRE; aunque la voz esté pausada, “Reproducir nuevamente” funcionará
+    lastSpoken = full;
+    if(avEnabled) speak(full);
     saveSessionEntry(q, data);
-  }catch{}
-});
+  }catch(err){
+    setOut({general:`Error: ${String(err.message||err)}`});
+  }finally{
+    elSend.disabled=false;
+  }
+}
+
+/* ============ HISTORIAL / SESIONES ============ */
+function getSessions(){ try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]"); }catch{ return []; } }
+function saveSessionEntry(q,data){ const all=getSessions(); all.unshift({ts:Date.now(), q, data}); localStorage.setItem(STORAGE_KEY, JSON.stringify(all.slice(0,200))); }
+function showHistory(){
+  const all=getSessions(); if(!all.length){ alert("Sin historial en esta máquina."); return; }
+  const w=window.open("","_blank");
+  w.document.write(`<title>Historial</title><pre>${escapeHtml(JSON.stringify(all,null,2))}</pre>`); w.document.close();
+}
+
+/* ============ EXPORTAR ============ */
+function exportAs(type){
+  if(!type) return;
+  if(type==="pdf"){
+    const w=window.open("","_blank");
+    const html=`<html><head><meta charset="utf-8"><title>Export PDF</title>
+      <style>body{font:14px/1.5 system-ui;padding:16px}table{width:100%;border-collapse:collapse;margin:.75rem 0}
+      th,td{border:1px solid #e5e7eb;padding:6px 8px}th{background:#f1f5f9}</style>
+      </head><body>${document.getElementById("out").innerHTML}</body></html>`;
+    w.document.write(html); w.document.close(); w.focus(); setTimeout(()=>w.print(),300);
+  }
+  if(type==="xls"||type==="doc"){
+    const blob=new Blob([`<meta charset="utf-8">${document.getElementById("out").innerHTML}`],
+      {type:type==="xls"?"application/vnd.ms-excel":"application/msword"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+    a.download=type==="xls"?"reporte.xls":"reporte.doc"; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  }
+  elExport.value="";
+}
+
+/* ============ BINDINGS ============ */
+elSend.addEventListener("click", send);
 elDict.addEventListener("click", toggleDict);
 elAV.addEventListener("click", toggleAV);
 elReplay.addEventListener("click", replaySpeech);
 elNew.addEventListener("click", ()=>{
   localStorage.removeItem(STORAGE_KEY);
-  outGeneral.innerHTML = ""; outLists.innerHTML=""; outTables.innerHTML="";
-  stopSpeak(); pausedAtChar = 0; lastSpoken = "";
+  outGeneral.innerHTML=""; outLists.innerHTML=""; outTables.innerHTML="";
+  elQ.value=""; stopSpeak(); pausedAtChar=0; lastSpoken=""; avEnabled=true; try{ elVideo.pause(); elVideo.currentTime=0; }catch(e){}
 });
 elClear.addEventListener("click", ()=>{
-  outGeneral.innerHTML = ""; outLists.innerHTML=""; outTables.innerHTML="";
+  outGeneral.innerHTML=""; outLists.innerHTML=""; outTables.innerHTML="";
+  elQ.value=""; stopSpeak(); pausedAtChar=0; lastSpoken=""; try{ elVideo.pause(); elVideo.currentTime=0; }catch(e){}
 });
 elExport.addEventListener("change", ()=> exportAs(elExport.value));
 elHist.addEventListener("click", showHistory);
+elQ.addEventListener("keydown", (e)=>{ if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)) elSend.click(); });
 
-// Envío con Ctrl+Enter
-elQ.addEventListener("keydown", (e)=>{
-  if (e.key==="Enter" && (e.ctrlKey||e.metaKey)) elSend.click();
-});
-
-// Nunca pedir cámara; solo reproducimos un MP4 local/hosteado
-try{ elVideo.muted = true; elVideo.play().catch(()=>{});}catch(e){}
-
-/* ==================== FIN ==================== */
+/* Asegurar video en pausa al inicio */
+try{ elVideo.pause(); elVideo.currentTime=0; }catch(e){}
 </script>
 </body>
 </html>
-
