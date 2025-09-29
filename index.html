@@ -3,91 +3,60 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>1sistente Lexium</title>
+<title>GGGGAsistente Lexium</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
-  :root{
-    --bg:#fff; --ink:#111; --muted:#6b7280; --line:#e5e7eb;
-    --btn:#f3f4f6; --btn-ink:#111; --btn-line:#e5e7eb; --brand:#0f6fff;
-    --tip-bg:#111; --tip-ink:#fff;
-  }
+  :root{--bg:#fff;--ink:#111;--muted:#6b7280;--line:#e5e7eb;--btn:#f3f4f6;--btn-ink:#111;--btn-line:#e5e7eb;--brand:#0f6fff;--tip-bg:#111;--tip-ink:#fff;}
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;background:#fff;color:var(--ink);font-family:Inter,system-ui}
 
-  /* ===== LAYOUT: TOP 65% fijo y BOTTOM scroll ===== */
-  .topFixed{
-    position:fixed; left:0; top:0; right:0; height:65vh; background:#fff; z-index:10;
-    border-bottom:1px solid var(--line);
-  }
-  .bottomPane{
-    position:fixed; left:0; right:0; bottom:0; top:65vh; overflow:auto; background:#fff;
-  }
+  .topFixed{position:fixed;left:0;top:0;right:0;height:65vh;background:#fff;z-index:10;border-bottom:1px solid var(--line)}
+  .bottomPane{position:fixed;left:0;right:0;bottom:0;top:65vh;overflow:auto;background:#fff}
   .wrap{max-width:1200px;margin:0 auto;padding:10px}
 
-  /* Cabecera mínima: solo botón Historial; status oculto (sr-only) */
-  .head{position:relative; height:0;}
-  .histBtn{position:absolute; right:6px; top:6px}
-  .btn{background:var(--btn); color:var(--btn-ink); border:1px solid var(--btn-line);
-       padding:8px 12px; border-radius:10px; cursor:pointer; display:inline-flex; gap:8px; align-items:center}
+  /* Cabecera: solo Historial */
+  .head{position:relative; height:0; z-index:99; pointer-events:none;}
+  .histBtn{position:absolute;right:6px;top:6px;pointer-events:auto}
+  .btn{background:var(--btn);color:var(--btn-ink);border:1px solid var(--btn-line);padding:8px 12px;border-radius:10px;cursor:pointer;display:inline-flex;gap:8px;align-items:center}
   .btn:hover{filter:brightness(.97)}
-  .btn-blue{background:var(--brand); color:#fff; border-color:#0b4ad6}
+  .btn-blue{background:var(--brand);color:#fff;border-color:#0b4ad6}
+  .ico{width:16px;height:16px;display:inline-block}
+  .ico svg{width:16px;height:16px;display:block}
 
-  /* Iconos */
-  .ico{width:16px; height:16px; display:inline-block}
-  .ico svg{width:16px; height:16px; display:block}
+  .mediaRow{display:grid;grid-template-columns:180px auto 180px;gap:10px;align-items:center;height:65vh}
+  .sideWrap{position:relative;width:100%;height:100%}
+  .sideImg{width:100%;height:100%;object-fit:contain;border:none;display:block}
+  .sideBadge{position:absolute;right:6px;top:6px;background:#0008;color:#fff;font-size:12px;padding:2px 6px;border-radius:8px;opacity:.5}
+  .mainVideoWrap{width:100%;height:100%;overflow:hidden;border:none}
+  .mainVideo{width:100%;height:100%;object-fit:cover;border:none;display:block}
 
-  /* ZONA MEDIA: imágenes laterales compactas + video al centro */
-  .mediaRow{
-    display:grid; grid-template-columns:180px auto 180px; gap:10px; align-items:center;
-    height:65vh;
-  }
-  .sideWrap{position:relative; width:100%; height:100%}
-  .sideImg{width:100%; height:100%; object-fit:contain; border:none; display:block}
-  .sideBadge{position:absolute; right:6px; top:6px; background:#0008; color:#fff; font-size:12px; padding:2px 6px; border-radius:8px}
-  .mainVideoWrap{width:100%; height:100%; overflow:hidden; border:none}
-  .mainVideo{width:100%; height:100%; object-fit:cover; border:none; display:block}
+  .askBox{display:flex;flex-direction:column;gap:10px}
+  .askArea{width:100%;padding:10px 12px;font-size:15px;line-height:1.35;border:1px solid var(--line);border-radius:10px;resize:none;height:64px}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center}
+  .exportSel{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+  .out{display:grid;gap:12px;margin:14px 0 28px}
+  .card{border:1px solid var(--line);border-radius:10px;padding:14px;background:#fff}
+  .tbl{width:100%;border-collapse:collapse}
+  .tbl th,.tbl td{border:1px solid var(--line);padding:8px}
+  .tbl th{background:#f8fafc;text-align:left}
 
-  /* BOTTOM: entrada + botones + salida */
-  .askBox{display:flex; flex-direction:column; gap:10px}
-  .askArea{
-    width:100%; padding:10px 12px; font-size:15px; line-height:1.35;
-    border:1px solid var(--line); border-radius:10px; resize:none; height:64px;
-  }
-  .toolbar{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center}
-  .toolbar .btn{white-space:nowrap}
-  .exportSel{
-    padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:#fff
-  }
-  .out{display:grid; gap:12px; margin:14px 0 28px}
-  .card{border:1px solid var(--line); border-radius:10px; padding:14px; background:#fff}
-  .tbl{width:100%; border-collapse:collapse}
-  .tbl th,.tbl td{border:1px solid var(--line); padding:8px}
-  .tbl th{background:#f8fafc; text-align:left}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:9999}
+  .modal>div{background:#fff;border-radius:12px;width:min(800px,92vw);max-height:82vh;overflow:auto;padding:16px}
 
-  /* MODALES */
-  .modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:9999}
-  .modal > div{background:#fff; border-radius:12px; width:min(800px,92vw); max-height:82vh; overflow:auto; padding:16px}
-
-  /* Región de estado invisible (accesibilidad) */
-  .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0}
-
-  /* Tooltip flotante propio */
-  .tip{position:fixed; z-index:99999; background:var(--tip-bg); color:var(--tip-ink);
-       font-size:12px; padding:6px 8px; border-radius:8px; display:none; pointer-events:none; box-shadow:0 8px 20px rgba(0,0,0,.2)}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  .tip{position:fixed;z-index:99999;background:var(--tip-bg);color:var(--tip-ink);font-size:12px;padding:6px 8px;border-radius:8px;display:none;pointer-events:none;box-shadow:0 8px 20px rgba(0,0,0,.2)}
 </style>
 </head>
 <body>
 
-<!-- ===== Tooltip flotante ===== -->
 <div id="tooltip" class="tip"></div>
 
-<!-- ===== TOP: video + imágenes ===== -->
 <section class="topFixed">
   <div class="wrap">
     <div class="head">
-      <button class="btn histBtn" id="btnHistorial" data-tip="Ver historial de sesiones y abrir cada sesión en una pestaña">Historial</button>
+      <button class="btn histBtn" id="btnHistorial" data-tip="Ver historial de sesiones guardadas">Historial</button>
       <div id="status" class="sr-only" aria-live="polite">Listo</div>
     </div>
 
@@ -96,16 +65,10 @@
         <img src="left.png" alt="" class="sideImg" id="imgLeft">
         <div class="sideBadge">🎙️</div>
       </div>
-
       <div class="mainVideoWrap">
-        <video id="mainVideo"
-               class="mainVideo"
-               muted
-               playsinline
-               preload="auto"
-               src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
+        <video id="mainVideo" class="mainVideo" muted playsinline preload="auto"
+          src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
       </div>
-
       <div class="sideWrap">
         <img src="right.png" alt="" class="sideImg" id="imgRight">
         <div class="sideBadge">📊</div>
@@ -114,419 +77,247 @@
   </div>
 </section>
 
-<!-- ===== BOTTOM: entrada, botones y salida ===== -->
 <section class="bottomPane">
   <div class="wrap">
     <div class="askBox">
       <textarea id="ask" class="askArea" placeholder="Escribe tu pregunta (puede incluir cálculos, listados, tablas)…"></textarea>
-
       <div class="toolbar">
-        <button class="btn btn-blue" id="btnSend" data-tip="Enviar la consulta para que el sistema la analice">
-          <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3l5 9-5 9zm7-9l-7 7 7-7z"/></svg></span> ENVIAR
-        </button>
-
-        <button class="btn" id="btnDictar" data-tip="Activar o detener dictado de voz a texto">
-          <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3z"/><path d="M19 11a7 7 0 01-14 0h2a5 5 0 0010 0h2zM11 19h2v3h-2z"/></svg></span> DICTAR
-        </button>
-
-        <button class="btn" id="btnAV" data-tip="Silenciar/activar la locución por voz y pausar/reanudar el video (no usa cámara)">
-          <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2 3h5a2 2 0 012 2v6a2 2 0 01-2 2h-5l-2 3H9l-2-3H2a2 2 0 01-2-2V8a2 2 0 012-2h5l2-3h3z"/></svg></span>
-          PARAR/ACTIVAR VOZ Y VIDEO
-        </button>
-
-        <button class="btn" id="btnReplay" data-tip="Volver a reproducir por voz la última respuesta">
-          <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7a5 5 0 110 10 5 5 0 01-5-5H5a7 7 0 107-7z"/></svg></span>
-          REPRODUCIR NUEVAMENTE
-        </button>
-
-        <button class="btn" id="btnNew" data-tip="Cerrar la sesión actual y crear una nueva (limpia contexto)">
-          <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 12h12l-4-4 1.4-1.4L20.8 12l-8.4 8.4L11 19l4-4H3z"/></svg></span>
-          NUEVA SESIÓN
-        </button>
-
-        <button class="btn" id="btnClear" data-tip="Limpiar la caja de texto y el área de respuestas">
-          <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3zM5 8h14l-1 14H6zM9 4h6l1 2H8z"/></svg></span>
-          LIMPIAR
-        </button>
-
-        <select id="exportSel" class="exportSel" data-tip="Exportar lo generado en esta sesión (previsualiza PDF antes de descargar)">
-          <option value="">Exportar…</option>
-          <option value="pdf">PDF</option>
-          <option value="xls">XLS</option>
-          <option value="doc">DOC</option>
+        <button class="btn btn-blue" id="btnSend" data-tip="Enviar la consulta para análisis"> <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3l5 9-5 9zm7-9l-7 7 7-7z"/></svg></span> ENVIAR</button>
+        <button class="btn" id="btnDictar" data-tip="Activar/detener dictado voz a texto"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3z"/><path d="M19 11a7 7 0 01-14 0h2a5 5 0 0010 0h2zM11 19h2v3h-2z"/></svg></span> DICTAR</button>
+        <button class="btn" id="btnAV" data-tip="Pausar/Reanudar locución y video (no usa cámara)"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2 3h5a2 2 0 012 2v6a2 2 0 01-2 2h-5l-2 3H9l-2-3H2a2 2 0 01-2-2V8a2 2 0 012-2h5l2-3h3z"/></svg></span> PARAR/ACTIVAR VOZ Y VIDEO</button>
+        <button class="btn" id="btnReplay" data-tip="Volver a leer la última respuesta"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7a5 5 0 110 10 5 5 0 01-5-5H5a7 7 0 107-7z"/></svg></span> REPRODUCIR NUEVAMENTE</button>
+        <button class="btn" id="btnNew" data-tip="Nueva sesión (limpia el contexto)"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 12h12l-4-4 1.4-1.4L20.8 12l-8.4 8.4L11 19l4-4H3z"/></svg></span> NUEVA SESIÓN</button>
+        <button class="btn" id="btnClear" data-tip="Limpiar la caja y las respuestas"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3zM5 8h14l-1 14H6zM9 4h6l1 2H8z"/></svg></span> LIMPIAR</button>
+        <select id="exportSel" class="exportSel" data-tip="Exportar (previsualiza PDF antes de descargar)">
+          <option value="">Exportar…</option><option value="pdf">PDF</option><option value="xls">XLS</option><option value="doc">DOC</option>
         </select>
       </div>
     </div>
-
     <div class="out" id="out"></div>
   </div>
 </section>
 
-<!-- ===== MODAL HISTORIAL ===== -->
-<div class="modal" id="mdlHist">
-  <div>
-    <div style="display:flex;justify-content:space-between;align-items:center; gap:10px">
-      <h3 style="margin:4px 0">Historial de sesiones</h3>
-      <button class="btn" id="btnCloseHist">Cerrar</button>
-    </div>
-    <div id="histList" style="margin-top:10px;color:#6b7280"></div>
+<div class="modal" id="mdlHist"><div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+    <h3 style="margin:4px 0">Historial de sesiones</h3>
+    <button class="btn" id="btnCloseHist">Cerrar</button>
   </div>
-</div>
+  <div id="histList" style="margin-top:10px;color:#6b7280"></div>
+</div></div>
 
-<!-- ===== MODAL PREVIEW PDF ===== -->
-<div class="modal" id="mdlPrev">
-  <div>
-    <div style="display:flex;justify-content:space-between;align-items:center; gap:10px">
-      <h3 style="margin:4px 0">Vista previa para PDF</h3>
-      <div style="display:flex; gap:8px">
-        <button class="btn" id="btnDownloadPdf">Descargar PDF</button>
-        <button class="btn" id="btnClosePrev">Cerrar</button>
-      </div>
+<div class="modal" id="mdlPrev"><div>
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+    <h3 style="margin:4px 0">Vista previa para PDF</h3>
+    <div style="display:flex;gap:8px">
+      <button class="btn" id="btnDownloadPdf">Descargar PDF</button>
+      <button class="btn" id="btnClosePrev">Cerrar</button>
     </div>
-    <div id="prevContent" style="margin-top:10px; font-size:14px; color:#111"></div>
   </div>
-</div>
+  <div id="prevContent" style="margin-top:10px;font-size:14px;color:#111"></div>
+</div></div>
 
 <script>
-/* ========= CONFIG ========= */
+/* ===== CONFIG ===== */
 const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
 
-/* ========= REFS ========= */
-const $status = document.getElementById('status'); // oculto (sr-only)
-const $ask = document.getElementById('ask');
-const $out = document.getElementById('out');
-const $video = document.getElementById('mainVideo');
+/* ===== REFS ===== */
+const $status=document.getElementById('status'),$ask=document.getElementById('ask'),$out=document.getElementById('out'),$video=document.getElementById('mainVideo');
+const $btnSend=btn('btnSend'),$btnDictar=btn('btnDictar'),$btnAV=btn('btnAV'),$btnReplay=btn('btnReplay'),$btnNew=btn('btnNew'),$btnClear=btn('btnClear'),$exportSel=btn('exportSel');
+const $btnHistorial=btn('btnHistorial'),$mdlHist=btn('mdlHist'),$btnCloseHist=btn('btnCloseHist'),$histList=btn('histList');
+const $mdlPrev=btn('mdlPrev'),$btnClosePrev=btn('btnClosePrev'),$btnDownloadPdf=btn('btnDownloadPdf'),$prevContent=btn('prevContent');
+function btn(id){return document.getElementById(id);}
 
-const $btnSend = document.getElementById('btnSend');
-const $btnDictar = document.getElementById('btnDictar');
-const $btnAV = document.getElementById('btnAV');
-const $btnReplay = document.getElementById('btnReplay');
-const $btnNew = document.getElementById('btnNew');
-const $btnClear = document.getElementById('btnClear');
-const $exportSel = document.getElementById('exportSel');
-const $btnHistorial = document.getElementById('btnHistorial');
-const $mdlHist = document.getElementById('mdlHist');
-const $btnCloseHist = document.getElementById('btnCloseHist');
-const $histList = document.getElementById('histList');
+/* ===== Tooltip ===== */
+const $tip=document.getElementById('tooltip');
+document.addEventListener('mousemove',e=>{const t=e.target.closest('[data-tip]');if(t){$tip.style.display='block';$tip.textContent=t.getAttribute('data-tip');$tip.style.left=(e.clientX+14)+'px';$tip.style.top=(e.clientY+14)+'px';}else{$tip.style.display='none';}});
 
-const $mdlPrev = document.getElementById('mdlPrev');
-const $btnClosePrev = document.getElementById('btnClosePrev');
-const $btnDownloadPdf = document.getElementById('btnDownloadPdf');
-const $prevContent = document.getElementById('prevContent');
-
-/* Tooltip */
-const $tip = document.getElementById('tooltip');
-document.addEventListener('mousemove', e=>{
-  const t = e.target.closest('[data-tip]');
-  if(t){ $tip.style.display='block'; $tip.textContent = t.getAttribute('data-tip');
-        $tip.style.left = (e.clientX+14)+'px'; $tip.style.top = (e.clientY+14)+'px'; }
-  else{ $tip.style.display='none'; }
-});
-
-/* ========= ESTADO / SESIÓN ========= */
-let sessionId = Date.now().toString();
-let sessionItems = [];
-let lastGeneral = "";
-let lastTables = [];
-let lastSpoken = "";
-let voices = [];
-let speaking = false;
-let recOn = false;
-let rec;
-let avEnabled = true; // NEW: controla locución + video sin usar cámara
-
-function setStatus(t){ $status.textContent = t; }
-function addCard(html){ const d=document.createElement('div'); d.className='card'; d.innerHTML=html; $out.appendChild(d); }
+/* ===== Sesión & estado ===== */
+let sessionId=Date.now().toString(),sessionItems=[],lastGeneral="",lastTables=[];
+function setStatus(t){$status.textContent=t;}
+function addCard(html){const d=document.createElement('div');d.className='card';d.innerHTML=html;$out.appendChild(d);}
 function clearOut(){ $out.innerHTML=''; lastGeneral=""; lastTables=[]; sessionItems=[]; }
-function saveItem(it){ sessionItems.push(it); persistSession(); }
-function persistSession(){
-  const all = JSON.parse(localStorage.getItem('lexium-sessions')||'{}');
-  all[sessionId] = all[sessionId] || {created: sessionId, items:[]};
-  all[sessionId].items = sessionItems;
-  localStorage.setItem('lexium-sessions', JSON.stringify(all));
-}
-function newSession(){ persistSession(); sessionId = Date.now().toString(); sessionItems=[]; clearOut(); stopSpeech(); pauseVideo(); setStatus('Nueva sesión'); }
+function saveItem(it){sessionItems.push(it); persistSession();}
+function persistSession(){const all=JSON.parse(localStorage.getItem('lexium-sessions')||'{}');all[sessionId]=all[sessionId]||{created:sessionId,items:[]};all[sessionId].items=sessionItems;localStorage.setItem('lexium-sessions',JSON.stringify(all));}
+function newSession(){persistSession();sessionId=Date.now().toString();sessionItems=[];clearOut();stopSpeech(true);pauseVideo();setStatus('Nueva sesión');}
 
-/* ========= RENDER ========= */
+/* ===== Render ===== */
 function render(data){
-  if(data.general){
-    lastGeneral = data.general;
-    addCard(`<div>${escapeHtml(data.general)}</div>`);
-    saveItem({type:'text', value:data.general});
-  }
-  (data.lists||[]).forEach(lst=>{
-    const html = `<div style="font-weight:700;margin-bottom:6px">${escapeHtml(lst.title||'Lista')}</div>
-                  <ol>${(lst.items||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>`;
-    addCard(html); saveItem({type:'list', title:lst.title||'Lista', items:lst.items||[]});
-  });
-  (data.tables||[]).forEach(tbl=>{
-    const cols = ['#', ...(tbl.columns||[])];
-    const rows = (tbl.rows||[]).map((r,i)=>[String(i+1), ...r]);
-    lastTables.push({title:tbl.title||'Tabla', columns:cols, rows});
-    const thead = `<tr>${cols.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
-    const tbody = rows.map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
-    addCard(`${tbl.title?`<div style="font-weight:700;margin-bottom:6px">${escapeHtml(tbl.title)}</div>`:''}
-            <table class="tbl"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`);
-    saveItem({type:'table', title:tbl.title||'Tabla', columns:cols, rows});
-  });
+  if(data.general){lastGeneral=data.general;addCard(`<div>${esc(data.general)}</div>`);saveItem({type:'text',value:data.general});}
+  (data.lists||[]).forEach(lst=>{addCard(`<div style="font-weight:700;margin-bottom:6px">${esc(lst.title||'Lista')}</div><ol>${(lst.items||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`);saveItem({type:'list',title:lst.title||'Lista',items:lst.items||[]});});
+  (data.tables||[]).forEach(tbl=>{const cols=['#',...(tbl.columns||[])];const rows=(tbl.rows||[]).map((r,i)=>[String(i+1),...r]);lastTables.push({title:tbl.title||'Tabla',columns:cols,rows});
+    const thead=`<tr>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr>`;const tbody=rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('');
+    addCard(`${tbl.title?`<div style="font-weight:700;margin-bottom:6px">${esc(tbl.title)}</div>`:''}<table class="tbl"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`);saveItem({type:'table',title:tbl.title||'Tabla',columns:cols,rows});});
 }
 
-/* ========= BACKEND ========= */
+/* ===== Backend ===== */
 async function send(){
-  const q = $ask.value.trim();
-  if(!q){ setStatus('Escribe tu consulta…'); return; }
+  const q=$ask.value.trim(); if(!q){setStatus('Escribe tu consulta…');return;}
   setStatus('Analizando…');
   try{
-    const res = await fetch(`${API_BASE}/api/answer?q=${encodeURIComponent(q)}`, {headers:{Accept:'application/json'}});
-    const txt = await res.text(); let data;
-    try{ data = JSON.parse(txt); } catch{ data={ok:true, general:txt, lists:[], tables:[]}; }
+    const ctl=new AbortController(); const timer=setTimeout(()=>ctl.abort(),90000);
+    const res=await fetch(`${API_BASE}/api/answer?q=${encodeURIComponent(q)}`,{headers:{Accept:'application/json'},signal:ctl.signal});
+    clearTimeout(timer);
+    const txt=await res.text(); let data;
+    try{data=JSON.parse(txt);}catch{data={ok:true,general:txt,lists:[],tables:[]};}
     render(data);
     if(data.general && avEnabled){ speak(data.general); }
     setStatus('Listo');
   }catch(e){
-    console.error(e);
-    addCard(`<div style="color:#6b7280">Error de conexión</div>`);
-    setStatus('Error');
+    console.error(e); addCard(`<div style="color:#6b7280">Error consultando el backend: ${esc(String(e))}</div>`); setStatus('Error');
   }
 }
 
-/* ========= VIDEO helpers ========= */
-function playVideo(){ try{ $video.currentTime=0; $video.play().catch(()=>{}); }catch{} }
-function pauseVideo(){ try{ $video.pause(); }catch{} }
+/* ===== Video ===== */
+function playVideo(){try{$video.play().catch(()=>{});}catch{}}
+function pauseVideo(){try{$video.pause();}catch{}}
 
-/* ========= VOZ (preferencia femenina ES) ========= */
-function isLikelyMale(name=""){
-  return /(diego|jorge|pablo|jos[eé]|carlos|alberto|miguel|javier|enrique|juan|pedro|antonio|ricardo|alejandro|sergio|male|hombre)/i.test(name);
+/* ===== TTS (pausar/reanudar) ===== */
+let voices=[], avEnabled=true, ttsQueue=[], ttsIndex=0, ttsActive=false, ttsPaused=false;
+let lastSpoken="";
+function isMaleName(n=""){return /(diego|jorge|pablo|jos[eé]|carlos|alberto|miguel|javier|enrique|juan|pedro|antonio|ricardo|alejandro|sergio|male|hombre)/i.test(n);}
+function pickVoice(list){
+  const pref=['Microsoft Sabina','Microsoft Helena'];
+  for(const p of pref){const v=list.find(v=>(v.name||'').toLowerCase().includes(p.toLowerCase()));if(v) return v;}
+  const langs=['es-EC','es-MX','es-ES','es'];
+  for(const L of langs){const pool=list.filter(v=>(v.lang||'').toLowerCase().startsWith(L.toLowerCase()));
+    if(pool.length){let v=pool.find(v=>/female|mujer|sabina|helena/i.test(v.name||''))||pool.find(v=>!isMaleName(v.name||''));if(v) return v;}
+  }
+  return list.find(v=>(v.lang||'').toLowerCase().startsWith('es'))||list[0]||null;
 }
-function pickSpanishFemale(list){
-  // Preferidos por nombre:
-  const prefer = ['Microsoft Sabina', 'Microsoft Helena'];
-  for(const p of prefer){
-    const v = list.find(v => (v.name||'').toLowerCase().includes(p.toLowerCase()));
-    if(v) return v;
-  }
-  // Por idioma y no-masculinas
-  const langs = ['es-EC','es-MX','es-ES','es'];
-  for(const L of langs){
-    const pool = list.filter(v => (v.lang||'').toLowerCase().startsWith(L.toLowerCase()));
-    if(!pool.length) continue;
-    let v = pool.find(v => /female|mujer|sabina|helena/i.test(v.name||'')) || null;
-    if(!v){
-      const fem = pool.find(v => !isLikelyMale(v.name||''));
-      if(fem) v = fem;
-    }
-    if(v) return v;
-  }
-  const anyEs = list.find(v => (v.lang||'').toLowerCase().startsWith('es'));
-  return anyEs || list[0] || null;
-}
-function splitForTTS(text, maxLen=300){
-  const parts=[]; let cur='';
-  const chunks = text.split(/([.!?]\s+)/);
-  for(const c of chunks){
-    if((cur + c).length > maxLen){ if(cur) parts.push(cur); cur=c; }
-    else cur += c;
-  }
-  if(cur) parts.push(cur);
-  return parts;
+function splitTTS(t,max=300){const out=[];let cur='';for(const part of t.split(/([.!?]\s+)/)){if((cur+part).length>max){if(cur) out.push(cur);cur=part;}else cur+=part;}if(cur) out.push(cur);return out;}
+function playPart(){
+  if(!avEnabled || !ttsQueue.length){ttsActive=false;pauseVideo();return;}
+  if(ttsIndex>=ttsQueue.length){ttsActive=false;pauseVideo();setStatus('Listo');return;}
+  const u=new SpeechSynthesisUtterance(ttsQueue[ttsIndex]);
+  const v=pickVoice(voices); if(v) u.voice=v; u.lang=v?.lang||'es-ES'; u.rate=1; u.pitch=1.12;
+  u.onend=()=>{ if(!ttsPaused){ ttsIndex++; playPart(); } };
+  u.onerror=()=>{ ttsIndex++; playPart(); };
+  setStatus('Hablando…'); playVideo(); ttsActive=true; speechSynthesis.speak(u);
 }
 function speak(text){
-  stopSpeech(); if(!text || !avEnabled) return; lastSpoken=text;
-  playVideo();
-  const parts = splitForTTS(text);
-  let i=0; speaking=true;
-  const playNext = ()=>{
-    if(!avEnabled){ speaking=false; pauseVideo(); return; }
-    if(i>=parts.length){ speaking=false; pauseVideo(); setStatus('Listo'); return; }
-    const u = new SpeechSynthesisUtterance(parts[i++]);
-    const vv = pickSpanishFemale(voices);
-    if(vv) u.voice = vv;
-    u.lang = vv?.lang || 'es-ES';
-    u.rate = 1; u.pitch = 1.12; // un poco más aguda
-    u.onend = ()=>{ playNext(); };
-    u.onerror = ()=>{ playNext(); };
-    setStatus('Hablando…');
-    speechSynthesis.speak(u);
-  };
-  playNext();
+  lastSpoken=text||''; // nuevo contenido
+  // si ya había algo hablando, reiniciamos cola
+  speechSynthesis.cancel(); ttsPaused=false; ttsQueue=splitTTS(text||''); ttsIndex=0;
+  if(!avEnabled) return; playPart();
 }
-function stopSpeech(){ speechSynthesis.cancel(); speaking=false; }
+function stopSpeech(cancelAll=false){
+  if(cancelAll){ speechSynthesis.cancel(); ttsActive=false; ttsPaused=false; return; }
+  // pausa (no cancel) → reanuda donde quedó
+  speechSynthesis.pause(); ttsPaused=true; ttsActive=false;
+}
 
-/* ========= DICTADO (sin cámara) ========= */
+/* ===== Dictado (sin cámara) ===== */
+let recOn=false, rec;
 function toggleDictar(){
   try{
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if(!SR){ alert('Dictado no soportado en este navegador.'); return; }
-    if(recOn){ rec.stop(); return; }
-    rec = new SR(); rec.lang='es-ES'; rec.interimResults=false; rec.maxAlternatives=1;
-    rec.onresult = e => { const t=e.results[0][0].transcript; $ask.value = ($ask.value? $ask.value+' ' : '') + t; };
-    rec.onend = ()=>{ recOn=false; $btnDictar.textContent='DICTAR'; setStatus('Dictado detenido'); };
-    rec.onerror = ()=>{ recOn=false; $btnDictar.textContent='DICTAR'; setStatus('Error dictado'); };
-    rec.start(); recOn=true; $btnDictar.textContent='DETENER DICTADO'; setStatus('Dictando…');
-  }catch(e){ console.error(e); alert('No se pudo iniciar dictado.'); }
+    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+    if(!SR){alert('Dictado no soportado en este navegador.');return;}
+    if(recOn){rec.stop();return;}
+    rec=new SR(); rec.lang='es-ES'; rec.interimResults=false; rec.maxAlternatives=1;
+    rec.onresult=e=>{const t=e.results[0][0].transcript;$ask.value=($ask.value?$ask.value+' ':'')+t;};
+    rec.onend=()=>{recOn=false;$btnDictar.textContent='DICTAR';setStatus('Dictado detenido');};
+    rec.onerror=()=>{recOn=false;$btnDictar.textContent='DICTAR';setStatus('Error dictado');};
+    rec.start();recOn=true;$btnDictar.textContent='DETENER DICTADO';setStatus('Dictando…');
+  }catch(e){console.error(e);alert('No se pudo iniciar dictado.');}
 }
 
-/* ========= SILENCIAR/ACTIVAR (sin pedir cámara) ========= */
+/* ===== Silenciar/Reactivar AV (reanuda donde quedó) ===== */
 function toggleAV(){
-  avEnabled = !avEnabled;
-  if(!avEnabled){ // silenciar
-    stopSpeech(); pauseVideo(); setStatus('Silenciado');
-    $btnAV.textContent = 'ACTIVAR VOZ Y VIDEO';
-    $btnAV.prepend(makeIco('play'));
-  }else{         // activar
-    setStatus('Activado');
-    $btnAV.textContent = 'PARAR/ACTIVAR VOZ Y VIDEO';
-    $btnAV.prepend(makeIco('mute'));
-    if(lastSpoken){ speak(lastSpoken); }
+  avEnabled=!avEnabled;
+  if(!avEnabled){
+    stopSpeech(false); pauseVideo(); setStatus('Silenciado'); $btnAV.textContent='ACTIVAR VOZ Y VIDEO';
+  }else{
+    setStatus('Activado'); $btnAV.textContent='PARAR/ACTIVAR VOZ Y VIDEO';
+    // Si estaba pausado, reanuda; si no, vuelve a leer lo último
+    if(ttsPaused){ speechSynthesis.resume(); ttsPaused=false; ttsActive=true; playVideo(); }
+    else if(!ttsActive && lastSpoken){ speak(lastSpoken); }
   }
 }
 
-/* ========= EXPORTAR ========= */
+/* ===== Exportar ===== */
 function buildSessionHTML(){
-  let html = `<h2>Sesión ${sessionId}</h2>`;
+  let html=`<h2>Sesión ${sessionId}</h2>`;
   for(const it of sessionItems){
-    if(it.type==='text'){
-      html += `<p>${escapeHtml(it.value).replace(/\n/g,'<br>')}</p>`;
-    }else if(it.type==='list'){
-      html += `<h3>${escapeHtml(it.title)}</h3><ol>${it.items.map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>`;
-    }else if(it.type==='table'){
-      const thead = `<tr>${it.columns.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
-      const tbody = it.rows.map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
-      html += `<h3>${escapeHtml(it.title)}</h3><table border="1" cellspacing="0" cellpadding="4">${thead}${tbody}</table>`;
-    }
+    if(it.type==='text'){html+=`<p>${esc(it.value).replace(/\n/g,'<br>')}</p>`;}
+    else if(it.type==='list'){html+=`<h3>${esc(it.title)}</h3><ol>${(it.items||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`;}
+    else if(it.type==='table'){const thead=`<tr>${it.columns.map(c=>`<th>${esc(c)}</th>`).join('')}</tr>`;
+      const tbody=it.rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('');
+      html+=`<h3>${esc(it.title)}</h3><table border="1" cellspacing="0" cellpadding="4">${thead}${tbody}</table>`;}
   }
   return html;
 }
-function openPreview(){
-  const html = buildSessionHTML();
-  $prevContent.innerHTML = html;
-  $mdlPrev.style.display='flex';
-}
+function openPreview(){ $prevContent.innerHTML=buildSessionHTML(); $mdlPrev.style.display='flex'; }
 function closePreview(){ $mdlPrev.style.display='none'; }
 function downloadPdfFromPreview(){
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({unit:'pt', format:'a4'});
-  const margin=36, pageW=595-2*margin;
-  const tmp = document.createElement('div');
-  tmp.innerHTML = $prevContent.innerHTML;
-
-  let y = margin;
-  const addText = (t, bold=false)=>{
-    const lines = doc.splitTextToSize(t, pageW);
-    if(y + lines.length*14 > 812){ doc.addPage(); y=margin; }
-    if(bold) doc.setFont(undefined,"bold");
-    doc.text(lines, margin, y);
-    if(bold) doc.setFont(undefined,"normal");
-    y += lines.length*14 + 8;
-  };
-  tmp.querySelectorAll('h2,h3,p,ol,table').forEach(el=>{
-    if(el.tagName==='H2' || el.tagName==='H3'){ addText(el.textContent, true); }
-    else if(el.tagName==='P'){ addText(el.textContent); }
-    else if(el.tagName==='OL'){
-      const items = Array.from(el.querySelectorAll('li')).map(li=>li.textContent);
-      addText(items.map((t,i)=>`${i+1}. ${t}`).join('\n'));
-    }else if(el.tagName==='TABLE'){
-      const rows = Array.from(el.querySelectorAll('tr')).map(tr=>Array.from(tr.children).map(td=>td.textContent));
-      rows.forEach(r=> addText(r.join('  |  ')) );
-    }
+  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'pt',format:'a4'}); const margin=36,pageW=595-2*margin;
+  let y=margin; doc.setFontSize(12);
+  const dom=document.createElement('div'); dom.innerHTML=$prevContent.innerHTML;
+  const add=t=>{const lines=doc.splitTextToSize(t,pageW); if(y+lines.length*14>812){doc.addPage();y=margin;} doc.text(lines,margin,y); y+=lines.length*14+8;};
+  dom.querySelectorAll('h2,h3,p,ol,table').forEach(el=>{
+    if(el.tagName==='H2'||el.tagName==='H3'){doc.setFont(undefined,'bold');add(el.textContent);doc.setFont(undefined,'normal');}
+    else if(el.tagName==='P'){add(el.textContent);}
+    else if(el.tagName==='OL'){add(Array.from(el.querySelectorAll('li')).map((li,i)=>`${i+1}. ${li.textContent}`).join('\n'));}
+    else if(el.tagName==='TABLE'){Array.from(el.querySelectorAll('tr')).forEach(tr=>add(Array.from(tr.children).map(td=>td.textContent).join('  |  ')));}
   });
   doc.save(`sesion_${sessionId}.pdf`);
 }
 function exportAll(kind){
-  if(!sessionItems.length){ alert('No hay contenido para exportar.'); return; }
-  if(kind==='pdf'){ openPreview(); return; } // VISTA PREVIA PRIMERO
-  if(kind==='xls'){
-    const wb = XLSX.utils.book_new(); let idx=1;
+  if(!sessionItems.length){alert('No hay contenido para exportar.');return;}
+  if(kind==='pdf'){openPreview();return;}
+  if(kind==='xls'){const wb=XLSX.utils.book_new();let idx=1;
     for(const it of sessionItems){
-      if(it.type==='text'){
-        const ws = XLSX.utils.aoa_to_sheet([['Texto'], [it.value]]);
-        XLSX.utils.book_append_sheet(wb, ws, `Texto${idx++}`);
-      }else if(it.type==='list'){
-        const aoa = [['#','Ítem'], ...(it.items||[]).map((x,i)=>[i+1,x])];
-        const ws = XLSX.utils.aoa_to_sheet(aoa);
-        XLSX.utils.book_append_sheet(wb, ws, (it.title||`Lista${idx++}`).substring(0,31));
-      }else if(it.type==='table'){
-        const aoa = [it.columns, ...it.rows];
-        const ws = XLSX.utils.aoa_to_sheet(aoa);
-        XLSX.utils.book_append_sheet(wb, ws, (it.title||`Tabla${idx++}`).substring(0,31));
-      }
-    }
-    XLSX.writeFile(wb, `sesion_${sessionId}.xlsx`);
-  }
-  if(kind==='doc'){
-    const blob = new Blob([`<!doctype html><html><head><meta charset="utf-8"></head><body>${buildSessionHTML()}</body></html>`],
-      {type:'application/msword'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob); a.download = `sesion_${sessionId}.doc`; a.click();
-  }
+      if(it.type==='text'){XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Texto'],[it.value]]),`Texto${idx++}`);}
+      else if(it.type==='list'){const aoa=[['#','Ítem'],...(it.items||[]).map((x,i)=>[i+1,x])];XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),(it.title||`Lista${idx++}`).substring(0,31));}
+      else if(it.type==='table'){const aoa=[it.columns,...it.rows];XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),(it.title||`Tabla${idx++}`).substring(0,31));}
+    } XLSX.writeFile(wb,`sesion_${sessionId}.xlsx`); }
+  if(kind==='doc'){const blob=new Blob([`<!doctype html><html><head><meta charset="utf-8"></head><body>${buildSessionHTML()}</body></html>`],{type:'application/msword'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`sesion_${sessionId}.doc`;a.click();}
 }
 
-/* ========= HISTORIAL ========= */
+/* ===== Historial ===== */
 function openHist(){
-  const all = JSON.parse(localStorage.getItem('lexium-sessions')||'{}');
-  const ids = Object.keys(all).sort((a,b)=>b.localeCompare(a));
-  if(!ids.length){ $histList.innerHTML = '<p>No hay sesiones guardadas.</p>'; }
-  else{
-    $histList.innerHTML = ids.map(id=>`<div style="margin:8px 0">
-      <a href="#ver-${id}" onclick="return showSession('${id}')">Ver sesión ${id}</a>
-    </div>`).join('');
-  }
+  const all=JSON.parse(localStorage.getItem('lexium-sessions')||'{}');const ids=Object.keys(all).sort((a,b)=>b.localeCompare(a));
+  $histList.innerHTML = ids.length ? ids.map(id=>`<div style="margin:8px 0"><a href="#v-${id}" onclick="return showSession('${id}')">Ver sesión ${id}</a></div>`).join('') : '<p>No hay sesiones guardadas.</p>';
   $mdlHist.style.display='flex';
 }
 function closeHist(){ $mdlHist.style.display='none'; }
 function showSession(id){
-  const all = JSON.parse(localStorage.getItem('lexium-sessions')||'{}');
-  const ses = all[id]; if(!ses){ alert('No encontrada'); return false; }
-  const win = window.open('about:blank','_blank');
-  let html = `<h2>Sesión ${id}</h2>`;
+  const all=JSON.parse(localStorage.getItem('lexium-sessions')||'{}');const ses=all[id]; if(!ses){alert('No encontrada');return false;}
+  const win=window.open('about:blank','_blank'); let html=`<h2>Sesión ${id}</h2>`;
   (ses.items||[]).forEach(it=>{
-    if(it.type==='text'){ html += `<p>${escapeHtml(it.value).replace(/\n/g,'<br>')}</p>`; }
-    else if(it.type==='list'){
-      html += `<h3>${escapeHtml(it.title)}</h3><ol>${(it.items||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>`;
-    }else if(it.type==='table'){
-      const thead = `<tr>${it.columns.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
-      const tbody = it.rows.map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('');
-      html += `<h3>${escapeHtml(it.title)}</h3><table border="1" cellspacing="0" cellpadding="4">${thead}${tbody}</table>`;
-    }
+    if(it.type==='text'){html+=`<p>${esc(it.value).replace(/\n/g,'<br>')}</p>`;}
+    else if(it.type==='list'){html+=`<h3>${esc(it.title)}</h3><ol>${(it.items||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`;}
+    else if(it.type==='table'){const thead=`<tr>${it.columns.map(c=>`<th>${esc(c)}</th>`).join('')}</tr>`;
+      const tbody=it.rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('');
+      html+=`<h3>${esc(it.title)}</h3><table border="1" cellspacing="0" cellpadding="4">${thead}${tbody}</table>`;}
   });
-  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Sesión ${id}</title>
-  <style>body{font-family:Inter,system-ui} table{border-collapse:collapse} th,td{border:1px solid #ddd;padding:6px}</style>
-  </head><body>${html}</body></html>`);
+  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Sesión ${id}</title><style>body{font-family:Inter,system-ui}table{border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px}</style></head><body>${html}</body></html>`);
   return false;
 }
 
-/* ========= HELPERS ========= */
-function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
-function makeIco(kind){
-  const span = document.createElement('span'); span.className='ico';
-  span.innerHTML = kind==='play'
-    ? `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`
-    : `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2 3h5a2 2 0 012 2v6a2 2 0 01-2 2h-5l-2 3H9l-2-3H2a2 2 0 01-2-2V8a2 2 0 012-2h5l2-3h3z"/></svg>`;
-  return span;
-}
+/* ===== Helpers ===== */
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
 
-/* ========= WIRE-UP ========= */
-$btnSend.onclick = send;
-$btnReplay.onclick = ()=> { if(avEnabled) speak(lastGeneral||''); };
-$btnDictar.onclick = toggleDictar;
-$btnAV.onclick = toggleAV;
-$btnNew.onclick = newSession;
-$btnClear.onclick = ()=>{ $ask.value=''; clearOut(); };
-$exportSel.onchange = (e)=>{ const v=e.target.value; if(!v) return; exportAll(v); e.target.value=''; };
-$btnHistorial.onclick = openHist;
-$btnCloseHist.onclick = closeHist;
-document.getElementById('mdlHist').addEventListener('click', (e)=>{ if(e.target===e.currentTarget) closeHist(); });
-$ask.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
+/* ===== Wire-up ===== */
+$btnSend.onclick=send;
+$btnReplay.onclick=()=>{ if(avEnabled && lastSpoken) speak(lastSpoken); };
+$btnDictar.onclick=toggleDictar;
+$btnAV.onclick=toggleAV;
+$btnNew.onclick=newSession;
+$btnClear.onclick=()=>{$ask.value='';clearOut();};
+$exportSel.onchange=e=>{const v=e.target.value;if(!v)return;exportAll(v);e.target.value='';};
+$btnHistorial.onclick=openHist;$btnCloseHist.onclick=closeHist;
+$mdlHist.addEventListener('click',e=>{if(e.target===e.currentTarget)closeHist();});
+$ask.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
 
-$btnClosePrev.onclick = closePreview;
-$btnDownloadPdf.onclick = downloadPdfFromPreview;
-$mdlPrev.addEventListener('click', (e)=>{ if(e.target===e.currentTarget) closePreview(); });
+$btnClosePrev.onclick=()=>{$mdlPrev.style.display='none';};
+$btnDownloadPdf.onclick=downloadPdfFromPreview;
+$mdlPrev.addEventListener('click',e=>{if(e.target===e.currentTarget)$mdlPrev.style.display='none';});
 
-function loadVoices(){ voices = speechSynthesis.getVoices(); }
-speechSynthesis.onvoiceschanged = loadVoices; loadVoices();
+function loadVoices(){voices=speechSynthesis.getVoices();}
+speechSynthesis.onvoiceschanged=loadVoices; loadVoices();
 
-/* Siempre mute (requisito) */
-$video.muted = true;
+/* Siempre mute */
+$video.muted=true;
 </script>
 </body>
 </html>
