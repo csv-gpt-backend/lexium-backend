@@ -3,333 +3,332 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Consulta de Datos k</title>
+  <title>Lexium · Consulta de Datos OK</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
   <style>
     :root{
-      --bg:#f6f7fb; --card:#fff; --text:#0f172a; --muted:#64748b; --brand:#0b66ff;
-      --ok:#16a34a; --err:#e11d48; --border:#e5e7eb;
+      --bg:#0f172a;        /* fondo hero */
+      --card:#ffffff;      /* tarjetas */
+      --ink:#0f172a;       /* texto primario */
+      --ink-2:#334155;     /* texto secundario */
+      --brand:#2563eb;     /* azul */
+      --brand-2:#1d4ed8;
+      --muted:#f1f5f9;
+      --ring:#93c5fd;
+      --success:#16a34a;
+      --danger:#dc2626;
+      --radius:16px
     }
     *{box-sizing:border-box}
-    body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;padding:24px;background:var(--bg);color:var(--text)}
-    .container{max-width:1100px;margin:0 auto}
-    h1{font-size:40px;margin:0 0 16px;color:#0a2f7a}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:16px;box-shadow:0 6px 18px rgba(2,8,23,.06)}
-    .pad{padding:20px}
-    .row{display:grid;gap:16px}
-    .grid-2{grid-template-columns:1.2fr .8fr}
-    textarea{width:100%;min-height:120px;border:1px solid var(--border);border-radius:12px;padding:14px;font-size:16px;resize:vertical}
-    select,input{width:100%;border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:15px}
-    label{font-size:13px;color:var(--muted)}
-    .btn{appearance:none;border:1px solid transparent;background:var(--brand);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;cursor:pointer}
-    .btn.secondary{background:#fff;color:var(--text);border-color:var(--border)}
-    .btn.ghost{background:#fff;color:var(--brand);border-color:var(--brand)}
-    .toolbar{display:flex;gap:10px;flex-wrap:wrap}
-    .status{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:8px}
-    .dot{width:10px;height:10px;border-radius:50%}
-    .ok{background:var(--ok)} .err{background:var(--err)}
-    .block{display:block}
-    .section-title{font-weight:700;margin:8px 0 6px}
-    .muted{color:var(--muted)}
-    .result{margin-top:16px}
-    .list{border:1px solid var(--border);border-radius:12px;overflow:hidden}
-    .list-item{display:flex;justify-content:space-between;padding:10px 12px;border-top:1px solid var(--border)}
-    .list-item:first-child{border-top:0}
-    table{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--border);border-radius:12px;overflow:hidden}
-    th,td{padding:10px 12px;border-top:1px solid var(--border)}
-    th{background:#f3f6ff;text-align:left;font-weight:700}
-    tr:first-child td{border-top:0}
-    .actions{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
-    .hint{font-size:13px;color:var(--muted);margin-top:8px}
-    .chips{display:flex;gap:8px;flex-wrap:wrap}
-    .chip{border:1px dashed var(--border);padding:6px 10px;border-radius:999px;font-size:12px;color:var(--muted);cursor:pointer;background:#fff}
-    .flex{display:flex;gap:10px}
-    @media (max-width: 920px){ .grid-2{grid-template-columns:1fr} }
+    body{
+      margin:0;
+      font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;
+      color:var(--ink);
+      background:#f8fafc
+    }
+    /* HERO */
+    .hero{
+      position:relative;
+      background:var(--bg);
+      color:#fff;
+      padding:48px 16px 24px
+    }
+    .hero-inner{
+      max-width:1100px;
+      margin:0 auto;
+      display:grid;
+      grid-template-columns: 1fr 560px 1fr;
+      gap:16px;
+      align-items:center
+    }
+    .hero h1{
+      grid-column:1/-1;
+      text-align:center;
+      margin:6px 0 18px;
+      font-size:42px;
+      letter-spacing:.2px
+    }
+    .side-img{
+      width:100%;height:260px;object-fit:cover;border-radius:16px;opacity:.85
+    }
+    .video-wrap{
+      border-radius:16px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.30)
+    }
+    .chip{
+      display:inline-flex;gap:8px;align-items:center;
+      background:rgba(255,255,255,.08);
+      padding:6px 12px;border-radius:999px;font-size:13px
+    }
+    /* MAIN */
+    .container{max-width:1100px;margin:-36px auto 80px;padding:0 16px}
+    .row{display:grid;gap:16px;grid-template-columns:1fr}
+    @media (min-width:980px){ .row{grid-template-columns:1.3fr .7fr} }
+    .card{
+      background:var(--card);
+      border-radius:var(--radius);
+      box-shadow:0 10px 30px rgba(2,6,23,.06);
+      padding:18px
+    }
+    .card h3{margin:4px 0 10px}
+    textarea{
+      width:100%;min-height:140px;border:1px solid var(--muted);border-radius:12px;
+      padding:14px 12px;font-size:15px;resize:vertical;outline:none
+    }
+    textarea:focus{border-color:var(--ring);box-shadow:0 0 0 3px rgba(59,130,246,.20)}
+    .btn{
+      display:inline-flex;align-items:center;gap:8px;
+      background:var(--brand);color:#fff;border:none;border-radius:12px;
+      padding:10px 16px;font-weight:600;cursor:pointer
+    }
+    .btn:hover{background:var(--brand-2)}
+    .btn.muted{background:var(--muted);color:var(--ink)}
+    .stack{display:flex;flex-wrap:wrap;gap:10px}
+    .status{font-size:13px;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+    .dot{width:10px;height:10px;border-radius:999px;background:var(--success)}
+    table{width:100%;border-collapse:collapse;border-radius:12px;overflow:hidden}
+    thead th{background:var(--muted);text-align:left;padding:10px;font-size:13px;color:var(--ink-2)}
+    tbody td{border-top:1px solid var(--muted);padding:10px}
+    .tools{display:flex;gap:8px}
+    .pill{border:1px solid var(--muted);padding:8px 10px;border-radius:12px;background:#fff;cursor:pointer}
+    .pill:hover{border-color:var(--ring)}
+    .alert{padding:10px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;color:#9a3412}
+    .ok{color:var(--success)}
+    .err{color:var(--danger)}
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>Consulta de Datos</h1>
 
-    <!-- CONFIG -->
-    <div class="card pad">
-      <div class="flex" style="justify-content:space-between;align-items:center">
-        <div class="status">
-          <span id="dot" class="dot"></span>
-          <span id="status">Comprobando servicio…</span>
-        </div>
-        <div class="chips">
-          <span class="chip" data-q="lista de estudiantes">lista de estudiantes</span>
-          <span class="chip" data-q="promedio de AUTOESTIMA por paralelo">promedio de AUTOESTIMA por paralelo</span>
-          <span class="chip" data-q="P90 de TENSIÓN por paralelo">P90 de TENSIÓN por paralelo</span>
-          <span class="chip" data-q="estadisticos de AUTOESTIMA por paralelo">estadísticos AUTOESTIMA</span>
-          <span class="chip" data-q="comparar medias de AUTOESTIMA entre A y B">t de AUTOESTIMA A vs B</span>
-        </div>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-inner">
+      <img class="side-img" src="left.png" alt="left" />
+      <div class="video-wrap">
+        <video src="https://storage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"
+               poster="right.png" muted autoplay loop playsinline style="width:100%;display:block"></video>
       </div>
-      <div class="row grid-2" style="margin-top:14px">
-        <div>
-          <label>Consulta libre</label>
-          <textarea id="txt"></textarea>
-          <div class="toolbar" style="margin-top:10px">
-            <button class="btn" id="btnSend">Enviar</button>
-            <button class="btn secondary" id="btnClear">Limpiar</button>
+      <img class="side-img" src="right.png" alt="right" />
+
+      <h1>Consulta de Datos</h1>
+      <div style="grid-column:1/-1;text-align:center">
+        <span class="chip">🔌 Back-end listo · <span id="alive" class="ok">conectado</span></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- MAIN -->
+  <main class="container">
+    <div class="row">
+      <!-- Consulta libre -->
+      <div class="card">
+        <div class="stack" style="justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div class="status"><span class="dot"></span>Listo</div>
+          <div class="stack">
+            <button class="pill" onclick="preset('lista de estudiantes')">lista de estudiantes</button>
+            <button class="pill" onclick="preset('promedio de AUTOESTIMA por paralelo')">promedio AUTOESTIMA</button>
+            <button class="pill" onclick="preset('P90 de TENSIÓN por paralelo')">P90 TENSIÓN</button>
+            <button class="pill" onclick="preset('estadísticos de AUTOESTIMA por paralelo')">estadísticos</button>
+            <button class="pill" onclick="preset('t de AUTOESTIMA entre A y B')">t-test A vs B</button>
           </div>
-          <div class="hint">El resultado puede contener texto, listas y tablas con exportación a CSV.</div>
         </div>
 
-        <div>
-          <div class="section-title">Constructores de consulta</div>
+        <h3>Consulta libre</h3>
+        <textarea id="q" placeholder="Escribe tu pregunta (ej: promedio de AUTOESTIMA por paralelo)"></textarea>
+        <div class="stack" style="margin-top:10px">
+          <button class="btn" onclick="ask()">Enviar</button>
+          <button class="btn muted" onclick="clearOut()">Limpiar</button>
+        </div>
+        <p id="status" class="status" style="margin-top:8px"></p>
+      </div>
 
-          <div class="row" style="grid-template-columns:1fr 1fr">
-            <div>
-              <label>Columna</label>
-              <select id="selCol"></select>
-            </div>
-            <div>
-              <label>Percentil</label>
-              <select id="selP">
-                <option value="P10">P10</option>
-                <option value="P25">P25</option>
-                <option value="P50">P50 (Mediana)</option>
-                <option value="P75">P75</option>
-                <option value="P90">P90</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="row" style="grid-template-columns:1fr 1fr">
-            <div>
-              <label>Grupo 1 (paralelo)</label>
-              <select id="selA">
-                <option>A</option><option>B</option>
-              </select>
-            </div>
-            <div>
-              <label>Grupo 2 (paralelo)</label>
-              <select id="selB">
-                <option>B</option><option>A</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="toolbar" style="margin-top:10px;flex-wrap:wrap">
-            <button class="btn ghost" id="qList">Lista de estudiantes</button>
-            <button class="btn ghost" id="qAvg">Promedio por paralelo</button>
-            <button class="btn ghost" id="qPct">Percentil por paralelo</button>
-            <button class="btn ghost" id="qMed">Mediana por paralelo</button>
-            <button class="btn ghost" id="qStats">Estadísticos / IC95</button>
-            <button class="btn ghost" id="qT">t de Welch (A vs B)</button>
-          </div>
+      <!-- Constructores -->
+      <div class="card">
+        <h3>Constructores de consulta</h3>
+        <div class="stack" style="gap:12px;margin-bottom:10px;flex-wrap:wrap">
+          <select id="col" class="pill"></select>
+          <select id="pct" class="pill">
+            <option value="P10">P10</option><option value="P25">P25</option>
+            <option value="P50">P50</option><option value="P75">P75</option>
+            <option value="P90">P90</option>
+          </select>
+          <select id="g1" class="pill"><option>A</option><option>B</option></select>
+          <select id="g2" class="pill"><option>A</option><option selected>B</option></select>
+        </div>
+        <div class="stack">
+          <button class="pill" onclick="preset('lista de estudiantes')">Lista de estudiantes</button>
+          <button class="pill" onclick="preset(`promedio de ${val('col')} por paralelo`)">Promedio por paralelo</button>
+          <button class="pill" onclick="preset(`${val('pct')} de ${val('col')} por paralelo`)">Percentil por paralelo</button>
+          <button class="pill" onclick="preset(`mediana de ${val('col')} por paralelo`)">Mediana por paralelo</button>
+          <button class="pill" onclick="preset(`estadísticos de ${val('col')} por paralelo`)">Estadísticos / IC95</button>
+          <button class="pill" onclick="preset(`t de ${val('col')} entre ${val('g1')} y ${val('g2')}`)">t de Welch (A vs B)</button>
         </div>
       </div>
     </div>
 
-    <!-- RESULTADOS -->
-    <div id="out" class="card pad result" hidden>
-      <div id="general" class="section-title"></div>
-      <div id="lists"></div>
-      <div id="tables"></div>
-    </div>
-  </div>
+    <!-- Resultados -->
+    <section id="out" style="margin-top:16px">
+      <div class="card">
+        <h3>Respuesta</h3>
+        <div id="general" class="alert">Escribe una consulta o usa los botones rápidos.</div>
+        <div id="lists"></div>
+        <div id="tables"></div>
+      </div>
+    </section>
+  </main>
 
 <script>
-/** CONFIG –– PON AQUÍ TU BACKEND **/
-/** SOLO PARA VERRCELconst API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";**/
-const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
-/** UI refs **/
-const txt = document.getElementById('txt');
-const btnSend = document.getElementById('btnSend');
-const btnClear = document.getElementById('btnClear');
-const out = document.getElementById('out');
-const general = document.getElementById('general');
-const lists = document.getElementById('lists');
-const tables = document.getElementById('tables');
-const statusEl = document.getElementById('status');
-const dot = document.getElementById('dot');
-const selCol = document.getElementById('selCol');
-const selP = document.getElementById('selP');
-const selA = document.getElementById('selA');
-const selB = document.getElementById('selB');
+/* ================== CONFIG ================== */
+const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app"; // <- tu URL Cloud Run
 
-const chips = document.querySelectorAll('.chip');
+/* ================== HELPERS ================== */
+const $ = (sel)=>document.querySelector(sel);
+const val = (id)=>document.getElementById(id).value;
 
-/** helpers **/
-function setStatus(ok, msg){
-  statusEl.textContent = msg;
-  dot.className = 'dot ' + (ok ? 'ok' : 'err');
+function setStatus(msg, kind=""){
+  const el = $("#status");
+  el.textContent = msg || "";
+  el.className = "status " + (kind||"");
 }
-function clearOutput(){
-  general.textContent = '';
-  lists.innerHTML = '';
-  tables.innerHTML = '';
-  out.hidden = true;
+
+function preset(text){
+  $("#q").value = text;
+  ask();
 }
-function showOutput(g, ls=[], tbs=[]){
-  general.textContent = g || '';
-  lists.innerHTML = '';
-  tbs = tbs || [];
 
-  // listas
-  if (ls && ls.length){
-    const wrap = document.createElement('div');
-    wrap.className = 'list';
-    ls.forEach(item=>{
-      const div = document.createElement('div');
-      div.className = 'list-item';
-      div.innerHTML = `<span class="muted">${item[0]||''}</span><strong>${item[1]||''}</strong>`;
-      wrap.appendChild(div);
-    });
-    lists.appendChild(wrap);
-  }
+function clearOut(){
+  $("#general").textContent = "Salida limpiada.";
+  $("#lists").innerHTML = "";
+  $("#tables").innerHTML = "";
+}
 
-  // tablas
-  tables.innerHTML = '';
-  tbs.forEach(tb=>{
-    const card = document.createElement('div');
-    card.style.marginTop = '12px';
-    const title = document.createElement('div');
-    title.className = 'section-title';
-    title.textContent = tb.title || 'Tabla';
+/* CSV export helper */
+function tableToCSV(table){
+  const rows=[...table.querySelectorAll("tr")].map(tr =>
+    [...tr.children].map(td => `"${String(td.innerText).replace(/"/g,'""')}"`).join(",")
+  );
+  return rows.join("\n");
+}
+function downloadCSV(title, csv){
+  const blob = new Blob([csv],{type:"text/csv;charset=utf-8;"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (title||"tabla") + ".csv";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
-    const table = document.createElement('table');
-    const thead = document.createElement('thead');
-    const trh = document.createElement('tr');
-    (tb.columns||[]).forEach(c=>{
-      const th = document.createElement('th'); th.textContent = c; trh.appendChild(th);
-    });
-    thead.appendChild(trh);
-    const tbody = document.createElement('tbody');
-    (tb.rows||[]).forEach(r=>{
-      const tr = document.createElement('tr');
-      r.forEach(cell=>{
-        const td = document.createElement('td'); td.textContent = cell; tr.appendChild(td);
-      });
-      tbody.appendChild(tr);
-    });
-    table.appendChild(thead); table.appendChild(tbody);
+/* Tabla renderer */
+function renderTable(t){
+  const wrap = document.createElement("div");
+  wrap.className = "card";
+  const hdr = document.createElement("div");
+  hdr.style.display="flex";
+  hdr.style.justifyContent="space-between";
+  hdr.style.alignItems="center";
+  hdr.style.marginBottom="8px";
 
-    const actions = document.createElement('div');
-    actions.className = 'actions';
-    const bCopy = document.createElement('button'); bCopy.className='btn secondary'; bCopy.textContent='Copiar';
-    const bCsv = document.createElement('button'); bCsv.className='btn secondary'; bCsv.textContent='CSV';
+  const h = document.createElement("h3");
+  h.textContent = t.title || "Tabla";
+  const tools = document.createElement("div");
+  tools.className = "tools";
+  const btnCopy = document.createElement("button");
+  btnCopy.className="pill";
+  btnCopy.textContent="Copiar";
+  const btnCSV = document.createElement("button");
+  btnCSV.className="pill";
+  btnCSV.textContent="CSV";
+  tools.append(btnCopy, btnCSV);
+  hdr.append(h, tools);
 
-    bCopy.onclick = ()=>{
-      let txt = (tb.columns||[]).join('\t') + '\n';
-      (tb.rows||[]).forEach(r => { txt += r.join('\t') + '\n'; });
-      navigator.clipboard.writeText(txt);
-      bCopy.textContent = '¡Copiado!';
-      setTimeout(()=>bCopy.textContent='Copiar',1200);
-    };
-    bCsv.onclick = ()=>{
-      const toCsv = (arr)=>arr.map(s=>`"${String(s).replaceAll('"','""')}"`).join(',');
-      let csv = toCsv(tb.columns||[]) + '\n';
-      (tb.rows||[]).forEach(r => { csv += toCsv(r) + '\n'; });
-      const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = (tb.title||'tabla') + '.csv';
-      a.click();
-      URL.revokeObjectURL(a.href);
-    };
-
-    actions.appendChild(bCopy); actions.appendChild(bCsv);
-    card.appendChild(title);
-    card.appendChild(table);
-    card.appendChild(actions);
-    tables.appendChild(card);
+  const table = document.createElement("table");
+  const thead = document.createElement("thead");
+  const htr = document.createElement("tr");
+  (t.columns||[]).forEach(c=>{
+    const th=document.createElement("th"); th.textContent=c; htr.append(th);
   });
+  thead.append(htr); table.append(thead);
+  const tbody=document.createElement("tbody");
+  (t.rows||[]).forEach(r=>{
+    const tr=document.createElement("tr");
+    r.forEach(c=>{ const td=document.createElement("td"); td.textContent=c; tr.append(td); });
+    tbody.append(tr);
+  });
+  table.append(tbody);
 
-  out.hidden = false;
+  btnCopy.onclick = ()=>{
+    navigator.clipboard.writeText(tableToCSV(table));
+    setStatus("Tabla copiada al portapapeles","ok");
+  };
+  btnCSV.onclick = ()=> downloadCSV(t.title, tableToCSV(table));
+
+  wrap.append(hdr, table);
+  $("#tables").append(wrap);
 }
 
-/** fetch with timeout **/
-async function withTimeout(promise, ms=90000){
-  let t;
-  return Promise.race([
-    promise,
-    new Promise((_,rej)=> t=setTimeout(()=>rej(new Error('Tiempo de espera agotado')), ms))
-  ]).finally(()=>clearTimeout(t));
-}
+/* ================== API ================== */
+async function ask(){
+  const q = $("#q").value.trim();
+  if(!q){ setStatus("Ingresa una pregunta.","err"); return; }
 
-/** Call API **/
-async function ask(q){
-  clearOutput();
-  setStatus(true, 'Consultando…');
+  setStatus("Consultando...", "");
+  $("#general").textContent = "";
+  $("#lists").innerHTML = "";
+  $("#tables").innerHTML = "";
 
   try{
     const url = `${API_BASE}/api/answer?q=${encodeURIComponent(q)}`;
-    const res = await withTimeout(fetch(url,{headers:{Accept:'application/json'}}), 90000);
+    const res = await fetch(url, {headers:{"Accept":"application/json"}});
     const text = await res.text();
+
     let data;
-    try{ data = JSON.parse(text); } catch{ data = { ok:true, general:text, lists:[], tables:[] }; }
-    if(!res.ok || data.ok===false){
-      setStatus(false, 'Error al consultar');
-      showOutput(data.error || res.statusText || 'Error desconocido');
+    try{ data = JSON.parse(text); } catch{ data = {ok:false, error:text}; }
+
+    if(!res.ok || data.ok === false){
+      $("#general").textContent = data.error || res.statusText || "Error";
+      setStatus(`Error HTTP ${res.status}: ${res.statusText}`,"err");
       return;
     }
-    setStatus(true, 'Listo ✅');
-    showOutput(data.general, data.lists, data.tables);
+
+    // general
+    $("#general").textContent = data.general || "Sin mensaje.";
+    // lists
+    (data.lists||[]).forEach(list=>{
+      const box = document.createElement("div");
+      box.className="card";
+      const title=document.createElement("h3");
+      title.textContent = list.title || "Lista";
+      const ul=document.createElement("ul");
+      list.items.forEach(it=>{ const li=document.createElement("li"); li.textContent=it; ul.append(li); });
+      box.append(title, ul);
+      $("#lists").append(box);
+    });
+    // tables
+    (data.tables||[]).forEach(renderTable);
+
+    setStatus("Listo ✓","ok");
   }catch(err){
-    setStatus(false, 'Error de red');
-    showOutput(`Error de conexión: ${err.message}`);
+    $("#general").textContent = "Error de conexión.";
+    setStatus(String(err),"err");
   }
 }
 
-/** Eventos UI **/
-btnSend.onclick = () => {
-  const q = txt.value.trim();
-  if(!q){ txt.focus(); return; }
-  ask(q);
-};
-btnClear.onclick = () => { txt.value=''; clearOutput(); };
-
-chips.forEach(chip=>{
-  chip.onclick = () => {
-    txt.value = chip.dataset.q || '';
-    ask(txt.value);
-  };
-});
-
-// Constructores
-document.getElementById('qList').onclick = ()=> ask('lista de estudiantes');
-document.getElementById('qAvg').onclick = ()=>{
-  const c = selCol.value; if(!c) return;
-  ask(`promedio de ${c} por paralelo`);
-};
-document.getElementById('qPct').onclick = ()=>{
-  const c = selCol.value; const p = selP.value; if(!c) return;
-  ask(`${p} de ${c} por paralelo`);
-};
-document.getElementById('qMed').onclick = ()=>{
-  const c = selCol.value; if(!c) return;
-  ask(`mediana de ${c} por paralelo`);
-};
-document.getElementById('qStats').onclick = ()=>{
-  const c = selCol.value; if(!c) return;
-  ask(`estadisticos de ${c} por paralelo`);
-};
-document.getElementById('qT').onclick = ()=>{
-  const c = selCol.value; if(!c) return;
-  const a = selA.value || 'A', b = selB.value || 'B';
-  ask(`comparar medias de ${c} entre ${a} y ${b}`);
-};
-
-/** Carga columnas y healthcheck **/
-async function boot(){
+/* ================== INIT ================== */
+(async function init(){
+  // Cargar columnas para el constructor
   try{
-    const h = await fetch(`${API_BASE}/api/health`).then(r=>r.json());
-    setStatus(true, 'Servicio en línea');
-  }catch{ setStatus(false, 'No disponible'); }
-
-  try{
-    const data = await fetch(`${API_BASE}/api/columns`).then(r=>r.json());
-    const cols = (data.columns||[]).filter(c=>c && c.trim()!=="");
-    selCol.innerHTML = cols.map(c=>`<option>${c}</option>`).join('');
-  }catch{
-    selCol.innerHTML = `<option value="">(sin columnas)</option>`;
-  }
-}
-boot();
+    const r = await fetch(`${API_BASE}/api/columns`);
+    const j = await r.json();
+    const cols = j.columns || [];
+    const sel = $("#col");
+    ["AUTOESTIMA","TENSION","MANEJO DE LA  TENSIÓN","BIENESTAR FÍSICO"].concat(cols).forEach(c=>{
+      if(!c) return;
+      const opt = document.createElement("option");
+      opt.value = c; opt.textContent = c;
+      sel.append(opt);
+    });
+  }catch(_){ /* opcional */ }
+})();
 </script>
 </body>
 </html>
-
