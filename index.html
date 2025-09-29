@@ -1,323 +1,527 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>GGGGAsistente Lexium</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Asistente Lexium 10</title>
+
+<!-- ===== ESTILOS ===== -->
 <style>
-  :root{--bg:#fff;--ink:#111;--muted:#6b7280;--line:#e5e7eb;--btn:#f3f4f6;--btn-ink:#111;--btn-line:#e5e7eb;--brand:#0f6fff;--tip-bg:#111;--tip-ink:#fff;}
-  *{box-sizing:border-box}
-  html,body{height:100%;margin:0;background:#fff;color:var(--ink);font-family:Inter,system-ui}
+  :root{
+    --brand:#0b5fff;
+    --ui:#f5f7fb;
+    --text:#0f172a;
+    --muted:#64748b;
+    --ok:#16a34a;
+    --danger:#ef4444;
+    --shadow:0 8px 30px rgba(2,6,23,.08);
+  }
+  html,body{ margin:0; padding:0; background:#fff; color:var(--text); font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue","Noto Sans",Arial; }
 
-  .topFixed{position:fixed;left:0;top:0;right:0;height:65vh;background:#fff;z-index:10;border-bottom:1px solid var(--line)}
-  .bottomPane{position:fixed;left:0;right:0;bottom:0;top:65vh;overflow:auto;background:#fff}
-  .wrap{max-width:1200px;margin:0 auto;padding:10px}
+  /* CINTA SUPERIOR: video + imágenes */
+  .hero{
+    position:sticky; top:0; z-index:3;
+    background:#fff; box-shadow:var(--shadow);
+  }
+  .hero-inner{
+    display:grid; grid-template-columns:1fr minmax(680px, 980px) 1fr;
+    gap:20px; align-items:center;
+    padding:14px 14px 8px 14px;
+    max-width:1600px; margin:0 auto;
+  }
+  .side{
+    display:flex; align-items:center; justify-content:center;
+  }
+  .side img{ max-height:90px; height:auto; width:auto; opacity:.9; }
 
-  /* Cabecera: solo Historial */
-  .head{position:relative; height:0; z-index:99; pointer-events:none;}
-  .histBtn{position:absolute;right:6px;top:6px;pointer-events:auto}
-  .btn{background:var(--btn);color:var(--btn-ink);border:1px solid var(--btn-line);padding:8px 12px;border-radius:10px;cursor:pointer;display:inline-flex;gap:8px;align-items:center}
-  .btn:hover{filter:brightness(.97)}
-  .btn-blue{background:var(--brand);color:#fff;border-color:#0b4ad6}
-  .ico{width:16px;height:16px;display:inline-block}
-  .ico svg{width:16px;height:16px;display:block}
+  .video-wrap{ display:flex; align-items:center; justify-content:center; }
+  video{
+    display:block; width:100%; max-width:980px; height:auto; border:none; outline:none; border-radius:8px;
+  }
 
-  .mediaRow{display:grid;grid-template-columns:180px auto 180px;gap:10px;align-items:center;height:65vh}
-  .sideWrap{position:relative;width:100%;height:100%}
-  .sideImg{width:100%;height:100%;object-fit:contain;border:none;display:block}
-  .sideBadge{position:absolute;right:6px;top:6px;background:#0008;color:#fff;font-size:12px;padding:2px 6px;border-radius:8px;opacity:.5}
-  .mainVideoWrap{width:100%;height:100%;overflow:hidden;border:none}
-  .mainVideo{width:100%;height:100%;object-fit:cover;border:none;display:block}
+  /* BOTÓN HISTORIAL */
+  .topbar{
+    position:absolute; right:14px; top:10px;
+    display:flex; gap:10px; align-items:center;
+  }
+  .btn-link{
+    appearance:none; border:1px solid #e5e7eb; background:#fff;
+    color:#111827; padding:8px 12px; border-radius:999px; font-weight:600;
+    box-shadow:var(--shadow); cursor:pointer;
+  }
+  .btn-link:hover{ background:#f8fafc; }
 
-  .askBox{display:flex;flex-direction:column;gap:10px}
-  .askArea{width:100%;padding:10px 12px;font-size:15px;line-height:1.35;border:1px solid var(--line);border-radius:10px;resize:none;height:64px}
-  .toolbar{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;align-items:center}
-  .exportSel{padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
-  .out{display:grid;gap:12px;margin:14px 0 28px}
-  .card{border:1px solid var(--line);border-radius:10px;padding:14px;background:#fff}
-  .tbl{width:100%;border-collapse:collapse}
-  .tbl th,.tbl td{border:1px solid var(--line);padding:8px}
-  .tbl th{background:#f8fafc;text-align:left}
+  /* ZONA DE INTERACCIÓN */
+  .main{ max-width:1200px; margin:16px auto 64px; padding:0 14px; }
+  .row{ display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:center; }
 
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:9999}
-  .modal>div{background:#fff;border-radius:12px;width:min(800px,92vw);max-height:82vh;overflow:auto;padding:16px}
+  textarea{
+    width:100%; max-width:1200px; min-height:48px; max-height:96px;
+    padding:12px 14px; border:1px solid #e5e7eb; border-radius:10px; resize:vertical;
+    box-shadow:var(--shadow);
+  }
 
-  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-  .tip{position:fixed;z-index:99999;background:var(--tip-bg);color:var(--tip-ink);font-size:12px;padding:6px 8px;border-radius:8px;display:none;pointer-events:none;box-shadow:0 8px 20px rgba(0,0,0,.2)}
+  .btn{
+    appearance:none; border:none; background:var(--brand); color:#fff;
+    padding:10px 16px; border-radius:999px; font-weight:700; cursor:pointer;
+    display:inline-flex; align-items:center; gap:8px; box-shadow:var(--shadow);
+  }
+  .btn.secondary{ background:#0ea5e9; }
+  .btn.muted{ background:#334155; }
+  .btn.warning{ background:#f97316; }
+  .btn.ghost{ background:#fff; color:#111827; border:1px solid #e5e7eb; }
+  .btn:hover{ filter:brightness(.95); }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+  select{
+    padding:10px 12px; border-radius:999px; border:1px solid #e5e7eb; background:#fff; box-shadow:var(--shadow);
+  }
+
+  /* RESPUESTA */
+  .out{
+    margin-top:14px; background:var(--ui); border-radius:12px; padding:14px;
+    border:1px solid #e5e7eb; box-shadow:var(--shadow);
+  }
+  .out h4{ margin:.2rem 0 .6rem; }
+  .out pre{ white-space:pre-wrap; word-wrap:break-word; margin:0; }
+
+  table{ width:100%; border-collapse:collapse; margin:.75rem 0; background:#fff; }
+  th,td{ border:1px solid #e5e7eb; padding:8px 10px; text-align:left; }
+  th{ background:#f1f5f9; }
+  caption{ text-align:left; font-weight:700; margin-bottom:.25rem; }
+  .num{ text-align:right; }
+
+  /* tooltips nativo via title, nada extra */
+
+  /* Quitamos cualquier “status” flotante */
+  [data-status]{ display:none !important; }
 </style>
 </head>
 <body>
 
-<div id="tooltip" class="tip"></div>
-
-<section class="topFixed">
-  <div class="wrap">
-    <div class="head">
-      <button class="btn histBtn" id="btnHistorial" data-tip="Ver historial de sesiones guardadas">Historial</button>
-      <div id="status" class="sr-only" aria-live="polite">Listo</div>
+<!-- ===== CABECERA: video + imágenes + historial ===== -->
+<header class="hero">
+  <div class="hero-inner">
+    <div class="side">
+      <img src="left.png" alt="Marca izquierda" title="Marca izquierda" />
     </div>
 
-    <div class="mediaRow">
-      <div class="sideWrap">
-        <img src="left.png" alt="" class="sideImg" id="imgLeft">
-        <div class="sideBadge">🎙️</div>
-      </div>
-      <div class="mainVideoWrap">
-        <video id="mainVideo" class="mainVideo" muted playsinline preload="auto"
-          src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
-      </div>
-      <div class="sideWrap">
-        <img src="right.png" alt="" class="sideImg" id="imgRight">
-        <div class="sideBadge">📊</div>
-      </div>
+    <div class="video-wrap">
+      <video id="vid" autoplay muted playsinline loop preload="auto"
+             src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
+    </div>
+
+    <div class="side">
+      <img src="right.png" alt="Marca derecha" title="Marca derecha" />
+    </div>
+
+    <div class="topbar">
+      <button id="btnHist" class="btn-link" title="Abrir historial de sesiones">Historial</button>
     </div>
   </div>
-</section>
+</header>
 
-<section class="bottomPane">
-  <div class="wrap">
-    <div class="askBox">
-      <textarea id="ask" class="askArea" placeholder="Escribe tu pregunta (puede incluir cálculos, listados, tablas)…"></textarea>
-      <div class="toolbar">
-        <button class="btn btn-blue" id="btnSend" data-tip="Enviar la consulta para análisis"> <span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l21-9L2 3l5 9-5 9zm7-9l-7 7 7-7z"/></svg></span> ENVIAR</button>
-        <button class="btn" id="btnDictar" data-tip="Activar/detener dictado voz a texto"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14a3 3 0 003-3V6a3 3 0 00-6 0v5a3 3 0 003 3z"/><path d="M19 11a7 7 0 01-14 0h2a5 5 0 0010 0h2zM11 19h2v3h-2z"/></svg></span> DICTAR</button>
-        <button class="btn" id="btnAV" data-tip="Pausar/Reanudar locución y video (no usa cámara)"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 3l2 3h5a2 2 0 012 2v6a2 2 0 01-2 2h-5l-2 3H9l-2-3H2a2 2 0 01-2-2V8a2 2 0 012-2h5l2-3h3z"/></svg></span> PARAR/ACTIVAR VOZ Y VIDEO</button>
-        <button class="btn" id="btnReplay" data-tip="Volver a leer la última respuesta"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 5V1L7 6l5 5V7a5 5 0 110 10 5 5 0 01-5-5H5a7 7 0 107-7z"/></svg></span> REPRODUCIR NUEVAMENTE</button>
-        <button class="btn" id="btnNew" data-tip="Nueva sesión (limpia el contexto)"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 12h12l-4-4 1.4-1.4L20.8 12l-8.4 8.4L11 19l4-4H3z"/></svg></span> NUEVA SESIÓN</button>
-        <button class="btn" id="btnClear" data-tip="Limpiar la caja y las respuestas"><span class="ico"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 6h18v2H3zM5 8h14l-1 14H6zM9 4h6l1 2H8z"/></svg></span> LIMPIAR</button>
-        <select id="exportSel" class="exportSel" data-tip="Exportar (previsualiza PDF antes de descargar)">
-          <option value="">Exportar…</option><option value="pdf">PDF</option><option value="xls">XLS</option><option value="doc">DOC</option>
-        </select>
-      </div>
-    </div>
-    <div class="out" id="out"></div>
+<!-- ===== PRINCIPAL ===== -->
+<main class="main">
+  <!-- Consulta libre (2 líneas) -->
+  <textarea id="q" rows="2" placeholder="Escribe tu pregunta (o usa el micrófono)…&#10;Ejemplos: lista de estudiantes · P90 de TENSIÓN por paralelo · t de AUTOESTIMA A vs B"></textarea>
+
+  <!-- Botones centrados -->
+  <div class="row" style="margin-top:8px">
+    <button id="btnSend"   class="btn"          title="Enviar la consulta al analizador">▶ Enviar</button>
+    <button id="btnDict"   class="btn secondary" title="Dictar por voz. No usa cámara">🎙 Dictar</button>
+    <button id="btnAV"     class="btn muted"    title="Pausar / reanudar voz y video (continúa desde el mismo punto)">⏯ Parar/Activar voz y video</button>
+    <button id="btnReplay" class="btn warning"  title="Reproducir nuevamente la última respuesta">⟳ Reproducir nuevamente</button>
+    <button id="btnNew"    class="btn ghost"    title="Comenzar una nueva sesión (limpia la memoria local)">🆕 Nueva sesión</button>
+    <button id="btnClear"  class="btn ghost"    title="Limpiar el área de respuesta">🧹 Limpiar</button>
+
+    <select id="selExport" title="Exportar lo generado en esta sesión (previsualiza PDF antes de descargar)">
+      <option value="">Exportar…</option>
+      <option value="pdf">PDF (vista previa)</option>
+      <option value="xls">Excel (XLS)</option>
+      <option value="doc">Word (DOC)</option>
+    </select>
   </div>
-</section>
 
-<div class="modal" id="mdlHist"><div>
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-    <h3 style="margin:4px 0">Historial de sesiones</h3>
-    <button class="btn" id="btnCloseHist">Cerrar</button>
-  </div>
-  <div id="histList" style="margin-top:10px;color:#6b7280"></div>
-</div></div>
+  <!-- Respuesta -->
+  <section id="out" class="out" aria-live="polite" aria-atomic="true">
+    <h4>Respuesta</h4>
+    <div id="outGeneral"></div>
+    <div id="outLists"></div>
+    <div id="outTables"></div>
+  </section>
+</main>
 
-<div class="modal" id="mdlPrev"><div>
-  <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-    <h3 style="margin:4px 0">Vista previa para PDF</h3>
-    <div style="display:flex;gap:8px">
-      <button class="btn" id="btnDownloadPdf">Descargar PDF</button>
-      <button class="btn" id="btnClosePrev">Cerrar</button>
-    </div>
-  </div>
-  <div id="prevContent" style="margin-top:10px;font-size:14px;color:#111"></div>
-</div></div>
-
+<!-- ===== SCRIPTS ===== -->
 <script>
-/* ===== CONFIG ===== */
-const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
+/* ==================== CONFIG ==================== */
+const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app"; // ← tu Cloud Run
+const STORAGE_KEY = "lexium-sessions-v1";
 
-/* ===== REFS ===== */
-const $status=document.getElementById('status'),$ask=document.getElementById('ask'),$out=document.getElementById('out'),$video=document.getElementById('mainVideo');
-const $btnSend=btn('btnSend'),$btnDictar=btn('btnDictar'),$btnAV=btn('btnAV'),$btnReplay=btn('btnReplay'),$btnNew=btn('btnNew'),$btnClear=btn('btnClear'),$exportSel=btn('exportSel');
-const $btnHistorial=btn('btnHistorial'),$mdlHist=btn('mdlHist'),$btnCloseHist=btn('btnCloseHist'),$histList=btn('histList');
-const $mdlPrev=btn('mdlPrev'),$btnClosePrev=btn('btnClosePrev'),$btnDownloadPdf=btn('btnDownloadPdf'),$prevContent=btn('prevContent');
-function btn(id){return document.getElementById(id);}
+/* ==================== DOM ==================== */
+const elQ         = document.getElementById("q");
+const elSend      = document.getElementById("btnSend");
+const elDict      = document.getElementById("btnDict");
+const elAV        = document.getElementById("btnAV");
+const elReplay    = document.getElementById("btnReplay");
+const elNew       = document.getElementById("btnNew");
+const elClear     = document.getElementById("btnClear");
+const elExport    = document.getElementById("selExport");
+const elHist      = document.getElementById("btnHist");
 
-/* ===== Tooltip ===== */
-const $tip=document.getElementById('tooltip');
-document.addEventListener('mousemove',e=>{const t=e.target.closest('[data-tip]');if(t){$tip.style.display='block';$tip.textContent=t.getAttribute('data-tip');$tip.style.left=(e.clientX+14)+'px';$tip.style.top=(e.clientY+14)+'px';}else{$tip.style.display='none';}});
+const outGeneral  = document.getElementById("outGeneral");
+const outLists    = document.getElementById("outLists");
+const outTables   = document.getElementById("outTables");
+const elVideo     = document.getElementById("vid");
 
-/* ===== Sesión & estado ===== */
-let sessionId=Date.now().toString(),sessionItems=[],lastGeneral="",lastTables=[];
-function setStatus(t){$status.textContent=t;}
-function addCard(html){const d=document.createElement('div');d.className='card';d.innerHTML=html;$out.appendChild(d);}
-function clearOut(){ $out.innerHTML=''; lastGeneral=""; lastTables=[]; sessionItems=[]; }
-function saveItem(it){sessionItems.push(it); persistSession();}
-function persistSession(){const all=JSON.parse(localStorage.getItem('lexium-sessions')||'{}');all[sessionId]=all[sessionId]||{created:sessionId,items:[]};all[sessionId].items=sessionItems;localStorage.setItem('lexium-sessions',JSON.stringify(all));}
-function newSession(){persistSession();sessionId=Date.now().toString();sessionItems=[];clearOut();stopSpeech(true);pauseVideo();setStatus('Nueva sesión');}
+/* ==================== UTIL ==================== */
+const sleep = (ms)=> new Promise(r=>setTimeout(r,ms));
 
-/* ===== Render ===== */
-function render(data){
-  if(data.general){lastGeneral=data.general;addCard(`<div>${esc(data.general)}</div>`);saveItem({type:'text',value:data.general});}
-  (data.lists||[]).forEach(lst=>{addCard(`<div style="font-weight:700;margin-bottom:6px">${esc(lst.title||'Lista')}</div><ol>${(lst.items||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`);saveItem({type:'list',title:lst.title||'Lista',items:lst.items||[]});});
-  (data.tables||[]).forEach(tbl=>{const cols=['#',...(tbl.columns||[])];const rows=(tbl.rows||[]).map((r,i)=>[String(i+1),...r]);lastTables.push({title:tbl.title||'Tabla',columns:cols,rows});
-    const thead=`<tr>${cols.map(c=>`<th>${esc(c)}</th>`).join('')}</tr>`;const tbody=rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('');
-    addCard(`${tbl.title?`<div style="font-weight:700;margin-bottom:6px">${esc(tbl.title)}</div>`:''}<table class="tbl"><thead>${thead}</thead><tbody>${tbody}</tbody></table>`);saveItem({type:'table',title:tbl.title||'Tabla',columns:cols,rows});});
+function setOut({general="", lists=[], tables=[]}){
+  // General
+  outGeneral.innerHTML = general
+    ? `<pre>${escapeHtml(general)}</pre>` : "";
+
+  // Listas
+  outLists.innerHTML = "";
+  lists.forEach(lst=>{
+    const div = document.createElement("div");
+    div.innerHTML = `
+      <h4>${escapeHtml(lst.title || "Lista")}</h4>
+      <ol>${(lst.items||[]).map(x=>`<li>${escapeHtml(String(x))}</li>`).join("")}</ol>
+    `;
+    outLists.appendChild(div);
+  });
+
+  // Tablas
+  outTables.innerHTML = "";
+  tables.forEach(tbl=>{
+    const div = document.createElement("div");
+    const caption = tbl.title ? `<caption>${escapeHtml(tbl.title)}</caption>` : "";
+    const head = `<tr>${(tbl.columns||[]).map(c=>`<th>${escapeHtml(c)}</th>`).join("")}</tr>`;
+    const rows = (tbl.rows||[]).map(r=>`<tr>${r.map((c,i)=>`<td class="${isNumber(c)?"num":""}">${escapeHtml(String(c))}</td>`).join("")}</tr>`).join("");
+    div.innerHTML = `<table>${caption}<thead>${head}</thead><tbody>${rows}</tbody></table>`;
+    outTables.appendChild(div);
+  });
 }
 
-/* ===== Backend ===== */
-async function send(){
-  const q=$ask.value.trim(); if(!q){setStatus('Escribe tu consulta…');return;}
-  setStatus('Analizando…');
-  try{
-    const ctl=new AbortController(); const timer=setTimeout(()=>ctl.abort(),90000);
-    const res=await fetch(`${API_BASE}/api/answer?q=${encodeURIComponent(q)}`,{headers:{Accept:'application/json'},signal:ctl.signal});
-    clearTimeout(timer);
-    const txt=await res.text(); let data;
-    try{data=JSON.parse(txt);}catch{data={ok:true,general:txt,lists:[],tables:[]};}
-    render(data);
-    if(data.general && avEnabled){ speak(data.general); }
-    setStatus('Listo');
-  }catch(e){
-    console.error(e); addCard(`<div style="color:#6b7280">Error consultando el backend: ${esc(String(e))}</div>`); setStatus('Error');
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g,m=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+  }[m]));
+}
+function isNumber(x){
+  return /^-?\d+(\.\d+)?$/.test(String(x).trim());
+}
+
+/* ==================== TTS (voz) ==================== */
+let voices = [];
+let currentUtter = null;
+let pausedAtChar = 0;    // Reanudación exacta
+let avEnabled = true;    // Estado control AV
+let lastSpoken = "";     // Texto completo de la última respuesta (para “reproducir nuevamente”)
+
+function loadVoices(){
+  voices = window.speechSynthesis.getVoices() || [];
+}
+window.speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
+
+function pickFemaleSpanishVoice(){
+  // Prioriza español México / España, y voces con rasgos femeninos
+  const prefer = ["es-MX","es-ES","es-419","es"];
+  const femHints = ["female","mujer","femenina","Camila","Lupe","Paulina","Monica","Luciana","Isabela","Elena"];
+  let best = null;
+
+  const vs = voices.length ? voices : window.speechSynthesis.getVoices();
+  vs.forEach(v=>{
+    const langOk = prefer.some(p=> (v.lang||"").toLowerCase().startsWith(p.toLowerCase()));
+    if(!langOk) return;
+    if(!best) best = v;
+    const name = (v.name||"").toLowerCase();
+    if (femHints.some(h=>name.includes(h.toLowerCase()))){
+      best = v;
+    }
+  });
+  return best || vs[0] || null;
+}
+
+// Segmenta en trozos legibles para evitar cortes
+function chunkText(t, max=1200){
+  const parts = [];
+  let i = 0;
+  while(i < t.length){
+    const slice = t.slice(i, i+max);
+    // intenta cortar en punto
+    let cut = slice.lastIndexOf(". ");
+    if (cut < 400) cut = slice.lastIndexOf(" ");
+    if (cut < 0) cut = slice.length;
+    parts.push(slice.slice(0, cut+1));
+    i += cut+1;
   }
+  return parts.filter(s=>s.trim());
 }
 
-/* ===== Video ===== */
-function playVideo(){try{$video.play().catch(()=>{});}catch{}}
-function pauseVideo(){try{$video.pause();}catch{}}
-
-/* ===== TTS (pausar/reanudar) ===== */
-let voices=[], avEnabled=true, ttsQueue=[], ttsIndex=0, ttsActive=false, ttsPaused=false;
-let lastSpoken="";
-function isMaleName(n=""){return /(diego|jorge|pablo|jos[eé]|carlos|alberto|miguel|javier|enrique|juan|pedro|antonio|ricardo|alejandro|sergio|male|hombre)/i.test(n);}
-function pickVoice(list){
-  const pref=['Microsoft Sabina','Microsoft Helena'];
-  for(const p of pref){const v=list.find(v=>(v.name||'').toLowerCase().includes(p.toLowerCase()));if(v) return v;}
-  const langs=['es-EC','es-MX','es-ES','es'];
-  for(const L of langs){const pool=list.filter(v=>(v.lang||'').toLowerCase().startsWith(L.toLowerCase()));
-    if(pool.length){let v=pool.find(v=>/female|mujer|sabina|helena/i.test(v.name||''))||pool.find(v=>!isMaleName(v.name||''));if(v) return v;}
-  }
-  return list.find(v=>(v.lang||'').toLowerCase().startsWith('es'))||list[0]||null;
-}
-function splitTTS(t,max=300){const out=[];let cur='';for(const part of t.split(/([.!?]\s+)/)){if((cur+part).length>max){if(cur) out.push(cur);cur=part;}else cur+=part;}if(cur) out.push(cur);return out;}
-function playPart(){
-  if(!avEnabled || !ttsQueue.length){ttsActive=false;pauseVideo();return;}
-  if(ttsIndex>=ttsQueue.length){ttsActive=false;pauseVideo();setStatus('Listo');return;}
-  const u=new SpeechSynthesisUtterance(ttsQueue[ttsIndex]);
-  const v=pickVoice(voices); if(v) u.voice=v; u.lang=v?.lang||'es-ES'; u.rate=1; u.pitch=1.12;
-  u.onend=()=>{ if(!ttsPaused){ ttsIndex++; playPart(); } };
-  u.onerror=()=>{ ttsIndex++; playPart(); };
-  setStatus('Hablando…'); playVideo(); ttsActive=true; speechSynthesis.speak(u);
-}
 function speak(text){
-  lastSpoken=text||''; // nuevo contenido
-  // si ya había algo hablando, reiniciamos cola
-  speechSynthesis.cancel(); ttsPaused=false; ttsQueue=splitTTS(text||''); ttsIndex=0;
-  if(!avEnabled) return; playPart();
-}
-function stopSpeech(cancelAll=false){
-  if(cancelAll){ speechSynthesis.cancel(); ttsActive=false; ttsPaused=false; return; }
-  // pausa (no cancel) → reanuda donde quedó
-  speechSynthesis.pause(); ttsPaused=true; ttsActive=false;
+  stopSpeak(); // limpia anterior
+  lastSpoken = text;
+
+  const voice = pickFemaleSpanishVoice();
+  const chunks = chunkText(text);
+  let index = 0;
+
+  const playNext = ()=>{
+    if(!avEnabled || index >= chunks.length) return;
+    const u = new SpeechSynthesisUtterance(chunks[index]);
+    currentUtter = u;
+    if (voice) u.voice = voice;
+    u.rate = 1; u.pitch = 1; u.volume = 1;
+
+    u.onboundary = (ev)=>{
+      // Guardo el offset para reanudar exacto
+      pausedAtChar = 0;
+      // boundary type "word" no todas las impl. lo exponen
+      if (typeof ev.charIndex === "number") {
+        // charIndex relativo al chunk; sumamos lo ya hablado
+        let prev = 0;
+        for(let i=0;i<index;i++) prev += chunks[i].length;
+        pausedAtChar = prev + ev.charIndex;
+      }
+    };
+    u.onend = ()=>{
+      if (!avEnabled) return;
+      index++;
+      if(index < chunks.length) playNext();
+    };
+    window.speechSynthesis.speak(u);
+    // sincroniza video (reproducción durante habla)
+    try{ elVideo.play().catch(()=>{});}catch(e){}
+  };
+  playNext();
 }
 
-/* ===== Dictado (sin cámara) ===== */
-let recOn=false, rec;
-function toggleDictar(){
-  try{
-    const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-    if(!SR){alert('Dictado no soportado en este navegador.');return;}
-    if(recOn){rec.stop();return;}
-    rec=new SR(); rec.lang='es-ES'; rec.interimResults=false; rec.maxAlternatives=1;
-    rec.onresult=e=>{const t=e.results[0][0].transcript;$ask.value=($ask.value?$ask.value+' ':'')+t;};
-    rec.onend=()=>{recOn=false;$btnDictar.textContent='DICTAR';setStatus('Dictado detenido');};
-    rec.onerror=()=>{recOn=false;$btnDictar.textContent='DICTAR';setStatus('Error dictado');};
-    rec.start();recOn=true;$btnDictar.textContent='DETENER DICTADO';setStatus('Dictando…');
-  }catch(e){console.error(e);alert('No se pudo iniciar dictado.');}
+function stopSpeak(){
+  try{ window.speechSynthesis.cancel(); }catch(e){}
+  currentUtter = null;
 }
 
-/* ===== Silenciar/Reactivar AV (reanuda donde quedó) ===== */
+/* Pausa/Reanuda sin perder punto */
 function toggleAV(){
-  avEnabled=!avEnabled;
+  avEnabled = !avEnabled;
   if(!avEnabled){
-    stopSpeech(false); pauseVideo(); setStatus('Silenciado'); $btnAV.textContent='ACTIVAR VOZ Y VIDEO';
+    // Poner todo en pausa
+    try{ elVideo.pause(); }catch(e){}
+    stopSpeak();
   }else{
-    setStatus('Activado'); $btnAV.textContent='PARAR/ACTIVAR VOZ Y VIDEO';
-    // Si estaba pausado, reanuda; si no, vuelve a leer lo último
-    if(ttsPaused){ speechSynthesis.resume(); ttsPaused=false; ttsActive=true; playVideo(); }
-    else if(!ttsActive && lastSpoken){ speak(lastSpoken); }
+    // Reanudar desde pausedAtChar
+    if (lastSpoken){
+      const rest = lastSpoken.slice(pausedAtChar);
+      if (rest.trim()){
+        speak(rest);
+      }else{
+        // si justo quedó al final, redecir completo
+        speak(lastSpoken);
+      }
+    }
+    try{ elVideo.play().catch(()=>{});}catch(e){}
   }
 }
 
-/* ===== Exportar ===== */
-function buildSessionHTML(){
-  let html=`<h2>Sesión ${sessionId}</h2>`;
-  for(const it of sessionItems){
-    if(it.type==='text'){html+=`<p>${esc(it.value).replace(/\n/g,'<br>')}</p>`;}
-    else if(it.type==='list'){html+=`<h3>${esc(it.title)}</h3><ol>${(it.items||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`;}
-    else if(it.type==='table'){const thead=`<tr>${it.columns.map(c=>`<th>${esc(c)}</th>`).join('')}</tr>`;
-      const tbody=it.rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('');
-      html+=`<h3>${esc(it.title)}</h3><table border="1" cellspacing="0" cellpadding="4">${thead}${tbody}</table>`;}
+/* Reproducir nuevamente: vuelve a decir todo desde el inicio */
+function replaySpeech(){
+  if(!lastSpoken) return;
+  pausedAtChar = 0;
+  avEnabled = true;
+  speak(lastSpoken);
+}
+
+/* ==================== STT (dictado, micrófono – NO cámara) ==================== */
+let recog = null;
+let dictating = false;
+
+function toggleDict(){
+  if (dictating){ stopDict(); return; }
+  startDict();
+}
+function startDict(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ alert("Dictado no soportado en este navegador."); return; }
+  recog = new SR();
+  recog.lang = "es-ES";
+  recog.interimResults = true;
+  recog.onresult = (ev)=>{
+    let finalText = "";
+    for (const res of ev.results){
+      const t = res[0].transcript;
+      finalText = t;
+    }
+    // dos líneas máximo visuales, el usuario puede editar
+    elQ.value = finalText;
+  };
+  recog.onerror = ()=> stopDict();
+  recog.onend = ()=> { dictating=false; };
+  recog.start();
+  dictating = true;
+}
+function stopDict(){
+  try{ recog && recog.stop(); }catch(e){}
+  dictating = false;
+}
+
+/* ==================== FORMATEO DE RESPUESTA PARA VOZ ==================== */
+function buildSpokenFrom(data){
+  const parts = [];
+
+  if (data?.general) parts.push(String(data.general));
+
+  (data?.lists || []).forEach(lst=>{
+    if (lst?.title) parts.push(`Lista: ${lst.title}.`);
+    const items = lst?.items || [];
+    if (items.length){
+      parts.push(`Contiene ${items.length} elementos.`);
+      const toRead = items.length <= 12 ? items : items.slice(0,12);
+      toRead.forEach((it,i)=> parts.push(`Elemento ${i+1}: ${it}.`));
+      if (items.length > toRead.length){
+        parts.push(`… y ${items.length - toRead.length} más.`);
+      }
+    }
+  });
+
+  (data?.tables || []).forEach(tbl=>{
+    const title = tbl?.title ? `Tabla: ${tbl.title}.` : `Tabla.`;
+    const cols = tbl?.columns || [];
+    const rows = tbl?.rows || [];
+    parts.push(`${title} Tiene ${rows.length} filas y ${cols.length} columnas.`);
+    if (cols.length){ parts.push(`Columnas: ${cols.join(", ")}.`); }
+    const toRead = rows.length <= 8 ? rows : rows.slice(0,8);
+    toRead.forEach((row,i)=>{
+      const cells = row.map((c,j)=> `${cols[j]||`Columna ${j+1}`}: ${c}`).join(". ");
+      parts.push(`Fila ${i+1}: ${cells}.`);
+    });
+    if (rows.length > toRead.length){
+      parts.push(`… y ${rows.length - toRead.length} filas adicionales.`);
+    }
+  });
+
+  if (!parts.length) parts.push("No hay contenido para leer.");
+  return parts.join(" ");
+}
+
+/* ==================== BACKEND ==================== */
+async function send(){
+  const q = (elQ.value||"").trim();
+  if(!q) return;
+  elSend.disabled = true;
+  try{
+    const url = `${API_BASE}/api/answer?q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, { headers:{ "Accept":"application/json" } });
+    const data = await res.json().catch(()=> ({}));
+    if (!res.ok){ throw new Error(data?.error || res.statusText || "Error"); }
+
+    setOut(data);
+
+    // Leer TODO lo devuelto
+    if (avEnabled){
+      const fullSpeech = buildSpokenFrom(data);
+      speak(fullSpeech);
+    }
+  }catch(err){
+    setOut({ general:`Error: ${String(err.message||err)}` });
+  }finally{
+    elSend.disabled = false;
   }
-  return html;
-}
-function openPreview(){ $prevContent.innerHTML=buildSessionHTML(); $mdlPrev.style.display='flex'; }
-function closePreview(){ $mdlPrev.style.display='none'; }
-function downloadPdfFromPreview(){
-  const {jsPDF}=window.jspdf; const doc=new jsPDF({unit:'pt',format:'a4'}); const margin=36,pageW=595-2*margin;
-  let y=margin; doc.setFontSize(12);
-  const dom=document.createElement('div'); dom.innerHTML=$prevContent.innerHTML;
-  const add=t=>{const lines=doc.splitTextToSize(t,pageW); if(y+lines.length*14>812){doc.addPage();y=margin;} doc.text(lines,margin,y); y+=lines.length*14+8;};
-  dom.querySelectorAll('h2,h3,p,ol,table').forEach(el=>{
-    if(el.tagName==='H2'||el.tagName==='H3'){doc.setFont(undefined,'bold');add(el.textContent);doc.setFont(undefined,'normal');}
-    else if(el.tagName==='P'){add(el.textContent);}
-    else if(el.tagName==='OL'){add(Array.from(el.querySelectorAll('li')).map((li,i)=>`${i+1}. ${li.textContent}`).join('\n'));}
-    else if(el.tagName==='TABLE'){Array.from(el.querySelectorAll('tr')).forEach(tr=>add(Array.from(tr.children).map(td=>td.textContent).join('  |  ')));}
-  });
-  doc.save(`sesion_${sessionId}.pdf`);
-}
-function exportAll(kind){
-  if(!sessionItems.length){alert('No hay contenido para exportar.');return;}
-  if(kind==='pdf'){openPreview();return;}
-  if(kind==='xls'){const wb=XLSX.utils.book_new();let idx=1;
-    for(const it of sessionItems){
-      if(it.type==='text'){XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([['Texto'],[it.value]]),`Texto${idx++}`);}
-      else if(it.type==='list'){const aoa=[['#','Ítem'],...(it.items||[]).map((x,i)=>[i+1,x])];XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),(it.title||`Lista${idx++}`).substring(0,31));}
-      else if(it.type==='table'){const aoa=[it.columns,...it.rows];XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(aoa),(it.title||`Tabla${idx++}`).substring(0,31));}
-    } XLSX.writeFile(wb,`sesion_${sessionId}.xlsx`); }
-  if(kind==='doc'){const blob=new Blob([`<!doctype html><html><head><meta charset="utf-8"></head><body>${buildSessionHTML()}</body></html>`],{type:'application/msword'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`sesion_${sessionId}.doc`;a.click();}
 }
 
-/* ===== Historial ===== */
-function openHist(){
-  const all=JSON.parse(localStorage.getItem('lexium-sessions')||'{}');const ids=Object.keys(all).sort((a,b)=>b.localeCompare(a));
-  $histList.innerHTML = ids.length ? ids.map(id=>`<div style="margin:8px 0"><a href="#v-${id}" onclick="return showSession('${id}')">Ver sesión ${id}</a></div>`).join('') : '<p>No hay sesiones guardadas.</p>';
-  $mdlHist.style.display='flex';
+/* ==================== HISTORIAL / SESIONES (localStorage simple) ==================== */
+function getSessions(){
+  try{ return JSON.parse(localStorage.getItem(STORAGE_KEY)||"[]"); }
+  catch(e){ return []; }
 }
-function closeHist(){ $mdlHist.style.display='none'; }
-function showSession(id){
-  const all=JSON.parse(localStorage.getItem('lexium-sessions')||'{}');const ses=all[id]; if(!ses){alert('No encontrada');return false;}
-  const win=window.open('about:blank','_blank'); let html=`<h2>Sesión ${id}</h2>`;
-  (ses.items||[]).forEach(it=>{
-    if(it.type==='text'){html+=`<p>${esc(it.value).replace(/\n/g,'<br>')}</p>`;}
-    else if(it.type==='list'){html+=`<h3>${esc(it.title)}</h3><ol>${(it.items||[]).map(x=>`<li>${esc(x)}</li>`).join('')}</ol>`;}
-    else if(it.type==='table'){const thead=`<tr>${it.columns.map(c=>`<th>${esc(c)}</th>`).join('')}</tr>`;
-      const tbody=it.rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('');
-      html+=`<h3>${esc(it.title)}</h3><table border="1" cellspacing="0" cellpadding="4">${thead}${tbody}</table>`;}
-  });
-  win.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Sesión ${id}</title><style>body{font-family:Inter,system-ui}table{border-collapse:collapse}th,td{border:1px solid #ddd;padding:6px}</style></head><body>${html}</body></html>`);
-  return false;
+function saveSessionEntry(q, data){
+  const all = getSessions();
+  all.unshift({ ts: Date.now(), q, data });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(all.slice(0,200)));
+}
+function showHistory(){
+  const all = getSessions();
+  if (!all.length){ alert("Sin historial en esta máquina."); return; }
+  const win = window.open("", "_blank");
+  win.document.write(`<title>Historial de sesiones</title><pre>${escapeHtml(JSON.stringify(all,null,2))}</pre>`);
+  win.document.close();
 }
 
-/* ===== Helpers ===== */
-function esc(s){return String(s).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
+/* ==================== EXPORTACIONES ==================== */
+function exportAs(type){
+  if (!type) return;
+  if (type === "pdf"){
+    // Vista previa: nueva ventana con el HTML del bloque de salida y Print
+    const w = window.open("", "_blank");
+    const html = `
+      <html><head><title>Export PDF</title>
+        <style>
+          body{ font:14px/1.5 system-ui,Segoe UI,Roboto; padding:16px; }
+          table{ width:100%; border-collapse:collapse; margin:.75rem 0; }
+          th,td{ border:1px solid #e5e7eb; padding:6px 8px; }
+          th{ background:#f1f5f9; }
+        </style>
+      </head><body>
+        ${document.getElementById("out").innerHTML}
+      </body></html>`;
+    w.document.write(html);
+    w.document.close();
+    w.focus();
+    // deja a la persona decidir “Guardar como PDF” desde el diálogo
+    setTimeout(()=> w.print(), 300);
+  }
+  if (type === "xls" || type === "doc"){
+    // descarga un HTML básico con contenido de salida
+    const blob = new Blob([`<meta charset="utf-8">${document.getElementById("out").innerHTML}`],
+                          {type: type==="xls" ? "application/vnd.ms-excel" : "application/msword"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = type==="xls" ? "reporte.xls" : "reporte.doc";
+    a.click();
+    setTimeout(()=> URL.revokeObjectURL(a.href), 2000);
+  }
+  elExport.value = "";
+}
 
-/* ===== Wire-up ===== */
-$btnSend.onclick=send;
-$btnReplay.onclick=()=>{ if(avEnabled && lastSpoken) speak(lastSpoken); };
-$btnDictar.onclick=toggleDictar;
-$btnAV.onclick=toggleAV;
-$btnNew.onclick=newSession;
-$btnClear.onclick=()=>{$ask.value='';clearOut();};
-$exportSel.onchange=e=>{const v=e.target.value;if(!v)return;exportAll(v);e.target.value='';};
-$btnHistorial.onclick=openHist;$btnCloseHist.onclick=closeHist;
-$mdlHist.addEventListener('click',e=>{if(e.target===e.currentTarget)closeHist();});
-$ask.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();send();}});
+/* ==================== BINDINGS ==================== */
+elSend.addEventListener("click", async ()=>{
+  const q = (elQ.value||"").trim();
+  if(!q) return;
+  await send();
+  // guarda en historial simple
+  try{
+    const url = `${API_BASE}/api/answer?q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, { headers:{ "Accept":"application/json" } });
+    const data = await res.json().catch(()=> ({}));
+    saveSessionEntry(q, data);
+  }catch{}
+});
+elDict.addEventListener("click", toggleDict);
+elAV.addEventListener("click", toggleAV);
+elReplay.addEventListener("click", replaySpeech);
+elNew.addEventListener("click", ()=>{
+  localStorage.removeItem(STORAGE_KEY);
+  outGeneral.innerHTML = ""; outLists.innerHTML=""; outTables.innerHTML="";
+  stopSpeak(); pausedAtChar = 0; lastSpoken = "";
+});
+elClear.addEventListener("click", ()=>{
+  outGeneral.innerHTML = ""; outLists.innerHTML=""; outTables.innerHTML="";
+});
+elExport.addEventListener("change", ()=> exportAs(elExport.value));
+elHist.addEventListener("click", showHistory);
 
-$btnClosePrev.onclick=()=>{$mdlPrev.style.display='none';};
-$btnDownloadPdf.onclick=downloadPdfFromPreview;
-$mdlPrev.addEventListener('click',e=>{if(e.target===e.currentTarget)$mdlPrev.style.display='none';});
+// Envío con Ctrl+Enter
+elQ.addEventListener("keydown", (e)=>{
+  if (e.key==="Enter" && (e.ctrlKey||e.metaKey)) elSend.click();
+});
 
-function loadVoices(){voices=speechSynthesis.getVoices();}
-speechSynthesis.onvoiceschanged=loadVoices; loadVoices();
+// Nunca pedir cámara; solo reproducimos un MP4 local/hosteado
+try{ elVideo.muted = true; elVideo.play().catch(()=>{});}catch(e){}
 
-/* Siempre mute */
-$video.muted=true;
+/* ==================== FIN ==================== */
 </script>
 </body>
 </html>
