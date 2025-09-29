@@ -2,169 +2,284 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Lexium YA</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Asistente Lexium j</title>
   <style>
     body {
       margin: 0;
       padding: 0;
-      background: #fff;
+      background-color: white;
       font-family: Arial, sans-serif;
     }
-    .top-section {
+
+    /* --- Contenedor superior con video y logos --- */
+    #top-section {
       position: fixed;
       top: 0;
       width: 100%;
-      height: 65%;
-      background: #fff;
+      height: 65vh;
+      background-color: white;
       display: flex;
-      justify-content: space-between;
+      justify-content: center;
       align-items: center;
       overflow: hidden;
+      z-index: 2;
     }
-    #mainVideo {
-      max-height: 100%;
-      width: auto;
-      border: none;
-    }
-    .side-img {
-      max-width: 15%;
+
+    #left-logo, #right-logo {
+      position: absolute;
+      top: 20%;
+      width: 120px;
       height: auto;
     }
-    .bottom-section {
-      position: absolute;
-      top: 65%;
+
+    #left-logo {
+      left: 20px;
+    }
+
+    #right-logo {
+      right: 20px;
+    }
+
+    #video-container {
+      max-width: 720px;
+      height: 100%;
+    }
+
+    #video-container video {
       width: 100%;
-      padding: 10px;
+      height: 100%;
+      object-fit: cover;
+      border: none;
+    }
+
+    /* --- Sección inferior desplazable --- */
+    #bottom-section {
+      margin-top: 65vh;
+      padding: 20px;
       overflow-y: auto;
-      max-height: 35%;
-      background: #fff;
     }
-    #question {
-      width: 98%;
+
+    textarea {
+      width: 100%;
       height: 50px;
-      font-size: 14px;
-      margin-bottom: 8px;
+      resize: none;
+      padding: 10px;
+      font-size: 16px;
     }
-    .btn-line {
-      text-align: center;
-      margin-bottom: 10px;
+
+    .button-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-top: 10px;
+      flex-wrap: wrap;
     }
+
     button, select {
-      margin: 0 5px;
-      padding: 5px 10px;
+      padding: 8px 15px;
+      font-size: 14px;
       cursor: pointer;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background-color: white;
     }
-    #historial {
+
+    button:hover {
+      background-color: #f0f0f0;
+    }
+
+    #response-area {
+      margin-top: 20px;
+      padding: 10px;
+      border-top: 1px solid #ddd;
+    }
+
+    /* Tabla numerada */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    table, th, td {
+      border: 1px solid #ccc;
+    }
+
+    th, td {
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f9f9f9;
+    }
+
+    /* Botón historial */
+    #historial-btn {
       position: fixed;
       top: 10px;
       right: 10px;
-    }
-    table {
-      border-collapse: collapse;
-      width: 100%;
-      font-size: 12px;
-    }
-    th, td {
+      z-index: 3;
+      background-color: #fff;
       border: 1px solid #ccc;
-      padding: 4px;
-      text-align: left;
+      padding: 8px 12px;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <div class="top-section">
-    <img src="left.png" class="side-img" alt="Left">
-    <video id="mainVideo" muted>
-      <source src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4" type="video/mp4">
-    </video>
-    <img src="right.png" class="side-img" alt="Right">
+  <!-- Botón historial -->
+  <button id="historial-btn" title="Ver historial de consultas">Historial</button>
+
+  <!-- Sección superior con video y logos -->
+  <div id="top-section">
+    <img id="left-logo" src="left.png" alt="Logo Izquierdo">
+    <div id="video-container">
+      <video id="assistant-video" muted>
+        <source src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4" type="video/mp4">
+      </video>
+    </div>
+    <img id="right-logo" src="right.png" alt="Logo Derecho">
   </div>
 
-  <div id="historial">
-    <button title="Ver historial">Historial</button>
-  </div>
+  <!-- Sección inferior con scroll -->
+  <div id="bottom-section">
+    <textarea id="user-input" placeholder="Escribe tu pregunta o usa el micrófono (máx 2 líneas)..."></textarea>
 
-  <div class="bottom-section">
-    <textarea id="question" placeholder="Escribe tu pregunta aquí..."></textarea>
-    <div class="btn-line">
-      <button id="sendBtn" title="Enviar pregunta">Enviar</button>
-      <button id="dictarBtn" title="Dictar por voz">Dictar</button>
-      <button id="toggleAVBtn" title="Parar/Activar voz y video">Parar/Activar Voz y Video</button>
-      <button id="replayBtn" title="Reproducir nuevamente">Reproducir</button>
-      <button id="newSessionBtn" title="Iniciar nueva sesión">Nueva sesión</button>
-      <button id="clearBtn" title="Limpiar pantalla">Limpiar</button>
-      <select id="exportSelect" title="Exportar resultados">
+    <div class="button-row">
+      <button id="send-btn" title="Enviar la pregunta">Enviar</button>
+      <button id="dictate-btn" title="Dictar usando micrófono">🎤 Dictar</button>
+      <button id="toggle-voice-video-btn" title="Pausar/Reanudar voz y video">⏯️ Parar/Activar Voz y Video</button>
+      <button id="replay-btn" title="Reproducir nuevamente la última respuesta">🔁 Reproducir</button>
+      <button id="new-session-btn" title="Iniciar una nueva sesión">➤ Nueva sesión</button>
+      <button id="clear-btn" title="Limpiar texto y respuesta">🗑️ Limpiar</button>
+      <select id="export-select" title="Exportar con vista previa antes de descargar">
         <option value="">Exportar...</option>
         <option value="pdf">PDF</option>
         <option value="xls">XLS</option>
         <option value="doc">DOC</option>
       </select>
     </div>
-    <div id="output"></div>
+
+    <div id="response-area"></div>
   </div>
 
   <script>
-    const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
-    const video = document.getElementById("mainVideo");
-    const output = document.getElementById("output");
+    const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app/api";
 
-    document.getElementById("sendBtn").addEventListener("click", sendQuestion);
+    const sendBtn = document.getElementById('send-btn');
+    const userInput = document.getElementById('user-input');
+    const responseArea = document.getElementById('response-area');
+    const video = document.getElementById('assistant-video');
+    const clearBtn = document.getElementById('clear-btn');
+    const replayBtn = document.getElementById('replay-btn');
+    const toggleVoiceVideoBtn = document.getElementById('toggle-voice-video-btn');
+    const newSessionBtn = document.getElementById('new-session-btn');
+    const exportSelect = document.getElementById('export-select');
 
-    async function sendQuestion() {
-      const q = document.getElementById("question").value.trim();
-      if (!q) return alert("Escribe una pregunta.");
-      output.innerHTML = "<p>Procesando...</p>";
-      try {
-        const r = await fetch(`${API_BASE}/api/answer?q=${encodeURIComponent(q)}`);
-        const data = await r.json();
-        renderOutput(data);
-        speak(buildSpokenFrom(data));
-      } catch (err) {
-        output.innerHTML = `<p>Error: ${err}</p>`;
-      }
-    }
+    let lastSpokenText = "";
+    let speechSynthesisUtterance;
+    let isPaused = false;
 
-    function renderOutput(data) {
-      let html = `<p>${data.general}</p>`;
-      data.lists.forEach(list => {
-        html += `<h4>${list.title}</h4><ul>`;
-        list.items.forEach(item => { html += `<li>${item}</li>`; });
-        html += "</ul>";
-      });
-      data.tables.forEach(table => {
-        html += `<h4>${table.title}</h4><table><tr>`;
-        table.columns.forEach(col => { html += `<th>${col}</th>`; });
-        html += "</tr>";
-        table.rows.forEach((row, idx) => {
-          html += `<tr><td>${idx+1}</td>${row.map(c => `<td>${c}</td>`).join("")}</tr>`;
-        });
-        html += "</table>";
-      });
-      output.innerHTML = html;
-    }
-
-    function buildSpokenFrom(data) {
-      let text = data.general + ". ";
-      data.lists.forEach(list => { text += list.title + ": " + list.items.join(", ") + ". "; });
-      data.tables.forEach(table => {
-        text += table.title + ". ";
-        table.rows.forEach(row => { text += row.join(", ") + ". "; });
-      });
-      return text;
-    }
-
-    function speak(text) {
+    async function speakText(text) {
       const synth = window.speechSynthesis;
+      synth.cancel();
+
+      speechSynthesisUtterance = new SpeechSynthesisUtterance(text);
+      speechSynthesisUtterance.lang = "es-MX"; // Español México
+      speechSynthesisUtterance.pitch = 1;
+      speechSynthesisUtterance.rate = 1;
+
       const voices = synth.getVoices();
-      const preferred = voices.find(v => v.lang.startsWith("es-MX") || v.lang.startsWith("es-ES")) || voices[0];
-      const utter = new SpeechSynthesisUtterance(text);
-      utter.voice = preferred;
-      utter.rate = 1;
-      utter.pitch = 1.2;
-      synth.speak(utter);
-      video.play();
-      utter.onend = () => video.pause();
+      const femaleVoice = voices.find(v => v.lang.startsWith('es') && v.name.toLowerCase().includes('female')) || voices.find(v => v.lang.startsWith('es'));
+      if (femaleVoice) speechSynthesisUtterance.voice = femaleVoice;
+
+      // Sincronizar con video
+      speechSynthesisUtterance.onstart = () => {
+        video.play();
+      };
+
+      speechSynthesisUtterance.onend = () => {
+        video.pause();
+      };
+
+      synth.speak(speechSynthesisUtterance);
     }
+
+    sendBtn.addEventListener('click', async () => {
+      const query = userInput.value.trim();
+      if (!query) return alert("Escribe una pregunta");
+
+      responseArea.innerHTML = "Procesando...";
+      try {
+        const res = await fetch(`${API_BASE}/answer?q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+
+        if (!data.ok) {
+          responseArea.innerHTML = `<p style="color:red;">Error: ${data.error || 'Consulta no reconocida'}</p>`;
+          return;
+        }
+
+        let output = `<p>${data.general || ''}</p>`;
+
+        data.tables.forEach((table, idx) => {
+          output += `<h3>${table.title}</h3><table><thead><tr>`;
+          table.columns.forEach(col => output += `<th>${col}</th>`);
+          output += `</tr></thead><tbody>`;
+          table.rows.forEach((row, rIdx) => {
+            output += `<tr><td>${rIdx + 1}</td>${row.map(cell => `<td>${cell}</td>`).join('')}</tr>`;
+          });
+          output += `</tbody></table>`;
+        });
+
+        responseArea.innerHTML = output;
+        lastSpokenText = data.general + " " + data.tables.map(t => t.rows.map(r => r.join(", ")).join(". ")).join(". ");
+        speakText(lastSpokenText);
+
+      } catch (err) {
+        responseArea.innerHTML = `<p style="color:red;">Error al conectar con el servidor</p>`;
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      userInput.value = "";
+      responseArea.innerHTML = "";
+      window.speechSynthesis.cancel();
+    });
+
+    replayBtn.addEventListener('click', () => {
+      if (lastSpokenText) speakText(lastSpokenText);
+    });
+
+    toggleVoiceVideoBtn.addEventListener('click', () => {
+      const synth = window.speechSynthesis;
+      if (!isPaused) {
+        synth.pause();
+        video.pause();
+        isPaused = true;
+      } else {
+        synth.resume();
+        video.play();
+        isPaused = false;
+      }
+    });
+
+    newSessionBtn.addEventListener('click', () => {
+      userInput.value = "";
+      responseArea.innerHTML = "";
+      lastSpokenText = "";
+      window.speechSynthesis.cancel();
+      alert("Nueva sesión iniciada.");
+    });
+
+    exportSelect.addEventListener('change', () => {
+      const format = exportSelect.value;
+      if (!format) return;
+      window.print();
+      exportSelect.value = "";
+    });
   </script>
 </body>
 </html>
