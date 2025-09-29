@@ -3,289 +3,198 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>1exium • Asistente + Analítica</title>
-  <link rel="preconnect" href="https://fonts.gstatic.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  <title><!-- REEMPLAZAR: Título pestaña --> Lexium</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <style>
     :root{
-      --bg:#0f1220; --panel:#12152a; --muted:#a6b0cf; --text:#e9edff; --brand:#3b82f6; --brand-2:#22c55e;
-      --card:#0b0e1a; --border:#1f2240; --chip:#1a1f3d; --danger:#ef4444;
+      --brand:#0f6fff; /* REEMPLAZAR color principal */
+      --bg:#0f1220; --panel:#12152a; --text:#e9edff; --muted:#a6b0cf; --border:#1f2240;
     }
-    *{box-sizing:border-box}
-    html,body{margin:0;height:100%;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--text)}
-    a{color:inherit}
+    *{box-sizing:border-box} html,body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui}
     .wrap{max-width:1200px;margin:0 auto;padding:24px}
-    .topbar{display:flex;align-items:center;gap:16px}
-    .logo{display:flex;align-items:center;gap:10px}
-    .logo img{height:24px}
-    .chip{background:var(--chip);padding:6px 10px;border-radius:999px;font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
-    .ok{color:var(--brand-2)}
-    .err{color:var(--danger)}
-    h1{font-size:34px;margin:16px 0 8px}
-    .hero{margin-top:16px;display:grid;grid-template-columns:1.1fr 1fr;gap:16px}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:16px}
+    .logo{display:flex;align-items:center;gap:12px}
+    .logo img{height:28px}
+    .title{font-size:36px;font-weight:800;margin:16px 0}
+    .sub{color:var(--muted);margin-top:-6px}
+    .grid{display:grid;gap:20px}
+    @media(min-width:1000px){.grid.two{grid-template-columns:1.15fr .85fr}}
     .card{background:linear-gradient(180deg,var(--panel),#0d1025 70%);border:1px solid var(--border);border-radius:14px}
-    .card-inner{padding:14px 16px}
-    .video-shell video{width:100%;display:block;border-radius:12px;border:1px solid var(--border)}
-    .video-ctrls{display:flex;gap:8px;margin-top:10px}
-    button{background:#1e264f;border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer}
-    button:hover{filter:brightness(1.1)}
-    .btn-brand{background:var(--brand);border-color:#224aa6}
-    .btn-ghost{background:transparent}
-    .pillbar{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 10px}
-    .pill{padding:8px 12px;border-radius:999px;background:#1a2146;border:1px solid var(--border);font-size:13px;cursor:pointer}
-    .grid{display:grid;gap:16px}
-    .two{grid-template-columns:1.1fr 1fr}
-    textarea{width:100%;min-height:120px;background:#0b0f24;border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px;resize:vertical}
+    .in{padding:16px}
+    button{background:#1b2351;border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:10px;cursor:pointer}
+    button:hover{filter:brightness(1.08)}
+    .btn-brand{background:var(--brand);border-color:#143c9b}
+    .chips{display:flex;flex-wrap:wrap;gap:8px}
+    .chip{background:#161d45;border:1px solid var(--border);padding:8px 12px;border-radius:999px;cursor:pointer}
+    textarea{width:100%;min-height:120px;background:#0b0f24;border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px}
+    select{background:#0b0f24;border:1px solid var(--border);color:var(--text);padding:10px;border-radius:10px}
     .row{display:flex;gap:10px;flex-wrap:wrap}
-    select,input[type=text]{background:#0b0f24;border:1px solid var(--border);color:var(--text);padding:10px;border-radius:10px}
-    .section-title{font-weight:700;margin:14px 0 10px}
-    .status{font-size:13px;color:var(--muted)}
-    .status strong{color:var(--text)}
-    /* OUTPUT */
-    .out{margin-top:10px;display:grid;gap:12px}
-    .box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px}
+    video{width:100%;border-radius:12px;border:1px solid var(--border)}
     .tbl{width:100%;border-collapse:collapse}
-    .tbl th,.tbl td{border:1px solid var(--border);padding:8px;text-align:left}
+    .tbl th,.tbl td{border:1px solid var(--border);padding:8px}
     .tbl th{background:#13183b}
-    .toolbar{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
-    .tag{font-size:12px;color:var(--muted)}
-    .badge{padding:3px 8px;background:#152048;border:1px solid var(--border);border-radius:999px;font-size:12px}
-    .hidden{display:none}
+    .toolbar{display:flex;gap:8px;justify-content:flex-end;margin-top:8px}
+    .foot{margin-top:24px;color:var(--muted);font-size:13px;text-align:center}
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <!-- Header -->
-    <div class="topbar">
-      <div class="logo">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/4/4f/Santillana_logo.svg" alt="Santillana" />
-        <span class="badge">LEXIUM</span>
-      </div>
-      <div class="chip"><span>Back-end</span><span id="statusDot" class="ok">●</span><span id="statusText">conectado</span></div>
+<div class="wrap">
+
+  <!-- HEADER -->
+  <div class="top">
+    <div class="logo">
+      <!-- REEMPLAZAR logo -->
+      <img src="https://upload.wikimedia.org/wikipedia/commons/4/4f/Santillana_logo.svg" alt="Logo">
+      <strong><!-- REEMPLAZAR: NOMBRE PROYECTO --> LEXIUM</strong>
     </div>
-
-    <h1>Asistente + Consulta de Datos</h1>
-
-    <!-- HERO: video + acciones rápidas -->
-    <section class="hero">
-      <div class="card video-shell">
-        <div class="card-inner">
-          <video id="heroVideo" controls poster="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1200" src="https://cdn.coverr.co/videos/coverr-woman-at-home-5864/1080p.mp4"></video>
-          <div class="video-ctrls">
-            <button class="btn-brand" onclick="document.getElementById('heroVideo').play()">▶ Reproducir</button>
-            <button class="btn-ghost" onclick="document.getElementById('heroVideo').pause()">⏸ Pausar</button>
-            <button onclick="document.getElementById('heroVideo').currentTime=0">↺ Reiniciar</button>
-          </div>
-          <div class="status tag">Puedes reemplazar el video por el tuyo (MP4 / HLS).</div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-inner">
-          <div class="section-title">Acciones rápidas</div>
-          <div class="pillbar">
-            <div class="pill" onclick="quick('lista de estudiantes')">lista de estudiantes</div>
-            <div class="pill" onclick="quick('promedio de AUTOESTIMA por paralelo')">promedio AUTOESTIMA</div>
-            <div class="pill" onclick="quick('P90 de TENSIÓN por paralelo')">P90 TENSIÓN</div>
-            <div class="pill" onclick="quick('intervalos de AUTOESTIMA por paralelo')">IC95 por paralelo</div>
-            <div class="pill" onclick="quick('t de AUTOESTIMA entre A y B')">t-test A vs B</div>
-          </div>
-          <div class="status">API: <strong id="apiHost"></strong></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- CONSULTA LIBRE + CONSTRUCTORES -->
-    <section class="grid two" style="margin-top:16px">
-      <div class="card">
-        <div class="card-inner">
-          <div class="pillbar">
-            <div class="pill" onclick="quick('lista de estudiantes')">lista de estudiantes</div>
-            <div class="pill" onclick="quick('promedio de AUTOESTIMA por paralelo')">promedio AUTOESTIMA</div>
-            <div class="pill" onclick="quick('P90 de TENSIÓN por paralelo')">P90 TENSIÓN</div>
-            <div class="pill" onclick="quick('estadísticos de AUTOESTIMA por paralelo')">estadísticos</div>
-            <div class="pill" onclick="quick('t de AUTOESTIMA entre A y B')">t A vs B</div>
-          </div>
-
-          <div class="section-title">Consulta libre</div>
-          <textarea id="q" placeholder="Escribe tu pregunta (ej: promedio de AUTOESTIMA por paralelo)"></textarea>
-          <div class="row" style="margin-top:8px">
-            <button class="btn-brand" onclick="send()">Enviar</button>
-            <button onclick="clearAll()">Limpiar</button>
-            <div class="status" id="status">Listo ✅</div>
-          </div>
-
-          <div class="out" id="out"></div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-inner">
-          <div class="section-title">Constructores de consulta</div>
-          <div class="row">
-            <label class="tag">Columna</label>
-            <select id="col">
-              <option>AUTOESTIMA</option>
-              <option>MANEJO DE LA  TENSIÓN</option>
-              <option>BIENESTAR FÍSICO</option>
-              <option>ASERTIVIDAD</option>
-              <option>EMPATÍA</option>
-              <option>MOTIVACIÓN</option>
-              <option>COMPROMISO</option>
-              <option>ADMINISTRACIÓN DEL TIEMPO</option>
-              <option>TOMA DE DECISIONES</option>
-              <option>LIDERAZGO</option>
-              <option>PROMEDIO DE INTELIGENCIA EMOCIONAL</option>
-            </select>
-          </div>
-          <div class="row">
-            <label class="tag">Percentil</label>
-            <select id="pct">
-              <option>P10</option><option>P25</option><option>P50</option><option>P75</option><option>P90</option>
-            </select>
-            <label class="tag">Grupo A</label>
-            <select id="grpA"><option>A</option><option>B</option></select>
-            <label class="tag">Grupo B</label>
-            <select id="grpB"><option>B</option><option>A</option></select>
-          </div>
-          <div class="row">
-            <button onclick="quick('lista de estudiantes')">Lista de estudiantes</button>
-            <button onclick="btnProm()">Promedio por paralelo</button>
-          </div>
-          <div class="row">
-            <button onclick="btnPct()">Percentil por paralelo</button>
-            <button onclick="btnMed()">Mediana por paralelo</button>
-          </div>
-          <div class="row">
-            <button onclick="btnStats()">Estadísticos / IC95</button>
-            <button onclick="btnTtest()">t de Welch (A vs B)</button>
-          </div>
-        </div>
-      </div>
-    </section>
+    <div>Back-end: <span id="apiHost" style="opacity:.8"></span></div>
   </div>
 
-  <script>
-    // ===== CONFIGURA AQUÍ =====
-    const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app"; // ← tu Cloud Run
-    
-    // ==========================
-    document.getElementById("apiHost").textContent = API_BASE.replace(/^https?:\/\//,'');
+  <!-- TITULAR -->
+  <h1 class="title"><!-- REEMPLAZAR H1 --> Asistente Educativo</h1>
+  <div class="sub"><!-- REEMPLAZAR subtítulo --> Analítica psicométrica y respuestas en tiempo real.</div>
 
-    const $q = document.getElementById('q');
-    const $out = document.getElementById('out');
-    const $status = document.getElementById('status');
-    function setStatus(msg, kind='ok'){ $status.textContent = msg; }
-    function clearAll(){ $q.value=''; $out.innerHTML=''; setStatus('Listo ✅'); }
-    function quick(text){ $q.value = text; send(); }
+  <!-- HERO: VIDEO + ACCIONES -->
+  <section class="grid two" style="margin-top:18px">
+    <div class="card">
+      <div class="in">
+        <!-- REEMPLAZAR video -->
+        <video id="hero" controls poster="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=1200"
+               src="https://cdn.coverr.co/videos/coverr-woman-at-home-5864/1080p.mp4"></video>
+        <div class="row" style="margin-top:10px">
+          <button onclick="hero.play()">▶ Reproducir</button>
+          <button onclick="hero.pause()">⏸ Pausar</button>
+          <button onclick="hero.currentTime=0">↺ Reiniciar</button>
+        </div>
+      </div>
+    </div>
 
-    // Botones constructores
-    function btnProm(){
-      const c = document.getElementById('col').value;
-      $q.value = `promedio de ${c} por paralelo`;
-      send();
-    }
-    function btnPct(){
-      const c = document.getElementById('col').value;
-      const p = document.getElementById('pct').value;
-      $q.value = `${p} de ${c} por paralelo`;
-      send();
-    }
-    function btnMed(){
-      const c = document.getElementById('col').value;
-      $q.value = `mediana de ${c} por paralelo`;
-      send();
-    }
-    function btnStats(){
-      const c = document.getElementById('col').value;
-      $q.value = `estadísticos de ${c} por paralelo`;
-      send();
-    }
-    function btnTtest(){
-      const c = document.getElementById('col').value;
-      const a = document.getElementById('grpA').value;
-      const b = document.getElementById('grpB').value;
-      $q.value = `t de ${c} entre ${a} y ${b}`;
-      send();
-    }
+    <div class="card">
+      <div class="in">
+        <div style="font-weight:700;margin-bottom:8px">Acciones</div>
+        <div class="chips">
+          <!-- REEMPLAZAR botones y textos -->
+          <div class="chip" onclick="quick('lista de estudiantes')">Lista de estudiantes</div>
+          <div class="chip" onclick="quick('promedio de AUTOESTIMA por paralelo')">Promedio AUTOESTIMA</div>
+          <div class="chip" onclick="quick('P90 de TENSIÓN por paralelo')">P90 TENSIÓN</div>
+          <div class="chip" onclick="quick('t de AUTOESTIMA entre A y B')">t-test A vs B</div>
+        </div>
+      </div>
+    </div>
+  </section>
 
-    async function send(){
-      const q = $q.value.trim();
-      if(!q){ setStatus('Escribe una consulta…'); return; }
-      setStatus('Consultando… ⏳');
-      try{
-        const url = `${API_BASE}/api/answer?q=${encodeURIComponent(q)}`;
-        const res = await fetch(url, {headers:{Accept:'application/json'}});
-        const text = await res.text();
-        let data; try{ data = JSON.parse(text); } catch { data = { ok:true, general:text, lists:[], tables:[] }; }
-        render(data);
-        if(!res.ok){ setStatus(`Error HTTP ${res.status}`); return; }
-        setStatus('Listo ✅');
-      }catch(err){
-        console.error(err);
-        setStatus('Error de conexión', 'err');
-      }
-    }
+  <!-- CONSULTA + CONSTRUCTOR -->
+  <section class="grid two" style="margin-top:18px">
+    <div class="card">
+      <div class="in">
+        <div style="font-weight:700;margin-bottom:6px">Consulta libre</div>
+        <textarea id="q" placeholder="Escribe aquí (ej: 'promedio de AUTOESTIMA por paralelo')"></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="btn-brand" onclick="send()">Enviar</button>
+          <button onclick="clearAll()">Limpiar</button>
+          <div id="status" style="margin-left:auto;opacity:.8">Listo ✅</div>
+        </div>
+        <div id="out" style="margin-top:12px;display:grid;gap:12px"></div>
+      </div>
+    </div>
 
-    function render(data){
-      $out.innerHTML = '';
-      if(data.general){
-        const box = document.createElement('div'); box.className='box';
-        box.innerHTML = `<div>${escapeHtml(data.general)}</div>`;
-        $out.appendChild(box);
-      }
-      // Listas
-      (data.lists||[]).forEach(lst=>{
-        const box = document.createElement('div'); box.className='box';
-        if(lst.title) box.innerHTML += `<div class="section-title">${escapeHtml(lst.title)}</div>`;
-        const ul = document.createElement('ul');
-        lst.items.forEach(it=>{
-          const li = document.createElement('li'); li.textContent = it; ul.appendChild(li);
-        });
-        box.appendChild(ul);
-        $out.appendChild(box);
-      });
-      // Tablas
-      (data.tables||[]).forEach(tbl=>{
-        const box = document.createElement('div'); box.className='box';
-        if(tbl.title) box.innerHTML += `<div class="section-title">${escapeHtml(tbl.title)}</div>`;
-        const table = document.createElement('table'); table.className='tbl';
-        const thead = document.createElement('thead');
-        thead.innerHTML = `<tr>${tbl.columns.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
-        table.appendChild(thead);
-        const tbody = document.createElement('tbody');
-        (tbl.rows||[]).forEach(r=>{
-          const tr = document.createElement('tr');
-          r.forEach(cell=>{
-            const td = document.createElement('td'); td.textContent = cell; tr.appendChild(td);
-          });
-          tbody.appendChild(tr);
-        });
-        table.appendChild(tbody);
-        box.appendChild(table);
+    <div class="card">
+      <div class="in">
+        <div style="font-weight:700;margin-bottom:6px">Constructor</div>
+        <div class="row">
+          <select id="col">
+            <option>AUTOESTIMA</option>
+            <option>MANEJO DE LA  TENSIÓN</option>
+            <option>BIENESTAR FÍSICO</option>
+            <option>ASERTIVIDAD</option>
+            <option>EMPATÍA</option>
+            <option>MOTIVACIÓN</option>
+            <option>COMPROMISO</option>
+            <option>ADMINISTRACIÓN DEL TIEMPO</option>
+            <option>TOMA DE DECISIONES</option>
+            <option>LIDERAZGO</option>
+            <option>PROMEDIO DE INTELIGENCIA EMOCIONAL</option>
+          </select>
+          <select id="pct"><option>P10</option><option>P25</option><option>P50</option><option>P75</option><option>P90</option></select>
+          <select id="grpA"><option>A</option><option>B</option></select>
+          <select id="grpB"><option>B</option><option>A</option></select>
+        </div>
+        <div class="row" style="margin-top:8px">
+          <button onclick="quick('lista de estudiantes')">Lista</button>
+          <button onclick="btnProm()">Promedio</button>
+          <button onclick="btnPct()">Percentil</button>
+          <button onclick="btnMed()">Mediana</button>
+          <button onclick="btnStats()">Estadísticos / IC95</button>
+          <button onclick="btnTtest()">t A vs B</button>
+        </div>
+      </div>
+    </div>
+  </section>
 
-        const bar = document.createElement('div'); bar.className='toolbar';
-        const btnCopy = document.createElement('button'); btnCopy.textContent = 'Copiar'; btnCopy.onclick = ()=>copyTable(tbl);
-        const btnCsv = document.createElement('button'); btnCsv.textContent = 'CSV'; btnCsv.onclick = ()=>downloadCSV(tbl);
-        bar.append(btnCopy, btnCsv);
-        box.appendChild(bar);
+  <!-- FOOTER -->
+  <div class="foot"><!-- REEMPLAZAR footer --> © 2025 • Proyecto Lexium • Todos los derechos reservados.</div>
+</div>
 
-        $out.appendChild(box);
-      });
-    }
+<script>
+  // CONFIGURA AQUÍ
+  const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
+  document.getElementById('apiHost').textContent = API_BASE.replace(/^https?:\/\//,'');
+  const hero = document.getElementById('hero');
+  const $q = document.getElementById('q'), $out = document.getElementById('out'), $status = document.getElementById('status');
 
-    function copyTable(tbl){
-      const lines = [tbl.columns.join('\t'), ...(tbl.rows||[]).map(r=>r.join('\t'))].join('\n');
-      navigator.clipboard.writeText(lines);
-      setStatus('Tabla copiada al portapapeles 📋');
-    }
-    function downloadCSV(tbl){
-      const csv = [tbl.columns.join(','), ...(tbl.rows||[]).map(r=>r.map(x=>String(x).includes(',')?`"${String(x).replace(/"/g,'""')}"`:x).join(','))].join('\n');
-      const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = (tbl.title||'tabla')+'.csv'; a.click();
-      setStatus('CSV generado ✅');
-    }
-    function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
-  </script>
+  function setStatus(t){ $status.textContent = t; }
+  function clearAll(){ $q.value=''; $out.innerHTML=''; setStatus('Listo ✅'); }
+  function quick(text){ $q.value = text; send(); }
+
+  // Constructores
+  function btnProm(){ $q.value = `promedio de ${col().value} por paralelo`; send(); }
+  function btnPct(){ $q.value = `${pct().value} de ${col().value} por paralelo`; send(); }
+  function btnMed(){ $q.value = `mediana de ${col().value} por paralelo`; send(); }
+  function btnStats(){ $q.value = `estadísticos de ${col().value} por paralelo`; send(); }
+  function btnTtest(){ $q.value = `t de ${col().value} entre ${grpA().value} y ${grpB().value}`; send(); }
+  const col=()=>document.getElementById('col'), pct=()=>document.getElementById('pct'),
+        grpA=()=>document.getElementById('grpA'), grpB=()=>document.getElementById('grpB');
+
+  async function send(){
+    const q = $q.value.trim(); if(!q){ setStatus('Escribe una consulta…'); return; }
+    setStatus('Consultando…');
+    try{
+      const res = await fetch(`${API_BASE}/api/answer?q=${encodeURIComponent(q)}`, {headers:{Accept:'application/json'}});
+      const txt = await res.text(); let data; try{ data = JSON.parse(txt); } catch { data = { ok:true, general:txt, lists:[], tables:[] }; }
+      render(data); setStatus('Listo ✅');
+    }catch(e){ console.error(e); setStatus('Error de conexión'); }
+  }
+
+  function render(data){
+    $out.innerHTML='';
+    if(data.general){ addBox(`<div>${escapeHtml(data.general)}</div>`); }
+    (data.lists||[]).forEach(lst=>{
+      const html = `<div style="font-weight:700;margin-bottom:6px">${escapeHtml(lst.title||'Lista')}</div>
+                    <ul>${lst.items.map(i=>`<li>${escapeHtml(i)}</li>`).join('')}</ul>`;
+      addBox(html);
+    });
+    (data.tables||[]).forEach(tbl=>{
+      const table = `<table class="tbl">
+        <thead><tr>${tbl.columns.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr></thead>
+        <tbody>${(tbl.rows||[]).map(r=>`<tr>${r.map(c=>`<td>${escapeHtml(c)}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table>`;
+      const box = document.createElement('div'); box.className='card'; const inner = document.createElement('div'); inner.className='in';
+      if(tbl.title) inner.innerHTML += `<div style="font-weight:700;margin-bottom:6px">${escapeHtml(tbl.title)}</div>`;
+      inner.innerHTML += table;
+
+      const bar = document.createElement('div'); bar.className='toolbar';
+      const b1 = document.createElement('button'); b1.textContent='Copiar'; b1.onclick=()=>copyTable(tbl);
+      const b2 = document.createElement('button'); b2.textContent='CSV'; b2.onclick=()=>downloadCSV(tbl);
+      bar.append(b1,b2); inner.appendChild(bar); box.appendChild(inner); $out.appendChild(box);
+    });
+  }
+  function addBox(html){ const box=document.createElement('div'); box.className='card'; const i=document.createElement('div'); i.className='in'; i.innerHTML=html; box.appendChild(i); $out.appendChild(box); }
+  function copyTable(tbl){ const s=[tbl.columns.join('\t'),...(tbl.rows||[]).map(r=>r.join('\t'))].join('\n'); navigator.clipboard.writeText(s); setStatus('Tabla copiada 📋'); }
+  function downloadCSV(tbl){
+    const csv=[tbl.columns.join(','),...(tbl.rows||[]).map(r=>r.map(x=>String(x).includes(',')?`"${String(x).replace(/"/g,'""')}"`:x).join(','))].join('\n');
+    const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download=(tbl.title||'tabla')+'.csv'; a.click();
+  }
+  function escapeHtml(s){return String(s).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));}
+</script>
 </body>
 </html>
