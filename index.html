@@ -3,9 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Asistente Lexium GG</title>
+<title>Asistente LexiumJJJ</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-<!-- Export helpers (PDF y XLS). No hacen llamadas externas al ejecutarse. -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
@@ -15,7 +14,8 @@
   }
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;background:#fff;color:var(--ink);font-family:Inter,system-ui}
-  /* --- LAYOUT: TOP (65%) y BOTTOM (35%) --- */
+
+  /* ===== LAYOUT: TOP 65% fijo y BOTTOM scroll ===== */
   .topFixed{
     position:fixed; left:0; top:0; right:0; height:65vh; background:#fff; z-index:10;
     border-bottom:1px solid var(--line);
@@ -23,34 +23,33 @@
   .bottomPane{
     position:fixed; left:0; right:0; bottom:0; top:65vh; overflow:auto; background:#fff;
   }
-  .wrap{max-width:1200px;margin:0 auto;padding:14px}
-  /* --- CABECERA con HISTORIAL --- */
-  .head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-  .histBtn{position:absolute; right:14px; top:10px}
+  .wrap{max-width:1200px;margin:0 auto;padding:10px}
+
+  /* Cabecera mínima: solo para botón Historial (status queda oculto) */
+  .head{position:relative; height:0; }
+  .histBtn{position:absolute; right:6px; top:6px}
   .btn{background:var(--btn); color:var(--btn-ink); border:1px solid var(--btn-line);
        padding:8px 12px; border-radius:10px; cursor:pointer}
   .btn:hover{filter:brightness(.97)}
   .btn-blue{background:var(--brand); color:#fff; border-color:#0b4ad6}
-  /* --- ZONA MEDIA con IMÁGENES + VIDEO --- */
+
+  /* ZONA MEDIA: imágenes laterales compactas + video al centro */
   .mediaRow{
-    display:grid; grid-template-columns:1fr 2.6fr 1fr; gap:10px; align-items:center;
-    height:calc(65vh - 44px); /* 44px ~ cabecera */
+    display:grid; grid-template-columns:180px auto 180px; gap:10px; align-items:center;
+    height:65vh;
   }
-  .sideImg{width:100%; height:100%; object-fit:cover; border:none; display:block}
+  .sideImg{width:100%; height:100%; object-fit:contain; border:none; display:block}
   .mainVideoWrap{width:100%; height:100%; overflow:hidden; border:none}
   .mainVideo{width:100%; height:100%; object-fit:cover; border:none; display:block}
-  /* --- BOTTOM: ENTRADA + BOTONERA + SALIDA --- */
+
+  /* BOTTOM: entrada + botones + salida */
   .askBox{display:flex; flex-direction:column; gap:10px}
   .askArea{
     width:100%; padding:10px 12px; font-size:15px; line-height:1.35;
     border:1px solid var(--line); border-radius:10px; resize:none; height:64px;
   }
-  .toolbar{
-    display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center
-  }
+  .toolbar{display:flex; gap:10px; flex-wrap:wrap; justify-content:center; align-items:center}
   .toolbar .btn{white-space:nowrap}
-  .toolRight{margin-left:auto}
-  .status{color:var(--muted); font-size:12px}
   .exportSel{
     padding:8px 10px; border:1px solid var(--line); border-radius:10px; background:#fff
   }
@@ -59,57 +58,54 @@
   .tbl{width:100%; border-collapse:collapse}
   .tbl th,.tbl td{border:1px solid var(--line); padding:8px}
   .tbl th{background:#f8fafc; text-align:left}
+
   /* HISTORIAL modal */
   .modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:9999}
   .modal > div{background:#fff; border-radius:12px; width:min(680px,92vw); max-height:82vh; overflow:auto; padding:16px}
-  .link{color:#0f6fff; text-decoration:none}
-  .muted{color:var(--muted)}
+
+  /* Región de estado invisible (accesibilidad) */
+  .sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0}
 </style>
 </head>
 <body>
 
-<!-- ====== TOP (video + imágenes) ====== -->
+<!-- ===== TOP: video + imágenes (desde la primera línea) ===== -->
 <section class="topFixed">
   <div class="wrap">
     <div class="head">
-      <div class="status" id="status">Listo</div>
-      <button class="btn histBtn" id="btnHistorial">Historial</button>
+      <button class="btn histBtn" id="btnHistorial" title="Ver historial de sesiones">Historial</button>
+      <div id="status" class="sr-only" aria-live="polite">Listo</div>
     </div>
 
     <div class="mediaRow">
-      <!-- Cambia los src a tus imágenes exactas -->
-      <img src="left.png" alt="Left" class="sideImg" id="imgLeft">
+      <img src="left.png" alt="" class="sideImg" id="imgLeft">
       <div class="mainVideoWrap">
         <video id="mainVideo"
                class="mainVideo"
                muted
                playsinline
                preload="auto"
-               poster=""
                src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
       </div>
-      <img src="right.png" alt="Right" class="sideImg" id="imgRight">
+      <img src="right.png" alt="" class="sideImg" id="imgRight">
     </div>
   </div>
 </section>
 
-<!-- ====== BOTTOM (entrada, botones y salida) ====== -->
+<!-- ===== BOTTOM: entrada, botones y salida ===== -->
 <section class="bottomPane">
   <div class="wrap">
     <div class="askBox">
-      <!-- Caja de texto de 2 líneas -->
       <textarea id="ask" class="askArea" placeholder="Escribe tu pregunta (puede incluir cálculos, listados, tablas)…"></textarea>
 
-      <!-- Botonera en una sola línea, centrada -->
       <div class="toolbar">
-        <button class="btn btn-blue" id="btnSend">ENVIAR</button>
-        <button class="btn" id="btnDictar">DICTAR</button>
-        <button class="btn" id="btnAV">PARAR/ACTIVAR VOZ Y VIDEO</button>
-        <button class="btn" id="btnReplay">REPRODUCIR NUEVAMENTE</button>
-        <button class="btn" id="btnNew">NUEVA SESIÓN</button>
-        <button class="btn" id="btnClear">LIMPIAR</button>
-        <!-- Selector de exportación que dispara al cambiar -->
-        <select id="exportSel" class="exportSel" title="Exportar todo lo generado">
+        <button class="btn btn-blue" id="btnSend" title="Enviar la consulta para que el sistema la analice">ENVIAR</button>
+        <button class="btn" id="btnDictar" title="Activar o detener dictado de voz a texto">DICTAR</button>
+        <button class="btn" id="btnAV" title="Encender o apagar micrófono/cámara del navegador">PARAR/ACTIVAR VOZ Y VIDEO</button>
+        <button class="btn" id="btnReplay" title="Volver a reproducir la respuesta por voz">REPRODUCIR NUEVAMENTE</button>
+        <button class="btn" id="btnNew" title="Cerrar la sesión actual y crear una nueva">NUEVA SESIÓN</button>
+        <button class="btn" id="btnClear" title="Limpiar la caja de texto y la salida">LIMPIAR</button>
+        <select id="exportSel" class="exportSel" title="Exportar todo lo generado en la sesión">
           <option value="">Exportar…</option>
           <option value="pdf">PDF</option>
           <option value="xls">XLS</option>
@@ -118,33 +114,27 @@
       </div>
     </div>
 
-    <!-- Respuestas -->
     <div class="out" id="out"></div>
   </div>
 </section>
 
-<!-- ====== MODAL HISTORIAL ====== -->
+<!-- ===== MODAL HISTORIAL ===== -->
 <div class="modal" id="mdlHist">
   <div>
     <div style="display:flex;justify-content:space-between;align-items:center; gap:10px">
       <h3 style="margin:4px 0">Historial de sesiones</h3>
       <button class="btn" id="btnCloseHist">Cerrar</button>
     </div>
-    <div id="histList" class="muted" style="margin-top:10px"></div>
+    <div id="histList" style="margin-top:10px;color:#6b7280"></div>
   </div>
 </div>
 
 <script>
-/* =======================
-   CONFIG
-======================= */
-const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app"; // <- tu Cloud Run
-// El backend es quien debe usar GPT-5 y analizar estrictamente decimo.csv, evaluacion.txt, ubicacion.txt y emocionales.txt
+/* ========= CONFIG ========= */
+const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
 
-/* =======================
-   REFS UI
-======================= */
-const $status = document.getElementById('status');
+/* ========= REFS ========= */
+const $status = document.getElementById('status'); // oculto (sr-only)
 const $ask = document.getElementById('ask');
 const $out = document.getElementById('out');
 const $video = document.getElementById('mainVideo');
@@ -161,56 +151,42 @@ const $mdlHist = document.getElementById('mdlHist');
 const $btnCloseHist = document.getElementById('btnCloseHist');
 const $histList = document.getElementById('histList');
 
-/* =======================
-   ESTADO DE SESIÓN
-======================= */
+/* ========= ESTADO / SESIÓN ========= */
 let sessionId = Date.now().toString();
-let sessionItems = [];   // guarda cada bloque mostrado (texto/lista/tabla)
+let sessionItems = [];
 let lastGeneral = "";
-let lastTables = [];     // puede haber varias
-let lastSpoken = "";     // última locución
+let lastTables = [];
+let lastSpoken = "";
 let voices = [];
 let speaking = false;
-let recOn = false;       // dictado
-let rec;                 // SpeechRecognition
-let mediaStream = null;  // cam/mic
+let recOn = false;
+let rec;
+let mediaStream = null;
 
-function setStatus(t){ $status.textContent=t; }
+function setStatus(t){ $status.textContent = t; }
 function addCard(html){ const d=document.createElement('div'); d.className='card'; d.innerHTML=html; $out.appendChild(d); }
 function clearOut(){ $out.innerHTML=''; lastGeneral=""; lastTables=[]; sessionItems=[]; }
-function saveItem(item){ sessionItems.push(item); persistSession(); }
+function saveItem(it){ sessionItems.push(it); persistSession(); }
 function persistSession(){
   const all = JSON.parse(localStorage.getItem('lexium-sessions')||'{}');
   all[sessionId] = all[sessionId] || {created: sessionId, items:[]};
   all[sessionId].items = sessionItems;
   localStorage.setItem('lexium-sessions', JSON.stringify(all));
 }
-function newSession(){
-  // guarda y crea nueva
-  persistSession();
-  sessionId = Date.now().toString();
-  sessionItems = [];
-  clearOut(); stopSpeech(); stopAV();
-  setStatus('Nueva sesión');
-}
+function newSession(){ persistSession(); sessionId = Date.now().toString(); sessionItems=[]; clearOut(); stopSpeech(); stopAV(); setStatus('Nueva sesión'); }
 
-/* =======================
-   RENDER RESPUESTAS
-======================= */
+/* ========= RENDER ========= */
 function render(data){
-  // texto
   if(data.general){
     lastGeneral = data.general;
     addCard(`<div>${escapeHtml(data.general)}</div>`);
     saveItem({type:'text', value:data.general});
   }
-  // listas
   (data.lists||[]).forEach(lst=>{
     const html = `<div style="font-weight:700;margin-bottom:6px">${escapeHtml(lst.title||'Lista')}</div>
                   <ol>${(lst.items||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>`;
     addCard(html); saveItem({type:'list', title:lst.title||'Lista', items:lst.items||[]});
   });
-  // tablas (numeradas)
   (data.tables||[]).forEach(tbl=>{
     const cols = ['#', ...(tbl.columns||[])];
     const rows = (tbl.rows||[]).map((r,i)=>[String(i+1), ...r]);
@@ -223,49 +199,48 @@ function render(data){
   });
 }
 
-/* =======================
-   ENVÍO AL BACKEND (GPT-5)
-======================= */
+/* ========= BACKEND (GPT-5) ========= */
 async function send(){
   const q = $ask.value.trim();
   if(!q){ setStatus('Escribe tu consulta…'); return; }
   setStatus('Analizando…');
   try{
     const res = await fetch(`${API_BASE}/api/answer?q=${encodeURIComponent(q)}`, {headers:{Accept:'application/json'}});
-    const txt = await res.text();
-    let data; try{ data = JSON.parse(txt); } catch{ data={ ok:true, general:txt, lists:[], tables:[] }; }
+    const txt = await res.text(); let data;
+    try{ data = JSON.parse(txt); } catch{ data={ok:true, general:txt, lists:[], tables:[]}; }
     render(data);
-    // voz + video
-    if(data.general){
-      speak(data.general); // habla
-    }
+    if(data.general){ speak(data.general); }
     setStatus('Listo');
   }catch(e){
     console.error(e);
-    addCard(`<div class="muted">Error de conexión</div>`);
+    addCard(`<div style="color:#6b7280">Error de conexión</div>`);
     setStatus('Error');
   }
 }
 
-/* =======================
-   VOZ (ES mujer) + VIDEO
-======================= */
-function pickSpanishFemale(voiceList){
-  // intenta es-EC/es-MX/es-ES femenino
-  const pref = ['es-EC','es-MX','es-ES','es'];
-  // Heurística para femenino
-  let best = null;
-  for(const p of pref){
-    const candidates = voiceList.filter(v => (v.lang||'').toLowerCase().startsWith(p));
-    // busca pistas "female", "mujer"
-    const femaleFirst = candidates.find(v => /female|mujer/ig.test(v.name||''));
-    if(femaleFirst) return femaleFirst;
-    if(!best && candidates.length) best = candidates[0];
+/* ========= VOZ (preferencia femenina ES) + VIDEO ========= */
+function isLikelyMale(name=""){
+  return /(diego|jorge|pablo|jos[eé]|carlos|alberto|miguel|javier|enrique|juan|pedro|antonio|ricardo|alejandro|sergio|male|hombre)/i.test(name);
+}
+function pickSpanishFemale(list){
+  // Prioridad: es-EC, es-MX, es-ES; evitar nombres masculinos
+  const langs = ['es-EC','es-MX','es-ES','es'];
+  for(const L of langs){
+    const pool = list.filter(v => (v.lang||'').toLowerCase().startsWith(L.toLowerCase()));
+    if(!pool.length) continue;
+    // intenta “female/mujer”
+    let v = pool.find(v => /female|mujer/i.test(v.name||'')) || null;
+    if(!v){
+      const fem = pool.find(v => !isLikelyMale(v.name||'')); // evita masculinos
+      if(fem) v = fem;
+    }
+    if(v) return v;
   }
-  return best || voiceList[0] || null;
+  // último recurso: primera española aunque sea genérica
+  const anyEs = list.find(v => (v.lang||'').toLowerCase().startsWith('es'));
+  return anyEs || list[0] || null;
 }
 function splitForTTS(text, maxLen=300){
-  // trocea para respuestas largas y mantener video activo
   const parts=[]; let cur='';
   const chunks = text.split(/([.!?]\s+)/);
   for(const c of chunks){
@@ -276,30 +251,19 @@ function splitForTTS(text, maxLen=300){
   return parts;
 }
 function speak(text){
-  stopSpeech();
-  if(!text) return;
-  lastSpoken = text;
-
-  // reproduce video mientras habla
-  try{ $video.currentTime = 0; $video.play().catch(()=>{}); }catch{}
-
+  stopSpeech(); if(!text) return; lastSpoken=text;
+  try{ $video.currentTime=0; $video.play().catch(()=>{}); }catch{}
   const parts = splitForTTS(text);
   let i=0; speaking=true;
-
   const playNext = ()=>{
     if(i>=parts.length){ speaking=false; try{$video.pause();}catch{} setStatus('Listo'); return; }
     const u = new SpeechSynthesisUtterance(parts[i++]);
     const vv = pickSpanishFemale(voices);
     if(vv) u.voice = vv;
     u.lang = vv?.lang || 'es-ES';
-    u.rate = 1; u.pitch=1;
-
-    u.onend = ()=> {
-      // si aún quedan partes, el video sigue; si no, se detiene
-      if(i>=parts.length){ try{$video.pause();}catch{} }
-      playNext();
-    };
-    u.onerror = ()=> { playNext(); };
+    u.rate = 1; u.pitch = 1.05;  // un poco más aguda para reforzar femenino
+    u.onend = ()=>{ if(i>=parts.length){ try{$video.pause();}catch{} } playNext(); };
+    u.onerror = ()=>{ playNext(); };
     setStatus('Hablando…');
     speechSynthesis.speak(u);
   };
@@ -307,31 +271,23 @@ function speak(text){
 }
 function stopSpeech(){ speechSynthesis.cancel(); speaking=false; }
 
-/* =======================
-   DICTADO + AV TOGGLE
-======================= */
+/* ========= DICTADO + AV ========= */
 function toggleDictar(){
   try{
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if(!SR){ alert('Dictado no soportado en este navegador.'); return; }
     if(recOn){ rec.stop(); return; }
     rec = new SR(); rec.lang='es-ES'; rec.interimResults=false; rec.maxAlternatives=1;
-    rec.onresult = e => {
-      const t = e.results[0][0].transcript;
-      $ask.value = ($ask.value? $ask.value+' ' : '') + t;
-    };
+    rec.onresult = e => { const t=e.results[0][0].transcript; $ask.value = ($ask.value? $ask.value+' ' : '') + t; };
     rec.onend = ()=>{ recOn=false; $btnDictar.textContent='DICTAR'; setStatus('Dictado detenido'); };
     rec.onerror = ()=>{ recOn=false; $btnDictar.textContent='DICTAR'; setStatus('Error dictado'); };
     rec.start(); recOn=true; $btnDictar.textContent='DETENER DICTADO'; setStatus('Dictando…');
   }catch(e){ console.error(e); alert('No se pudo iniciar dictado.'); }
 }
 async function toggleAV(){
-  if(mediaStream){
-    stopAV(); return;
-  }
+  if(mediaStream){ stopAV(); return; }
   try{
     mediaStream = await navigator.mediaDevices.getUserMedia({audio:true, video:true});
-    // Sólo encendemos mic/cam (no mostramos preview aquí por estética)
     $btnAV.textContent='DETENER VOZ Y VIDEO';
     setStatus('Voz/Video activado');
   }catch(e){ console.error(e); alert('Permite acceso a micrófono/cámara.'); }
@@ -342,14 +298,9 @@ function stopAV(){
   setStatus('Voz/Video apagado');
 }
 
-/* =======================
-   EXPORTAR (PDF / XLS / DOC)
-   Exporta TODO lo generado en la sesión actual
-======================= */
+/* ========= EXPORTAR (PDF/XLS/DOC) ========= */
 function exportAll(kind){
   if(!sessionItems.length){ alert('No hay contenido para exportar.'); return; }
-
-  // Prepara HTML plano de sesión
   let html = `<h2>Sesión ${sessionId}</h2>`;
   for(const it of sessionItems){
     if(it.type==='text'){
@@ -366,41 +317,33 @@ function exportAll(kind){
   if(kind==='pdf'){
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({unit:'pt', format:'a4'});
-    const margin=36, pageW=595-2*margin; // A4 width=595pt
-    // Conversión muy básica: texto sin estilo + tablas simplificadas
+    const margin=36, pageW=595-2*margin;
     const tmp = document.createElement('div'); tmp.innerHTML = html;
     let y = margin;
-    const addText = (t, isH) => {
+    const addText = (t, bold=false)=>{
       const lines = doc.splitTextToSize(t, pageW);
       if(y + lines.length*14 > 812){ doc.addPage(); y=margin; }
-      if(isH) doc.setFont(undefined,"bold");
+      if(bold) doc.setFont(undefined,"bold");
       doc.text(lines, margin, y);
-      if(isH) doc.setFont(undefined,"normal");
+      if(bold) doc.setFont(undefined,"normal");
       y += lines.length*14 + 8;
-    }
+    };
     tmp.querySelectorAll('h2,h3,p,ol,table').forEach(el=>{
-      if(el.tagName==='H2' || el.tagName==='H3'){
-        addText(el.textContent, true);
-      }else if(el.tagName==='P'){
-        addText(el.textContent, false);
-      }else if(el.tagName==='OL'){
+      if(el.tagName==='H2' || el.tagName==='H3'){ addText(el.textContent, true); }
+      else if(el.tagName==='P'){ addText(el.textContent); }
+      else if(el.tagName==='OL'){
         const items = Array.from(el.querySelectorAll('li')).map(li=>li.textContent);
-        addText(items.map((t,i)=>`${i+1}. ${t}`).join('\n'), false);
+        addText(items.map((t,i)=>`${i+1}. ${t}`).join('\n'));
       }else if(el.tagName==='TABLE'){
-        // simple CSV text
         const rows = Array.from(el.querySelectorAll('tr')).map(tr=>Array.from(tr.children).map(td=>td.textContent));
-        rows.forEach(r=>{
-          addText(r.join('  |  '), false);
-        });
+        rows.forEach(r=> addText(r.join('  |  ')) );
       }
     });
     doc.save(`sesion_${sessionId}.pdf`);
   }
 
   if(kind==='xls'){
-    // build sheet
-    const wb = XLSX.utils.book_new();
-    let idx=1;
+    const wb = XLSX.utils.book_new(); let idx=1;
     for(const it of sessionItems){
       if(it.type==='text'){
         const ws = XLSX.utils.aoa_to_sheet([['Texto'], [it.value]]);
@@ -419,27 +362,21 @@ function exportAll(kind){
   }
 
   if(kind==='doc'){
-    const blob = new Blob(
-      [`<!doctype html><html><head><meta charset="utf-8"></head><body>${html}</body></html>`],
-      {type:'application/msword'}
-    );
+    const blob = new Blob([`<!doctype html><html><head><meta charset="utf-8"></head><body>${html}</body></html>`],
+      {type:'application/msword'});
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `sesion_${sessionId}.doc`;
-    a.click();
+    a.href = URL.createObjectURL(blob); a.download = `sesion_${sessionId}.doc`; a.click();
   }
 }
 
-/* =======================
-   HISTORIAL (localStorage)
-======================= */
+/* ========= HISTORIAL ========= */
 function openHist(){
   const all = JSON.parse(localStorage.getItem('lexium-sessions')||'{}');
   const ids = Object.keys(all).sort((a,b)=>b.localeCompare(a));
   if(!ids.length){ $histList.innerHTML = '<p>No hay sesiones guardadas.</p>'; }
   else{
     $histList.innerHTML = ids.map(id=>`<div style="margin:8px 0">
-      <a href="#ver-${id}" class="link" onclick="return showSession('${id}')">Ver sesión ${id}</a>
+      <a href="#ver-${id}" onclick="return showSession('${id}')">Ver sesión ${id}</a>
     </div>`).join('');
   }
   $mdlHist.style.display='flex';
@@ -451,9 +388,8 @@ function showSession(id){
   const win = window.open('about:blank','_blank');
   let html = `<h2>Sesión ${id}</h2>`;
   (ses.items||[]).forEach(it=>{
-    if(it.type==='text'){
-      html += `<p>${escapeHtml(it.value).replace(/\n/g,'<br>')}</p>`;
-    }else if(it.type==='list'){
+    if(it.type==='text'){ html += `<p>${escapeHtml(it.value).replace(/\n/g,'<br>')}</p>`; }
+    else if(it.type==='list'){
       html += `<h3>${escapeHtml(it.title)}</h3><ol>${(it.items||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join('')}</ol>`;
     }else if(it.type==='table'){
       const thead = `<tr>${it.columns.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
@@ -467,14 +403,10 @@ function showSession(id){
   return false;
 }
 
-/* =======================
-   HELPERS
-======================= */
+/* ========= HELPERS ========= */
 function escapeHtml(s){ return String(s).replace(/[&<>"']/g,m=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m])); }
 
-/* =======================
-   WIRE-UP
-======================= */
+/* ========= WIRE-UP ========= */
 $btnSend.onclick = send;
 $btnReplay.onclick = ()=> speak(lastGeneral||'');
 $btnDictar.onclick = toggleDictar;
@@ -484,18 +416,14 @@ $btnClear.onclick = ()=>{ $ask.value=''; clearOut(); };
 $exportSel.onchange = (e)=>{ const v=e.target.value; if(!v) return; exportAll(v); e.target.value=''; };
 $btnHistorial.onclick = openHist;
 $btnCloseHist.onclick = closeHist;
-$mdlHist.addEventListener('click', (e)=>{ if(e.target===$mdlHist) closeHist(); });
-
-// Enter envía
+document.getElementById('mdlHist').addEventListener('click', (e)=>{ if(e.target===e.currentTarget) closeHist(); });
 $ask.addEventListener('keydown', e=>{ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); send(); } });
 
-// Carga voces
 function loadVoices(){ voices = speechSynthesis.getVoices(); }
 speechSynthesis.onvoiceschanged = loadVoices; loadVoices();
 
-/* Mantén el video silenciado siempre (requisito) */
+/* Siempre mute (requisito) */
 $video.muted = true;
-
 </script>
 </body>
 </html>
