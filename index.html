@@ -3,360 +3,163 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>MMMMLexium — Consulta</title>
+  <title>Lexium — JJJConsultas</title>
   <style>
-    :root{
-      --bg:#0b1020; --card:#111832; --muted:#94a3b8;
-      --text:#e5e7eb; --accent:#60a5fa; --ok:#34d399; --warn:#f59e0b;
-      --danger:#ef4444; --chip:#1f2a4a;
-    }
-    *{box-sizing:border-box}
-    body{
-      margin:0; background:linear-gradient(180deg,#0a0f1e 0%, #0e1630 100%);
-      color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
-    }
-    .wrap{max-width:1100px; margin:24px auto; padding:0 16px}
-    .header{display:flex; align-items:center; gap:12px; margin-bottom:14px}
-    .logo{width:36px; height:36px; border-radius:10px; background:#1a2547; display:grid; place-items:center; font-weight:700; color:#93c5fd}
-    h1{font-size:18px; margin:0}
-    .bar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:10px 0}
-    .chip{
-      background:var(--chip); color:#cbd5e1; border:1px solid #223055;
-      padding:6px 10px; border-radius:999px; font-size:12px; display:flex; align-items:center; gap:6px;
-    }
-    .chip b{color:#e2e8f0}
-    .card{
-      background:rgba(17,24,50,.7); border:1px solid #243152;
-      border-radius:16px; padding:14px; box-shadow:0 6px 24px rgba(0,0,0,.35);
-    }
-    .row{display:grid; grid-template-columns:1.3fr .7fr; gap:14px}
-    @media (max-width:900px){ .row{grid-template-columns:1fr} }
-
-    textarea, input[type="text"]{
-      width:100%; padding:12px 12px; border-radius:12px; border:1px solid #2a3a63;
-      background:#0e1530; color:var(--text); outline:none; font-size:15px;
-    }
-    textarea{min-height:84px; resize:vertical}
-    .actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
-    button{
-      border:1px solid #2a3a63; background:#13204a; color:#e5e7eb;
-      padding:10px 12px; border-radius:12px; font-weight:600; cursor:pointer
-    }
-    button:hover{filter:brightness(1.05)}
-    button.ghost{background:#0e1530}
-    button.primary{background:#1b3a7a; border-color:#3959a2}
-    button.danger{background:#3a1620; border-color:#5a2430}
-    .status{display:flex; gap:8px; align-items:center; margin-top:8px; font-size:12px; color:var(--muted)}
-    .answer{
-      white-space:pre-wrap; line-height:1.45; font-size:15px;
-      min-height:130px; max-height:360px; overflow:auto; padding:12px;
-      border-radius:12px; border:1px solid #243152; background:#0d142e;
-    }
-    .panel{
-      display:flex; flex-direction:column; gap:8px;
-    }
-    .small{font-size:12px; color:#9fb1d1}
-    .hint{font-size:12px; color:#8aa0c8; margin-top:-2px}
-    .split{display:grid; gap:10px; grid-template-columns:1fr 1fr}
-    @media (max-width:640px){ .split{grid-template-columns:1fr} }
-    .video-wrap{background:#0d142e; border:1px solid #243152; border-radius:12px; padding:8px}
-    video{width:100%; border-radius:8px; display:block}
-    select{
-      background:#0e1530; border:1px solid #2a3a63; color:var(--text);
-      padding:8px 10px; border-radius:10px; font-size:14px; width:100%;
-    }
-    .spinner{display:none; width:16px; height:16px; border:2px solid #3a4f86; border-top-color:#90b4ff; border-radius:50%; animation:spin .8s linear infinite}
+    :root{ --bg:#0b1020; --card:#111832; --muted:#94a3b8; --text:#e5e7eb; --chip:#1f2a4a; }
+    *{box-sizing:border-box} body{margin:0;background:#0a0f1e;color:var(--text);font-family:system-ui,Inter,Segoe UI,Roboto,Arial}
+    .wrap{max-width:1100px;margin:22px auto;padding:0 14px}
+    .bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+    .chip{background:var(--chip);border:1px solid #223055;border-radius:999px;padding:6px 10px;font-size:12px}
+    .row{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}
+    @media (max-width:900px){.row{grid-template-columns:1fr}}
+    .card{background:#111832cc;border:1px solid #243152;border-radius:14px;padding:12px}
+    textarea{width:100%;min-height:96px;background:#0e1530;color:#e5e7eb;border:1px solid #2a3a63;border-radius:12px;padding:12px;font-size:15px;resize:vertical}
+    .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    button{background:#13204a;border:1px solid #2a3a63;color:#e5e7eb;padding:9px 12px;border-radius:12px;font-weight:600;cursor:pointer}
+    button.primary{background:#1b3a7a;border-color:#3959a2}
+    .answer{white-space:pre-wrap;min-height:130px;max-height:360px;overflow:auto;border:1px solid #243152;background:#0d142e;border-radius:12px;padding:12px}
+    .small{font-size:12px;color:#9fb1d1}
+    .status{font-size:12px;color:#9fb1d1;margin-top:6px}
+    .spinner{display:none;width:16px;height:16px;border:2px solid #3a4f86;border-top-color:#90b4ff;border-radius:50%;animation:spin .8s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
-    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Courier New",monospace}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <div class="header">
-      <div class="logo">Lx</div>
-      <h1>Lexium — Consultas</h1>
-    </div>
-
+    <h1 style="margin:0 0 8px 0;font-size:18px">Lexium — Consultas</h1>
     <div class="bar">
-      <div class="chip">Ruta: <b id="badge-ruta">—</b></div>
-      <div class="chip">Tiempo: <b id="badge-tiempo">—</b></div>
-      <div class="chip">Voz: <b id="badge-voz">Silencio</b></div>
-      <div class="chip">Mic: <b id="badge-mic">Off</b></div>
+      <span class="chip">Ruta: <b id="badge-ruta">—</b></span>
+      <span class="chip">Tiempo: <b id="badge-tiempo">—</b></span>
+      <span class="chip">Voz: <b id="badge-voz">Silencio</b></span>
+      <span class="chip">Mic: <b id="badge-mic">Off</b></span>
     </div>
 
     <div class="row">
-      <!-- Columna izquierda: interacción -->
       <div class="card">
-        <div class="panel">
-          <label class="small">Escribe tu pregunta</label>
-          <textarea id="q" placeholder="Ej.: ¿Qué es Lexium? o ¿Cómo se aplica la evaluación emocional?"></textarea>
-          <div class="hint">Enter = Enviar. Shift+Enter = salto de línea.</div>
-
-          <div class="actions">
-            <button class="primary" id="btn-enviar">Enviar</button>
-            <button id="btn-mic">🎤 Dictar</button>
-            <button id="btn-voz">⏯ Voz</button>
-            <button id="btn-replay">⟳ Reproducir nuevamente</button>
-            <button class="ghost" id="btn-new">＋ Nueva sesión</button>
-            <button class="ghost" id="btn-clear">🧹 Limpiar</button>
-            <button class="ghost" id="btn-export">Exportar…</button>
-            <div class="spinner" id="spinner"></div>
-          </div>
-
-          <div class="split">
-            <div>
-              <label class="small">Selecciona voz (nativo del navegador)</label>
-              <select id="voice-select"></select>
-            </div>
-            <div>
-              <label class="small">Volumen</label>
-              <input id="voice-volume" type="range" min="0" max="1" step="0.05" value="1" style="width:100%">
-            </div>
-          </div>
+        <label class="small">Escribe tu pregunta</label>
+        <textarea id="q" placeholder="Ej.: ¿Qué es Lexium? / Lista de evaluaciones / ¿Cómo se aplica la evaluación emocional?"></textarea>
+        <div class="small" style="margin-top:4px">Enter = Enviar · Shift+Enter = salto de línea</div>
+        <div class="actions">
+          <button id="btn-enviar" class="primary">Enviar</button>
+          <button id="btn-mic">🎤 Dictar</button>
+          <button id="btn-voz">⏯ Voz</button>
+          <button id="btn-replay">⟳ Reproducir nuevamente</button>
+          <button id="btn-clear">🧹 Limpiar</button>
+          <div class="spinner" id="spinner"></div>
+        </div>
+        <div class="small" style="margin-top:8px">
+          Voz del navegador:
+          <select id="voice-select" style="background:#0e1530;border:1px solid #2a3a63;color:#e5e7eb;border-radius:8px;padding:4px 8px"></select>
+          <input id="voice-volume" type="range" min="0" max="1" step="0.05" value="1" style="vertical-align:middle;width:160px">
         </div>
       </div>
 
-      <!-- Columna derecha: video / salida -->
       <div class="card">
-        <div class="panel">
-          <label class="small">Respuesta</label>
-          <div id="answer" class="answer"></div>
-
-          <div class="video-wrap">
-            <label class="small">Video (opcional)</label>
-            <video id="video" src="" controls preload="metadata" playsinline></video>
-            <div class="actions">
-              <button id="btn-video-toggle">⏯ Parar/Activar video</button>
-              <input id="video-src" type="text" placeholder="Pega la URL/archivo del video (opcional)">
-            </div>
-          </div>
-
-          <div class="status mono" id="status-line">Listo.</div>
-        </div>
+        <label class="small">Respuesta</label>
+        <div id="answer" class="answer"></div>
+        <div class="status" id="status-line">Listo.</div>
       </div>
     </div>
   </div>
 
   <script>
-    // ======== Config ========
-    const API_BASE = ""; // vacío = mismo origen. Si usas Cloud Run con dominio, pega aquí la URL base.
-    const ENDPOINT = "/api/answer";
+    // ===== Configura tu backend =====
+    const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app"; // <-- tu Cloud Run. Si sirves el HTML desde el mismo dominio, deja "".
+    const ENDPOINTS = [
+      `${API_BASE}/api/answer`,
+      `${API_BASE}/api/gpt?mode=tools`,
+      `${API_BASE}/api/gpt?mode=free`
+    ];
 
-    // ======== Elementos ========
-    const elQ = document.getElementById("q");
-    const elSend = document.getElementById("btn-enviar");
-    const elMic = document.getElementById("btn-mic");
-    const elVoz = document.getElementById("btn-voz");
-    const elReplay = document.getElementById("btn-replay");
-    const elNew = document.getElementById("btn-new");
-    const elClear = document.getElementById("btn-clear");
-    const elExport = document.getElementById("btn-export");
-    const elSpinner = document.getElementById("spinner");
-    const elAnswer = document.getElementById("answer");
-    const elRuta = document.getElementById("badge-ruta");
-    const elTiempo = document.getElementById("badge-tiempo");
-    const elVozBadge = document.getElementById("badge-voz");
-    const elMicBadge = document.getElementById("badge-mic");
-    const elStatus = document.getElementById("status-line");
-    const elVoiceSelect = document.getElementById("voice-select");
-    const elVoiceVolume = document.getElementById("voice-volume");
-    const elVideo = document.getElementById("video");
-    const elVideoSrc = document.getElementById("video-src");
-    const elVideoToggle = document.getElementById("btn-video-toggle");
+    // ===== Helpers de UI =====
+    const $ = (id)=>document.getElementById(id);
+    const setTxt = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
+    const spinner = $("spinner");
+    const setBusy = (b)=> spinner.style.display = b ? "inline-block" : "none";
+    const ms = (n)=> isFinite(n) ? `${Math.round(n)} ms` : "—";
+    const setStatus = (s)=> { $("status-line").textContent = s; };
 
-    // ======== Estado ========
-    let lastAnswer = "";
-    let speaking = false;
-    let recognizing = false;
-    let recognizer = null;
-
-    // ======== Util ========
-    function setBusy(b){ elSpinner.style.display = b ? "inline-block" : "none"; }
-    function setStatus(msg){ elStatus.textContent = msg; }
-    function speakStop(){
-      window.speechSynthesis.cancel();
-      speaking = false;
-      elVozBadge.textContent = "Silencio";
-    }
-    function ms(n){
-      if (n == null) return "—";
-      const s = Number(n);
-      if (!isFinite(s)) return "—";
-      return s.toFixed(0) + " ms";
-    }
-
-    // ======== Voz (TTS) ========
+    // ===== TTS =====
     function loadVoices(){
-      const voices = window.speechSynthesis.getVoices();
-      elVoiceSelect.innerHTML = "";
-      // Prioriza voces en español (es-ES, es-MX, es-US, es-419)
-      const pref = v => /(^es[-_]|Spanish)/i.test(v.lang) || /Spanish/i.test(v.name);
-      const sorted = [...voices].sort((a,b) => (pref(b)-pref(a)) || a.name.localeCompare(b.name));
-      for(const v of sorted){
-        const opt = document.createElement("option");
-        opt.value = v.name;
-        opt.textContent = `${v.name} — ${v.lang}`;
-        elVoiceSelect.appendChild(opt);
-      }
-      // Selección por defecto: primera en español si existe
-      const def = [...elVoiceSelect.options].find(o => /es/i.test(o.textContent)) || elVoiceSelect.options[0];
-      if(def){ elVoiceSelect.value = def.value; }
+      const voices = speechSynthesis.getVoices();
+      const sel = $("voice-select"); sel.innerHTML = "";
+      const pref = v => /^es[-_]/i.test(v.lang) || /Spanish/i.test(v.name);
+      const sorted = [...voices].sort((a,b)=>(pref(b)-pref(a))||a.name.localeCompare(b.name));
+      for(const v of sorted){ const o=document.createElement("option"); o.value=v.name; o.textContent=`${v.name} — ${v.lang}`; sel.appendChild(o); }
+      const es = [...sel.options].find(o=>/es/i.test(o.textContent)); if(es) sel.value=es.value;
     }
-    window.speechSynthesis.onvoiceschanged = loadVoices;
-    loadVoices();
-
+    speechSynthesis.onvoiceschanged = loadVoices; loadVoices();
+    let speaking=false, lastAnswer="";
+    function speakStop(){ speechSynthesis.cancel(); speaking=false; setTxt("badge-voz","Silencio"); }
     function speak(text){
-      if(!text || !window.speechSynthesis) return;
+      if(!text) return;
       speakStop();
-      const u = new SpeechSynthesisUtterance(text);
-      const sel = elVoiceSelect.value;
-      const voices = window.speechSynthesis.getVoices();
-      u.voice = voices.find(v => v.name === sel) || voices.find(v => /^es[-_]/i.test(v.lang)) || voices[0];
-      u.lang = (u.voice && u.voice.lang) || "es-ES";
-      u.rate = 1; u.pitch = 1; u.volume = parseFloat(elVoiceVolume.value || "1");
-      u.onstart = () => { speaking = true; elVozBadge.textContent = "Hablando"; };
-      u.onend   = () => { speaking = false; elVozBadge.textContent = "Silencio"; };
-      window.speechSynthesis.speak(u);
+      const u=new SpeechSynthesisUtterance(text);
+      const voices=speechSynthesis.getVoices();
+      const chosen=voices.find(v=>v.name===$("voice-select").value)||voices.find(v=>/^es[-_]/i.test(v.lang))||voices[0];
+      u.voice=chosen; u.lang=(chosen&&chosen.lang)||"es-ES";
+      u.volume=parseFloat($("voice-volume").value||"1");
+      u.onstart=()=>{speaking=true;setTxt("badge-voz","Hablando");};
+      u.onend=()=>{speaking=false;setTxt("badge-voz","Silencio");};
+      speechSynthesis.speak(u);
     }
 
-    // ======== Dictado (STT) ========
+    // ===== STT (dictado) =====
+    let recognizer=null, recognizing=false;
     function ensureRecognizer(){
-      const R = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const R=window.SpeechRecognition||window.webkitSpeechRecognition;
       if(!R) return null;
-      const r = new R();
-      r.lang = "es-ES";
-      r.interimResults = true;
-      r.maxAlternatives = 1;
-      return r;
+      const r=new R(); r.lang="es-ES"; r.interimResults=true; r.maxAlternatives=1; return r;
     }
     function micToggle(){
       if(recognizing){ recognizer.stop(); return; }
-      recognizer = ensureRecognizer();
+      recognizer=ensureRecognizer();
       if(!recognizer){ alert("Dictado no soportado por este navegador."); return; }
-      elMicBadge.textContent = "On";
-      recognizing = true;
-      elMic.textContent = "⏹ Detener";
-      setStatus("Escuchando…");
-      recognizer.onresult = e => {
-        let finalText = "";
-        for(let i= e.resultIndex; i<e.results.length; i++){
-          const tr = e.results[i][0].transcript;
-          if(e.results[i].isFinal){ finalText += tr + " "; }
-        }
-        if(finalText) elQ.value = (elQ.value + " " + finalText).trim();
-      };
-      recognizer.onend = () => {
-        recognizing = false;
-        elMic.textContent = "🎤 Dictar";
-        elMicBadge.textContent = "Off";
-        setStatus("Dictado detenido.");
-      };
-      recognizer.onerror = () => {
-        recognizing = false;
-        elMic.textContent = "🎤 Dictar";
-        elMicBadge.textContent = "Off";
-        setStatus("Error de dictado.");
-      };
+      recognizing=true; setTxt("badge-mic","On"); $("btn-mic").textContent="⏹ Detener"; setStatus("Escuchando…");
+      recognizer.onresult=(e)=>{ let final=""; for(let i=e.resultIndex;i<e.results.length;i++) if(e.results[i].isFinal) final+=e.results[i][0].transcript+" "; if(final) $("q").value=(($("q").value||"")+" "+final).trim(); };
+      recognizer.onend=()=>{ recognizing=false; setTxt("badge-mic","Off"); $("btn-mic").textContent="🎤 Dictar"; setStatus("Dictado detenido."); };
+      recognizer.onerror=()=>{ recognizing=false; setTxt("badge-mic","Off"); $("btn-mic").textContent="🎤 Dictar"; setStatus("Error de dictado."); };
       recognizer.start();
     }
 
-    // ======== Llamada al backend ========
-    async function preguntar(){
-      const q = (elQ.value || "").trim();
-      if(!q){ elQ.focus(); return; }
-      setBusy(true);
-      setStatus("Consultando…");
-      elRuta.textContent = "—";
-      elTiempo.textContent = "—";
-
-      const t0 = performance.now();
-      try{
-        const url = (API_BASE || "") + ENDPOINT + "?q=" + encodeURIComponent(q);
-        const resp = await fetch(url, { method:"GET" });
-        const data = await resp.json();
-        const t1 = performance.now();
-
-        elRuta.textContent = data.ruta || "criterio";
-        elTiempo.textContent = (data.tiempo_ms != null) ? ms(data.tiempo_ms) : ms(t1 - t0);
-
-        const text = (data && data.answer) ? String(data.answer) : "";
-        lastAnswer = text;
-        elAnswer.textContent = text;
-        setStatus("OK");
-        // Habla automáticamente si hay respuesta
-        if(text) speak(text);
-      }catch(err){
-        console.error(err);
-        elAnswer.textContent = "Hubo un problema al contactar el servicio.";
-        elRuta.textContent = "—";
-        elTiempo.textContent = "—";
-        setStatus("Error");
-      }finally{
-        setBusy(false);
-      }
+    // ===== Llamada con fallbacks y timeouts agresivos =====
+    async function fetchWithTimeout(url, msTimeout){
+      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), msTimeout);
+      try{ const r=await fetch(url,{signal:ctrl.signal}); clearTimeout(t); if(!r.ok) throw new Error(`HTTP ${r.status}`); return await r.json(); }
+      catch(e){ clearTimeout(t); throw e; }
     }
 
-    // ======== Controles ========
-    elSend.onclick = preguntar;
-    elQ.addEventListener("keydown",(e)=>{
-      if(e.key==="Enter" && !e.shiftKey){
-        e.preventDefault();
-        preguntar();
+    async function preguntar(){
+      const q = ($("q").value||"").trim();
+      if(!q){ $("q").focus(); return; }
+      setBusy(true); setStatus("Consultando…"); setTxt("badge-ruta","—"); setTxt("badge-tiempo","—");
+      const t0=performance.now();
+      let data=null, ruta="criterio";
+      for(let i=0;i<ENDPOINTS.length;i++){
+        const url = ENDPOINTS[i] + `?q=${encodeURIComponent(q)}`;
+        try{
+          data = await fetchWithTimeout(url, i===0 ? 3500 : 5000);
+          ruta = data?.ruta || (i===0?"archivos":(i===1?"tools":"free"));
+          if(data?.answer) break;
+        }catch(_e){ /* intenta el siguiente */ }
       }
-    });
+      const t1=performance.now();
+      setTxt("badge-ruta", ruta);
+      setTxt("badge-tiempo", ms(data?.tiempo_ms ?? (t1-t0)));
+      lastAnswer = (data && data.answer) ? String(data.answer) : "No se pudo obtener respuesta.";
+      $("answer").textContent = lastAnswer;
+      if(lastAnswer) speak(lastAnswer);
+      setStatus("OK");
+      setBusy(false);
+    }
 
-    elMic.onclick = micToggle;
-
-    elVoz.onclick = ()=>{
-      if(speaking){ speakStop(); }
-      else if(lastAnswer){ speak(lastAnswer); }
-    };
-
-    elReplay.onclick = ()=>{ if(lastAnswer){ speak(lastAnswer); } };
-
-    elNew.onclick = ()=>{
-      // Si en el futuro manejas sesión en backend, aquí podrías resetear el id.
-      elQ.value = "";
-      lastAnswer = "";
-      elAnswer.textContent = "";
-      elRuta.textContent = "—";
-      elTiempo.textContent = "—";
-      setStatus("Nueva sesión local iniciada.");
-      speakStop();
-    };
-
-    elClear.onclick = ()=>{
-      elQ.value = "";
-      elQ.focus();
-    };
-
-    elExport.onclick = ()=>{
-      const ts = new Date().toISOString().replace(/[:.]/g,"-");
-      const txt = [
-        "Pregunta:",
-        (elQ.value || "").trim(),
-        "",
-        "Respuesta:",
-        lastAnswer,
-        "",
-        `Ruta: ${elRuta.textContent} | Tiempo: ${elTiempo.textContent}`
-      ].join("\n");
-      const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `lexium-respuesta-${ts}.txt`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-    };
-
-    // Video
-    elVideoToggle.onclick = ()=>{
-      if(elVideo.paused) elVideo.play(); else elVideo.pause();
-    };
-    elVideoSrc.addEventListener("change", ()=>{
-      const v = (elVideoSrc.value||"").trim();
-      if(v){ elVideo.src = v; setStatus("Video cargado."); }
-    });
+    // ===== Eventos =====
+    $("btn-enviar").onclick = preguntar;
+    $("q").addEventListener("keydown", e=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); preguntar(); } });
+    $("btn-voz").onclick = ()=> speaking ? speakStop() : speak(lastAnswer);
+    $("btn-replay").onclick = ()=> lastAnswer && speak(lastAnswer);
+    $("btn-mic").onclick = micToggle;
+    $("btn-clear").onclick = ()=>{ $("q").value=""; $("q").focus(); $("answer").textContent=""; setTxt("badge-ruta","—"); setTxt("badge-tiempo","—"); speakStop(); };
   </script>
 </body>
 </html>
