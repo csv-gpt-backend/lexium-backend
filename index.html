@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Asistente Lexium Quito</title>
+<title>Asistente Lexium E</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -98,7 +98,7 @@
     </div>
 
     <div class="toolbar">
-      <button id="btnSend" title="Enviar consulta al backend" onclick="ask()">Enviar</button>
+      <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
       <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
       <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
       <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
@@ -356,98 +356,97 @@ function renderAnswer(data){
   setTimeout(()=> saveSession(q.value.trim(), data), 30);
 }
 
-/* ====== Helpers de red con timeout, abort y “hedged” ====== */
+/* ====== Red: timeout, abort, hedged, retry ====== */
 const DEFAULT_TIMEOUT = 45000; // 45s
-let inFlight = null;           // para abortar si el usuario dispara otra consulta
+let inFlight = null;           // ref a la consulta activa
+let sending = false;           // bloquea doble click
+
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
 function fetchWithTimeout(url, opts={}, ms=DEFAULT_TIMEOUT){
   const ctrl = new AbortController();
-  // Si el caller pasó su propio signal, encadenamos
-  if (opts && opts.signal) {
-    const userSignal = opts.signal;
-    if (userSignal.aborted) ctrl.abort();
-    else userSignal.addEventListener("abort", ()=>ctrl.abort(), {once:true});
-  }
   const id = setTimeout(()=>ctrl.abort(), ms);
   const p = fetch(url, {...opts, signal: ctrl.signal}).finally(()=>clearTimeout(id));
-  p._ctrl = ctrl; // guardamos el controller para poder abortar luego
-  return p;
+  return {promise: p, ctrl};
 }
-async function toJSON(resp){ const data = await resp.json().catch(()=> ({})); return {resp, data}; }
-async function fastestSuccess(promises){
+
+// devuelve la primera {resp,data} “ok”. Aborta la perdedora si hay éxito.
+async function hedgedRequest(text){
+  // POST arranca ya
+  const post = fetchWithTimeout(`${API_BASE}${GPT_PATH}`, {
+    method:"POST", headers:{ "Content-Type":"application/json","Accept":"application/json" },
+    body: JSON.stringify({ q: text })
+  }, DEFAULT_TIMEOUT);
+
+  // GET arranca tras 1.2s
+  const getStarter = delay(1200).then(()=> 
+    fetchWithTimeout(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
+      headers:{ "Accept":"application/json" }
+    }, DEFAULT_TIMEOUT)
+  );
+
+  // Creamos promesas de respuesta JSON
+  const toJson = async ({promise, ctrl})=>{
+    const resp = await promise;
+    const data = await resp.json().catch(()=> ({}));
+    return {resp, data, ctrl};
+  };
+
+  const postP = toJson(post);
+  const getP  = getStarter.then(toJson);
+
+  // Gana el primero OK
   return new Promise((resolve, reject)=>{
-    let done = false, errs = [];
-    promises.forEach(p=>{
-      p.then(({resp, data})=>{
-        if (done) return;
-        if (resp.ok && data && data.ok !== false) {
-          done = true;
-          // aborta los otros
-          promises.forEach(pp=>{
-            if (pp._raw && pp._raw._ctrl && pp._raw !== p._raw) { try{ pp._raw._ctrl.abort(); }catch{} }
-          });
-          resolve({resp, data});
-        } else {
-          errs.push(new Error(data?.error || data?.general || `HTTP ${resp.status}`));
-          if (errs.length === promises.length) reject(errs[errs.length-1]);
-        }
-      }).catch(e=>{
-        errs.push(e);
-        if (errs.length === promises.length) reject(errs[errs.length-1]);
-      });
-    });
+    let settled=false, fails=0, winnerCtrl=null, loserCtrl=null;
+
+    function handle({resp,data,ctrl}){
+      if (settled) return;
+      if (resp.ok && data && data.ok !== false){
+        settled = true; winnerCtrl = ctrl;
+        // aborta la otra si ya existe
+        Promise.race([postP, getP]).then(other=>{
+          loserCtrl = (other && other.ctrl && other.ctrl !== winnerCtrl) ? other.ctrl : null;
+          try{ loserCtrl && loserCtrl.abort(); }catch{}
+        }).catch(()=>{});
+        resolve({resp,data});
+      } else {
+        fails++;
+        if (fails===2) reject(new Error(data?.error || data?.general || `HTTP ${resp.status}`));
+      }
+    }
+    postP.then(handle).catch(e=>{ fails++; if(fails===2) reject(e); });
+    getP.then(handle).catch(e=>{ fails++; if(fails===2) reject(e); });
   });
 }
 
-/* ====== Backend (con hedged + retry) ====== */
 async function ask(){
-  const text = q.value.trim(); if (!text) return;
+  const text = q.value.trim(); if (!text || sending) return;
+  sending = true;
 
-  // aborta la consulta anterior si existiera
+  // aborta manualmente la consulta previa si existiera
   if (inFlight && inFlight.abort) inFlight.abort();
 
   btnSend.disabled = true; const old = btnSend.textContent; btnSend.textContent = "Enviando…";
   setStatusLoading("Consultando… (optimizando latencia)");
 
-  // estructura para abortar desde fuera si hace falta
-  const outerCtrl = new AbortController();
-  inFlight = { abort: ()=>outerCtrl.abort() };
+  // estructura mínima por si más adelante quisieras “cancelar”
+  const abortBag = { aborted:false, abort(){ this.aborted=true; } };
+  inFlight = abortBag;
 
   const runOnce = async ()=>{
-    // 1) POST /api/gpt (arranca ya)
-    const postRaw = fetchWithTimeout(`${API_BASE}${GPT_PATH}`, {
-      method: "POST",
-      headers: {"Content-Type":"application/json","Accept":"application/json"},
-      body: JSON.stringify({ q: text }),
-      signal: outerCtrl.signal
-    }, DEFAULT_TIMEOUT);
-    const post = postRaw.then(toJSON); post._raw = postRaw;
-
-    // 2) Tras 1.2s, arrancamos GET /api/answer en paralelo
-    const getStart = new Promise(res=>setTimeout(res, 1200));
-    const get = getStart.then(()=>{
-      const getRaw = fetchWithTimeout(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
-        headers: {"Accept":"application/json"},
-        signal: outerCtrl.signal
-      }, DEFAULT_TIMEOUT);
-      const wrapped = getRaw.then(toJSON); wrapped._raw = getRaw;
-      return wrapped;
-    });
-
-    // 3) Gana el primero que llegue bien
-    return await fastestSuccess([post, get]);
+    const {resp, data} = await hedgedRequest(text);
+    if (!resp.ok || data.ok === false) throw new Error(data.error || data.general || `HTTP ${resp.status}`);
+    return {resp, data};
   };
 
   try{
-    let {resp, data} = await runOnce();
-    if (!resp.ok || data.ok === false) throw new Error(data.error || data.general || `HTTP ${resp.status}`);
+    let {data} = await runOnce();
     renderAnswer(data);
   }catch(e1){
-    // 4) Un reintento rápido (p.ej. fallo transitorio)
+    // Reintento único
     try{
       statusEl.innerHTML = `<span class="loader"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Reintentando…</span>`;
-      const {resp, data} = await runOnce();
-      if (!resp.ok || data.ok === false) throw new Error(data.error || data.general || `HTTP ${resp.status}`);
+      const {data} = await runOnce();
       renderAnswer(data);
     }catch(e2){
       out.innerHTML = `<pre style="color:#b91c1c">
@@ -461,6 +460,7 @@ Detalle: ${(e2 && (e2.name||"Error"))}: ${String(e2).slice(0,300)}
     clearStatus();
     btnSend.disabled = false; btnSend.textContent = old;
     inFlight = null;
+    sending = false;
   }
 }
 
@@ -501,7 +501,7 @@ selExport.addEventListener("change", ()=>{
 });
 
 /* ====== Botones ====== */
-btnSend.addEventListener("click", ask);
+btnSend.addEventListener("click", ask);          // <-- solo listener (sin onclick)
 btnDict.addEventListener("click", toggleDict);
 btnToggleAV.addEventListener("click", ()=>{
   if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
@@ -549,4 +549,3 @@ window.addEventListener("error", (e)=>{
 </script>
 </body>
 </html>
-
