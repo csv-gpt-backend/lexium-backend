@@ -3,11 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>lllAsistente Lexium</title>
+<title>TTTAsistente Lexium</title>
 <style>
-  :root{
-    --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb; --ok:#16a34a; --warn:#d97706; --err:#b91c1c;
-  }
+  :root{ --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb; --ok:#16a34a; --warn:#d97706; --err:#b91c1c; }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
   .wrap{max-width:1180px;margin:0 auto;padding:12px;}
   .hero{position:sticky;top:0;background:#fff;z-index:5;padding-top:4px;border-bottom:1px solid var(--bd)}
@@ -16,9 +14,7 @@
   .sideImg img{max-width:90%;height:auto;object-fit:contain;opacity:.95}
   .videoBox video{width:100%;height:auto;border:none;display:block}
   .toolbar{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin:8px 0}
-  .toolbar button, .toolbar select{
-    padding:9px 14px;border:1px solid var(--bd);border-radius:10px;background:#fff;cursor:pointer;
-  }
+  .toolbar button, .toolbar select{ padding:9px 14px;border:1px solid var(--bd);border-radius:10px;background:#fff;cursor:pointer; }
   .toolbar button:hover{background:#f5f7fb}
   .hist{position:fixed;right:14px;top:10px;z-index:9}
   .hist button{padding:8px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff}
@@ -37,38 +33,29 @@
 <body>
 <div class="wrap">
 
-  <!-- botón Historial (arriba derecha) -->
-  <div class="hist">
-    <button id="btnHist" title="Ver sesiones guardadas">Historial</button>
-  </div>
+  <div class="hist"><button id="btnHist">Historial</button></div>
 
-  <!-- Bloque superior fijo -->
   <div class="hero" aria-label="cabecera">
     <div class="heroGrid">
-      <div class="sideImg">
-        <img src="left.png" alt="Logo izquierdo" title="Santillana"/>
-      </div>
+      <div class="sideImg"><img src="left.png" alt="Logo izquierdo"/></div>
       <div class="videoBox">
         <video id="vid" preload="none" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
       </div>
-      <div class="sideImg">
-        <img src="right.png" alt="Logo derecho" title="Compartir"/>
-      </div>
+      <div class="sideImg"><img src="right.png" alt="Logo derecho"/></div>
     </div>
 
-    <!-- Caja de texto + barra de acciones -->
     <div style="margin:8px 0">
-      <textarea id="q" class="query" rows="2" placeholder="Escribe tu pregunta (ej.: 'lista de estudiantes', 'promedio de AUTOESTIMA por paralelo', 't de Welch de AUTOESTIMA (A vs B)', o cualquier duda)"></textarea>
+      <textarea id="q" class="query" rows="2" placeholder="Pregunta (ej: 'promedio de AUTOESTIMA', 't de Welch de AUTOESTIMA (A vs B)', 'lista de estudiantes', 'puntuaciones de LIDERAZGO')"></textarea>
     </div>
 
     <div class="toolbar">
-      <button id="btnSend" title="Enviar consulta">Enviar</button>
-      <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
-      <button id="btnToggleAV" title="Parar/Activar voz y video">⏯ Parar/Activar voz y video</button>
-      <button id="btnReplay" title="Reproducir nuevamente la voz">⟳ Reproducir nuevamente</button>
-      <button id="btnNew" title="Nueva sesión (limpia y guarda la actual)">＋ Nueva sesión</button>
-      <button id="btnClear" title="Limpiar pregunta y respuesta">🧹 Limpiar</button>
-      <select id="selExport" title="Exportar lo generado (PDF muestra vista previa)">
+      <button id="btnSend">Enviar</button>
+      <button id="btnDict">🎤 Dictar</button>
+      <button id="btnToggleAV">⏯ Parar/Activar voz y video</button>
+      <button id="btnReplay">⟳ Reproducir nuevamente</button>
+      <button id="btnNew">＋ Nueva sesión</button>
+      <button id="btnClear">🧹 Limpiar</button>
+      <select id="selExport">
         <option value="">Exportar…</option>
         <option value="pdf">PDF (vista previa)</option>
         <option value="xls">XLS</option>
@@ -81,22 +68,29 @@
         <span id="badgeMode" class="pill"><strong>Ruta:</strong> —</span>
         <span id="badgeTime" class="pill"><strong>Tiempo:</strong> —</span>
       </div>
-      <span class="muted">Las respuestas usan exclusivamente el CSV/TXT de tu backend.</span>
+      <span class="muted">Responde usando exclusivamente tu CSV/TXT del backend.</span>
     </div>
   </div>
 
-  <!-- Resultado -->
   <div id="out" class="out" aria-live="polite"></div>
-
 </div>
 
 <script>
+/* Log de errores visibles */
+window.addEventListener('error', (e)=>{
+  const out=document.getElementById('out');
+  if(out) out.innerHTML = `<pre style="color:#b91c1c">JS: ${e.error?.message || e.message}</pre>`;
+});
+window.addEventListener('unhandledrejection', (e)=>{
+  const out=document.getElementById('out');
+  if(out) out.innerHTML = `<pre style="color:#b91c1c">PROMISE: ${e.reason?.message || e.reason}</pre>`;
+});
+
 /* ====== CONFIG ====== */
-const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app"; // ← tu URL
-// Rutas: primero /api/answer (rápido, GET), luego /api/gpt?mode=tools (POST), luego /api/gpt?mode=free (POST)
-const PATH_ANSWER = "/api/answer";
-const PATH_GPT_TOOLS = "/api/gpt?mode=tools";
-const PATH_GPT_FREE  = "/api/gpt?mode=free";
+const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
+const PATH_ANSWER   = "/api/answer";        // GET (rápido)
+const PATH_GPT_TOOLS= "/api/gpt?mode=tools";// POST
+const PATH_GPT_FREE = "/api/gpt?mode=free"; // POST
 
 /* ====== UI refs ====== */
 const q = document.getElementById("q");
@@ -113,9 +107,8 @@ const btnHist = document.getElementById("btnHist");
 const badgeMode = document.getElementById("badgeMode");
 const badgeTime = document.getElementById("badgeTime");
 
-/* ====== Estado de voz/video ====== */
-let voices = []; let currentVoice = null; let speaking = false; let paused = false; let lastSpokenText = ""; let recognizer = null;
-
+/* ====== Voz ====== */
+let voices=[]; let currentVoice=null; let speaking=false; let paused=false; let lastSpokenText=""; let recognizer=null;
 function pickSpanishFemale(){
   voices = window.speechSynthesis.getVoices();
   const es = voices.filter(v=>/^es(-|_)/i.test(v.lang));
@@ -145,7 +138,7 @@ function toggleAV(){
 }
 function replay(){ if (window.speechSynthesis.speaking) window.speechSynthesis.cancel(); speak(lastSpokenText); }
 
-/* ====== Utilidades red/tiempos ====== */
+/* ====== Utilidades ====== */
 function now(){ return performance.now(); }
 function ms(n){ return `${n.toFixed(0)} ms`; }
 function setBadge(mode, timeMs){
@@ -153,19 +146,22 @@ function setBadge(mode, timeMs){
   badgeTime.innerHTML = `<strong>Tiempo:</strong> ${ms(timeMs)}`;
   badgeMode.className = "pill " + (mode==="rápido" ? "ok" : (mode==="tools" ? "warn" : "err"));
 }
-function fetchWithTimeout(url, opts={}, timeoutMs=6000){
-  const ctrl = new AbortController();
-  const id = setTimeout(()=>ctrl.abort(new Error("timeout")), timeoutMs);
-  return fetch(url, { ...opts, signal: ctrl.signal })
-    .finally(()=>clearTimeout(id));
-}
 function isUnrecognized(data){
   if (!data || data.ok === false) return true;
   const g = (data.general||"").toLowerCase();
   if (g.includes("no reconocida")) return true;
-  // si no hay contenido útil, lo tratamos como no reconocido
   const hasContent = (data.lists && data.lists.length) || (data.tables && data.tables.length) || (data.general && data.general.trim());
   return !hasContent;
+}
+function escapeHtml(x){return x.replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]))}
+
+/* Normaliza preguntas cortas */
+function normalizeQuestion(txt){
+  let q = (txt || "").trim();
+  if (/promedio/i.test(q) && /autoestima/i.test(q) && !/por.+paralelo/i.test(q)){ q += " por paralelo"; }
+  if (/p90/i.test(q) && /tensi[óo]n/i.test(q) && !/por.+paralelo/i.test(q)){ q += " por paralelo"; }
+  if (/welch/i.test(q) && !/\(.*\)/.test(q)){ q += " (A vs B)"; }
+  return q;
 }
 
 /* ====== Render ====== */
@@ -178,26 +174,18 @@ function renderAnswer(data){
     html += `</ol>`;
   });
   (data.tables||[]).forEach(t=>{
-    const cols = t.columns||[];
-    const rows = t.rows||[];
+    const cols = t.columns||[]; const rows = t.rows||[];
     html += `<h3>${escapeHtml(t.title||"Tabla")}</h3><table><thead><tr>`;
     cols.forEach(c=> html+=`<th>${escapeHtml(String(c))}</th>`);
     html += `</tr></thead><tbody>`;
-    rows.forEach(r=>{
-      html += `<tr>${r.map(x=>`<td>${escapeHtml(String(x))}</td>`).join("")}</tr>`;
-    });
+    rows.forEach(r=>{ html += `<tr>${r.map(x=>`<td>${escapeHtml(String(x))}</td>`).join("")}</tr>`; });
     html += `</tbody></table>`;
   });
   out.innerHTML = html || "<em>Sin contenido.</em>";
-
-  if (data.general) {
-    if (window.speechSynthesis.speaking) window.speechSynthesis.cancel();
-    speak(data.general);
-  }
+  if (data.general) { if (window.speechSynthesis.speaking) window.speechSynthesis.cancel(); speak(data.general); }
 }
-function escapeHtml(x){return x.replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]))}
 
-/* ====== Sesiones (historial localStorage) ====== */
+/* ====== Historial ====== */
 function saveSession(question, data){
   const key = "lexium_sessions";
   const all = JSON.parse(localStorage.getItem(key) || "[]");
@@ -244,10 +232,9 @@ selExport.addEventListener("change", ()=>{
 });
 
 /* ====== Dictado ====== */
-let recognizer=null;
 function toggleDict(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert("Dictado no soportado en este navegador."); return; }
+  if (!SR) { alert("Dictado no soportado."); return; }
   if (!recognizer){
     recognizer = new SR();
     recognizer.lang = "es-ES";
@@ -264,54 +251,55 @@ function toggleDict(){
 
 /* ====== Envío con fallback (rápido → tools → free) ====== */
 async function ask(){
-  const text = q.value.trim();
-  if (!text) return;
+  const textRaw = q.value.trim();
+  if (!textRaw) return;
+  const text = normalizeQuestion(textRaw);
 
   out.innerHTML = '<em>Procesando…</em>';
-  const t0 = now();
+  const t0 = performance.now();
 
   try{
-    // 1) rápido (GET /api/answer) – sin preflight
+    // 1) rápido (GET /api/answer)
     const urlFast = `${API_BASE}${PATH_ANSWER}?q=${encodeURIComponent(text)}`;
-    const rFast = await fetchWithTimeout(urlFast, { headers:{ Accept:"application/json" } }, 6000);
+    const rFast = await fetch(urlFast, { headers:{ Accept:"application/json" } });
     const dFast = await rFast.json().catch(()=>null);
     if (rFast.ok && dFast && !isUnrecognized(dFast)) {
-      const dt = now()-t0; setBadge("rápido", dt);
+      setBadge("rápido", performance.now()-t0);
       saveSession(text, dFast); renderAnswer(dFast); return;
     }
 
     // 2) tools (POST /api/gpt?mode=tools)
-    const rTools = await fetchWithTimeout(`${API_BASE}${PATH_GPT_TOOLS}`, {
+    const rTools = await fetch(`${API_BASE}${PATH_GPT_TOOLS}`, {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({ q: text })
-    }, 9000);
+    });
     const dTools = await rTools.json().catch(()=>null);
     if (rTools.ok && dTools && !isUnrecognized(dTools)) {
-      const dt = now()-t0; setBadge("tools", dt);
+      setBadge("tools", performance.now()-t0);
       saveSession(text, dTools); renderAnswer(dTools); return;
     }
 
-    // 3) free (POST /api/gpt?mode=free) – último recurso
-    const rFree = await fetchWithTimeout(`${API_BASE}${PATH_GPT_FREE}`, {
+    // 3) free (POST /api/gpt?mode=free)
+    const rFree = await fetch(`${API_BASE}${PATH_GPT_FREE}`, {
       method:"POST",
       headers:{ "Content-Type":"application/json" },
       body: JSON.stringify({ q: text })
-    }, 15000);
+    });
     const dFree = await rFree.json().catch(()=>null);
     if (rFree.ok && dFree && dFree.ok !== false) {
-      const dt = now()-t0; setBadge("free", dt);
+      setBadge("free", performance.now()-t0);
       saveSession(text, dFree); renderAnswer(dFree); return;
     }
 
     throw new Error((dFree?.error || dTools?.error || dFast?.error) || "Sin respuesta útil.");
   }catch(e){
-    setBadge("error", now()-t0);
+    setBadge("error", performance.now()-t0);
     out.innerHTML = `<pre style="color:#b91c1c">${String(e)}</pre>`;
   }
 }
 
-/* ====== Limpieza / Nueva sesión ====== */
+/* ====== Limpieza / Nueva sesión / Eventos ====== */
 btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; if (window.speechSynthesis.speaking) window.speechSynthesis.cancel(); });
 btnNew.addEventListener("click", ()=>{ if (window.speechSynthesis.speaking) window.speechSynthesis.cancel(); q.value=""; out.innerHTML=""; });
 btnSend.addEventListener("click", ask);
