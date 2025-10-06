@@ -3,25 +3,21 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>jjjLexium — JJJConsultas</title>
+  <title>Lexiumhhh — Consultas</title>
   <style>
-    :root{ --bg:#0b1020; --card:#111832; --muted:#94a3b8; --text:#e5e7eb; --chip:#1f2a4a; }
-    *{box-sizing:border-box} body{margin:0;background:#0a0f1e;color:var(--text);font-family:system-ui,Inter,Segoe UI,Roboto,Arial}
-    .wrap{max-width:1100px;margin:22px auto;padding:0 14px}
+    body{margin:0;font-family:system-ui,Inter,Segoe UI,Roboto,Arial;background:#0b1020;color:#e5e7eb}
+    .wrap{max-width:980px;margin:18px auto;padding:0 14px}
     .bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-    .chip{background:var(--chip);border:1px solid #223055;border-radius:999px;padding:6px 10px;font-size:12px}
-    .row{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}
-    @media (max-width:900px){.row{grid-template-columns:1fr}}
-    .card{background:#111832cc;border:1px solid #243152;border-radius:14px;padding:12px}
-    textarea{width:100%;min-height:96px;background:#0e1530;color:#e5e7eb;border:1px solid #2a3a63;border-radius:12px;padding:12px;font-size:15px;resize:vertical}
+    .chip{background:#1f2a4a;border:1px solid #223055;border-radius:999px;padding:6px 10px;font-size:12px}
+    .card{background:#111832cc;border:1px solid #243152;border-radius:14px;padding:12px;margin-top:10px}
+    textarea{width:100%;min-height:100px;background:#0e1530;color:#e5e7eb;border:1px solid #2a3a63;border-radius:12px;padding:12px;font-size:15px;resize:vertical}
     .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
     button{background:#13204a;border:1px solid #2a3a63;color:#e5e7eb;padding:9px 12px;border-radius:12px;font-weight:600;cursor:pointer}
     button.primary{background:#1b3a7a;border-color:#3959a2}
-    .answer{white-space:pre-wrap;min-height:130px;max-height:360px;overflow:auto;border:1px solid #243152;background:#0d142e;border-radius:12px;padding:12px}
-    .small{font-size:12px;color:#9fb1d1}
-    .status{font-size:12px;color:#9fb1d1;margin-top:6px}
+    .answer{white-space:pre-wrap;min-height:140px;max-height:380px;overflow:auto;border:1px solid #243152;background:#0d142e;border-radius:12px;padding:12px}
     .spinner{display:none;width:16px;height:16px;border:2px solid #3a4f86;border-top-color:#90b4ff;border-radius:50%;animation:spin .8s linear infinite}
     @keyframes spin{to{transform:rotate(360deg)}}
+    .small{font-size:12px;color:#9fb1d1}
   </style>
 </head>
 <body>
@@ -31,136 +27,99 @@
       <span class="chip">Ruta: <b id="badge-ruta">—</b></span>
       <span class="chip">Tiempo: <b id="badge-tiempo">—</b></span>
       <span class="chip">Voz: <b id="badge-voz">Silencio</b></span>
-      <span class="chip">Mic: <b id="badge-mic">Off</b></span>
     </div>
 
-    <div class="row">
-      <div class="card">
-        <label class="small">Escribe tu pregunta</label>
-        <textarea id="q" placeholder="Ej.: ¿Qué es Lexium? / Lista de evaluaciones / ¿Cómo se aplica la evaluación emocional?"></textarea>
-        <div class="small" style="margin-top:4px">Enter = Enviar · Shift+Enter = salto de línea</div>
-        <div class="actions">
-          <button id="btn-enviar" class="primary">Enviar</button>
-          <button id="btn-mic">🎤 Dictar</button>
-          <button id="btn-voz">⏯ Voz</button>
-          <button id="btn-replay">⟳ Reproducir nuevamente</button>
-          <button id="btn-clear">🧹 Limpiar</button>
-          <div class="spinner" id="spinner"></div>
-        </div>
-        <div class="small" style="margin-top:8px">
-          Voz del navegador:
-          <select id="voice-select" style="background:#0e1530;border:1px solid #2a3a63;color:#e5e7eb;border-radius:8px;padding:4px 8px"></select>
-          <input id="voice-volume" type="range" min="0" max="1" step="0.05" value="1" style="vertical-align:middle;width:160px">
-        </div>
+    <div class="card">
+      <label class="small">Escribe tu pregunta</label>
+      <textarea id="q" placeholder="Ej.: ¿Qué es Lexium? · Lista de evaluaciones · ¿Cómo se aplica la evaluación emocional?"></textarea>
+      <div class="small" style="margin-top:4px">Enter = Enviar · Shift+Enter = salto de línea</div>
+      <div class="actions">
+        <button id="btn-enviar" class="primary">Enviar</button>
+        <button id="btn-voz">⏯ Voz</button>
+        <button id="btn-clear">🧹 Limpiar</button>
+        <div class="spinner" id="spinner"></div>
       </div>
+    </div>
 
-      <div class="card">
-        <label class="small">Respuesta</label>
-        <div id="answer" class="answer"></div>
-        <div class="status" id="status-line">Listo.</div>
-      </div>
+    <div class="card">
+      <label class="small">Respuesta</label>
+      <div id="answer" class="answer"></div>
     </div>
   </div>
 
   <script>
-    // ===== Configura tu backend =====
-    const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app"; // <-- tu Cloud Run. Si sirves el HTML desde el mismo dominio, deja "".
-    const ENDPOINTS = [
-      `${API_BASE}/api/answer`,
-      `${API_BASE}/api/gpt?mode=tools`,
-      `${API_BASE}/api/gpt?mode=free`
-    ];
+    // ===== Config =====
+    const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app"; // tu Cloud Run
+    const GPT_PATH = "/api/gpt";         // preferido (POST clásico fiable)
+    const FALLBACK = "/api/answer";      // compat (GET, misma lógica)
 
-    // ===== Helpers de UI =====
+    // ===== Helpers UI =====
     const $ = (id)=>document.getElementById(id);
     const setTxt = (id,v)=>{ const el=$(id); if(el) el.textContent=v; };
     const spinner = $("spinner");
     const setBusy = (b)=> spinner.style.display = b ? "inline-block" : "none";
     const ms = (n)=> isFinite(n) ? `${Math.round(n)} ms` : "—";
-    const setStatus = (s)=> { $("status-line").textContent = s; };
-
-    // ===== TTS =====
-    function loadVoices(){
-      const voices = speechSynthesis.getVoices();
-      const sel = $("voice-select"); sel.innerHTML = "";
-      const pref = v => /^es[-_]/i.test(v.lang) || /Spanish/i.test(v.name);
-      const sorted = [...voices].sort((a,b)=>(pref(b)-pref(a))||a.name.localeCompare(b.name));
-      for(const v of sorted){ const o=document.createElement("option"); o.value=v.name; o.textContent=`${v.name} — ${v.lang}`; sel.appendChild(o); }
-      const es = [...sel.options].find(o=>/es/i.test(o.textContent)); if(es) sel.value=es.value;
-    }
-    speechSynthesis.onvoiceschanged = loadVoices; loadVoices();
     let speaking=false, lastAnswer="";
-    function speakStop(){ speechSynthesis.cancel(); speaking=false; setTxt("badge-voz","Silencio"); }
+
+    function speakStop(){ window.speechSynthesis.cancel(); speaking=false; setTxt("badge-voz","Silencio"); }
     function speak(text){
       if(!text) return;
       speakStop();
       const u=new SpeechSynthesisUtterance(text);
       const voices=speechSynthesis.getVoices();
-      const chosen=voices.find(v=>v.name===$("voice-select").value)||voices.find(v=>/^es[-_]/i.test(v.lang))||voices[0];
-      u.voice=chosen; u.lang=(chosen&&chosen.lang)||"es-ES";
-      u.volume=parseFloat($("voice-volume").value||"1");
-      u.onstart=()=>{speaking=true;setTxt("badge-voz","Hablando");};
-      u.onend=()=>{speaking=false;setTxt("badge-voz","Silencio");};
-      speechSynthesis.speak(u);
-    }
-
-    // ===== STT (dictado) =====
-    let recognizer=null, recognizing=false;
-    function ensureRecognizer(){
-      const R=window.SpeechRecognition||window.webkitSpeechRecognition;
-      if(!R) return null;
-      const r=new R(); r.lang="es-ES"; r.interimResults=true; r.maxAlternatives=1; return r;
-    }
-    function micToggle(){
-      if(recognizing){ recognizer.stop(); return; }
-      recognizer=ensureRecognizer();
-      if(!recognizer){ alert("Dictado no soportado por este navegador."); return; }
-      recognizing=true; setTxt("badge-mic","On"); $("btn-mic").textContent="⏹ Detener"; setStatus("Escuchando…");
-      recognizer.onresult=(e)=>{ let final=""; for(let i=e.resultIndex;i<e.results.length;i++) if(e.results[i].isFinal) final+=e.results[i][0].transcript+" "; if(final) $("q").value=(($("q").value||"")+" "+final).trim(); };
-      recognizer.onend=()=>{ recognizing=false; setTxt("badge-mic","Off"); $("btn-mic").textContent="🎤 Dictar"; setStatus("Dictado detenido."); };
-      recognizer.onerror=()=>{ recognizing=false; setTxt("badge-mic","Off"); $("btn-mic").textContent="🎤 Dictar"; setStatus("Error de dictado."); };
-      recognizer.start();
-    }
-
-    // ===== Llamada con fallbacks y timeouts agresivos =====
-    async function fetchWithTimeout(url, msTimeout){
-      const ctrl=new AbortController(); const t=setTimeout(()=>ctrl.abort(), msTimeout);
-      try{ const r=await fetch(url,{signal:ctrl.signal}); clearTimeout(t); if(!r.ok) throw new Error(`HTTP ${r.status}`); return await r.json(); }
-      catch(e){ clearTimeout(t); throw e; }
+      const chosen=voices.find(v=>/^es[-_]/i.test(v.lang)) || voices[0];
+      u.voice=chosen; u.lang=(chosen&&chosen.lang)||"es-ES"; u.rate=1; u.pitch=1; u.volume=1;
+      u.onstart=()=>{ speaking=true; setTxt("badge-voz","Hablando"); };
+      u.onend=()=>{ speaking=false; setTxt("badge-voz","Silencio"); };
+      window.speechSynthesis.speak(u);
     }
 
     async function preguntar(){
       const q = ($("q").value||"").trim();
       if(!q){ $("q").focus(); return; }
-      setBusy(true); setStatus("Consultando…"); setTxt("badge-ruta","—"); setTxt("badge-tiempo","—");
-      const t0=performance.now();
-      let data=null, ruta="criterio";
-      for(let i=0;i<ENDPOINTS.length;i++){
-        const url = ENDPOINTS[i] + `?q=${encodeURIComponent(q)}`;
+      setBusy(true); setTxt("badge-ruta","—"); setTxt("badge-tiempo","—");
+      $("answer").textContent = "…";
+
+      const t0 = performance.now();
+      try{
+        // 1) POST /api/gpt (fiable)
+        const r = await fetch(API_BASE + GPT_PATH, {
+          method: "POST",
+          headers: { "Content-Type":"application/json" },
+          body: JSON.stringify({ q })
+        });
+        let data = null;
+        if (r.ok) data = await r.json();
+        else throw new Error(`HTTP ${r.status}`);
+
+        setTxt("badge-ruta", data?.ruta || "criterio");
+        setTxt("badge-tiempo", ms(data?.tiempo_ms ?? (performance.now()-t0)));
+        lastAnswer = (data && data.answer) ? String(data.answer) : "Sin respuesta.";
+        $("answer").textContent = lastAnswer;
+        if (lastAnswer) speak(lastAnswer);
+      }catch(_e){
+        // 2) Fallback GET /api/answer (misma lógica)
         try{
-          data = await fetchWithTimeout(url, i===0 ? 3500 : 5000);
-          ruta = data?.ruta || (i===0?"archivos":(i===1?"tools":"free"));
-          if(data?.answer) break;
-        }catch(_e){ /* intenta el siguiente */ }
+          const r2 = await fetch(API_BASE + FALLBACK + "?q=" + encodeURIComponent(q));
+          const data2 = await r2.json();
+          setTxt("badge-ruta", data2?.ruta || "criterio");
+          setTxt("badge-tiempo", ms(data2?.tiempo_ms ?? (performance.now()-t0)));
+          lastAnswer = (data2 && data2.answer) ? String(data2.answer) : "Sin respuesta.";
+          $("answer").textContent = lastAnswer;
+          if (lastAnswer) speak(lastAnswer);
+        }catch(e2){
+          $("answer").textContent = "No se pudo contactar el servicio.";
+          setTxt("badge-ruta","—"); setTxt("badge-tiempo","—");
+        }
+      }finally{
+        setBusy(false);
       }
-      const t1=performance.now();
-      setTxt("badge-ruta", ruta);
-      setTxt("badge-tiempo", ms(data?.tiempo_ms ?? (t1-t0)));
-      lastAnswer = (data && data.answer) ? String(data.answer) : "No se pudo obtener respuesta.";
-      $("answer").textContent = lastAnswer;
-      if(lastAnswer) speak(lastAnswer);
-      setStatus("OK");
-      setBusy(false);
     }
 
-    // ===== Eventos =====
     $("btn-enviar").onclick = preguntar;
     $("q").addEventListener("keydown", e=>{ if(e.key==="Enter" && !e.shiftKey){ e.preventDefault(); preguntar(); } });
-    $("btn-voz").onclick = ()=> speaking ? speakStop() : speak(lastAnswer);
-    $("btn-replay").onclick = ()=> lastAnswer && speak(lastAnswer);
-    $("btn-mic").onclick = micToggle;
     $("btn-clear").onclick = ()=>{ $("q").value=""; $("q").focus(); $("answer").textContent=""; setTxt("badge-ruta","—"); setTxt("badge-tiempo","—"); speakStop(); };
+    $("btn-voz").onclick = ()=> speaking ? speakStop() : speak(lastAnswer);
   </script>
 </body>
 </html>
-
