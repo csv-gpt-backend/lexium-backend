@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>15H OK Asistente Lexium</title>
+<title>Asistente Virtal Lexium</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -121,27 +121,37 @@ const btnHist = document.getElementById("btnHist");
 let selectedVoice = null;
 let ttsEnabled = false;
 
-/* ====== Voz femenina español (robusta) ====== */
-const FEMALE_HINTS = [
-  "female","mujer","femenina",
-  "Microsoft","Google","Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla","Sabina","Laura","Dalia","Elvira","Paloma"
+/* ====== Voz femenina español (forzada lo más posible) ====== */
+const PREFERRED_NAMES = [
+  // Windows
+  "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
+  // Chrome/Android
+  "Google español","Google español de Estados","Google US Español",
+  // macOS
+  "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"
 ];
 const SP_LANGS = ["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
+
 function scoreVoice(v){
-  const name = (v.name||"").toLowerCase();
-  const lang = (v.lang||"").toLowerCase();
-  let s = 0;
-  if (SP_LANGS.some(l=>lang.startsWith(l.toLowerCase()))) s += 5;
-  if (FEMALE_HINTS.some(h=>name.includes(h.toLowerCase()))) s += 5;
-  if (name.includes("google")) s += 2;
-  if (name.includes("microsoft")) s += 2;
+  const name=(v.name||"").toLowerCase(), lang=(v.lang||"").toLowerCase();
+  let s=0;
+  if (SP_LANGS.some(l=>lang.startsWith(l.toLowerCase()))) s+=5;
+  if (PREFERRED_NAMES.some(n=>name.includes(n.toLowerCase()))) s+=6;
+  if (name.includes("female")||name.includes("femenina")||name.includes("mujer")) s+=4;
+  if (name.includes("google")) s+=2;
+  if (name.includes("microsoft")) s+=2;
   return s;
 }
 function chooseFemaleES(){
-  if (typeof speechSynthesis === "undefined") return null;
-  const voices = speechSynthesis.getVoices();
-  if (!voices.length) return null;
-  return voices.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a))[0] || null;
+  if (typeof speechSynthesis==="undefined") return null;
+  const vs=speechSynthesis.getVoices(); if(!vs.length) return null;
+  // intenta por nombre exacto primero
+  for (const n of PREFERRED_NAMES){
+    const m=vs.find(v=>v.name.toLowerCase().includes(n.toLowerCase()));
+    if(m) return m;
+  }
+  // luego por score
+  return vs.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a))[0]||null;
 }
 function initVoice(){ selectedVoice = chooseFemaleES(); }
 if (typeof speechSynthesis !== "undefined"){
@@ -149,8 +159,56 @@ if (typeof speechSynthesis !== "undefined"){
   setTimeout(initVoice, 150);
 }
 
-/* ====== TTS: leer TODA la respuesta por bloques ====== */
-function chunkText(text, maxLen=320){
+/* ====== Construir texto TTS natural (enumera listas y tablas) ====== */
+function buildTTSTextFromOut(){
+  // 1) Si hay <ol>/<ul>, enumera: "1. Nombre; 2. Nombre; ..."
+  // 2) Si hay tablas, lee columna "NOMBRE" o la primera.
+  // 3) Además incluye párrafos del texto general.
+  const container = document.createElement("div");
+  container.innerHTML = out.innerHTML;
+
+  const parts = [];
+
+  // General (párrafos)
+  container.querySelectorAll("p").forEach(p=>{
+    const t = p.textContent.trim();
+    if (t) parts.push(t);
+  });
+
+  // Listas ordenadas / no ordenadas
+  const lists = container.querySelectorAll("ol,ul");
+  lists.forEach(list=>{
+    const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
+    if(items.length){
+      const numbered = items.map((t,i)=>`${i+1}. ${t}`).join("; ");
+      parts.push(numbered);
+    }
+  });
+
+  // Tablas -> enumerar por primera columna significativa
+  container.querySelectorAll("table").forEach(tbl=>{
+    const rows = [...tbl.querySelectorAll("tbody tr")];
+    if (!rows.length) return;
+    const headers = [...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim().toUpperCase());
+    let col = 0;
+    const idxNombre = headers.findIndex(h=>/NOMBRE/.test(h));
+    if (idxNombre>=0) col = idxNombre;
+    const names = rows.map((tr,i)=>{
+      const cells=[...tr.querySelectorAll("td")];
+      const val=(cells[col]?.textContent||cells[0]?.textContent||"").trim();
+      return `${i+1}. ${val}`;
+    }).filter(Boolean);
+    if(names.length) parts.push(names.join("; "));
+  });
+
+  // Si no se detectó nada, usa todo el texto plano
+  const fallback = (out.textContent||"").trim();
+  const joined = parts.join(". ");
+  return joined || fallback;
+}
+
+/* ====== TTS: leer TODA la respuesta por bloques (y sincronizar video) ====== */
+function chunkText(text, maxLen=340){
   const arr=[]; const parts = String(text).split(/(\.|\?|!|\n)/);
   let buf="";
   for (let i=0;i<parts.length;i+=2){
@@ -161,10 +219,11 @@ function chunkText(text, maxLen=320){
   if (buf.trim()) arr.push(buf.trim());
   return arr;
 }
-function speakAll(text){
-  if (typeof speechSynthesis==="undefined") return;
+function speakAllFromOut(){
+  if (typeof speechSynthesis==="undefined" || !ttsEnabled) return;
+  const text = buildTTSTextFromOut();
   speechSynthesis.cancel();
-  const chunks = chunkText(text, 340);
+  const chunks = chunkText(text, 360);
   if (!chunks.length) return;
   let i=0;
   function next(){
@@ -172,9 +231,12 @@ function speakAll(text){
     const u = new SpeechSynthesisUtterance(chunks[i++]);
     if (selectedVoice) u.voice = selectedVoice;
     u.lang = (selectedVoice?.lang) || "es-ES";
-    u.rate = 1; u.pitch = 1; u.volume = 1;
+    u.rate = 0.98;               // pronunciación más clara
+    u.pitch = 1.08;              // leve tono más agudo (femenino si la voz es neutra)
+    u.volume = 1;
     u.onstart = ()=>{ vid.play().catch(()=>{}); };
-    u.onend = next; u.onerror = next;
+    u.onend = next; 
+    u.onerror = next;
     speechSynthesis.speak(u);
   }
   next();
@@ -188,7 +250,7 @@ function setStatusLoading(msg="Generando…"){
 }
 function clearStatus(){ statusEl.textContent = ""; }
 
-/* Normaliza listas (soporta varios formatos) */
+/* Normaliza listas (soporta varios formatos del backend) */
 function normalizeLists(lists){
   if (!Array.isArray(lists)) return [];
   return lists.map((entry, i) => {
@@ -230,23 +292,37 @@ function renderAnswer(data){
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
-  /* Leer TODA la respuesta */
-  if (typeof speechSynthesis!=="undefined" && ttsEnabled){
-    speakAll(out.textContent || "");
-  }
+  // Leer TODO (numerado) si la voz está activada
+  if (ttsEnabled) speakAllFromOut();
 }
 
-/* ====== Sesiones (historial localStorage) ====== */
+/* ====== Sesiones (historial con fallback) ====== */
 function saveSession(question, data){
-  const key = "lexium_sessions";
-  const all = JSON.parse(localStorage.getItem(key) || "[]" );
-  const id = new Date().toISOString();
-  all.unshift({ id, question, data });
-  localStorage.setItem(key, JSON.stringify(all.slice(0,50)));
+  try{
+    const key = "lexium_sessions";
+    const all = JSON.parse(localStorage.getItem(key) || "[]" );
+    const id = new Date().toISOString();
+    all.unshift({ id, question, data });
+    localStorage.setItem(key, JSON.stringify(all.slice(0,50)));
+  }catch(e){
+    try{
+      const key = "lexium_sessions_fallback";
+      const all = JSON.parse(sessionStorage.getItem(key) || "[]" );
+      const id = new Date().toISOString();
+      all.unshift({ id, question, data });
+      sessionStorage.setItem(key, JSON.stringify(all.slice(0,50)));
+    }catch(_){}
+  }
+}
+function readSessions(){
+  try{
+    const a = JSON.parse(localStorage.getItem("lexium_sessions")||"[]");
+    const b = JSON.parse(sessionStorage.getItem("lexium_sessions_fallback")||"[]");
+    return [...a, ...b];
+  }catch(e){ return []; }
 }
 function openHistory(){
-  const key = "lexium_sessions";
-  const all = JSON.parse(localStorage.getItem(key) || "[]");
+  const all = readSessions();
   if (!all.length) { alert("Sin historial."); return; }
   const w = window.open("", "_blank","noopener,noreferrer");
   const html = `
@@ -260,20 +336,29 @@ function openHistory(){
     </details>
   `).join("")}
   </body></html>`;
-  w.document.write(html); w.document.close();
+  w.document.open(); w.document.write(html); w.document.close();
 }
 
 /* ====== Exportar ====== */
 selExport.addEventListener("change", ()=>{
   const v = selExport.value; selExport.value="";
   if (!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
-  if (v==="pdf"){ // vista previa con print
-    const w = window.open("","_blank","noopener,noreferrer");
+  if (v==="pdf"){ // vista previa con print y fallback
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Export PDF</title>
       <style>body{font:16px/1.5 system-ui;margin:28px;color:#111} table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
       </head><body>${out.innerHTML}</body></html>`;
-    w.document.open(); w.document.write(html); w.document.close();
-    w.onload = ()=> w.print(); // vista previa
+    const w = window.open("","_blank","noopener,noreferrer");
+    if (w){
+      w.document.open(); w.document.write(html); w.document.close();
+      w.onload = ()=> setTimeout(()=>w.print(), 50);
+    }else{
+      // si el bloqueador de popups lo impide: descarga HTML como alternativa
+      const blob = new Blob([html], {type:"text/html"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "lexium_export.html";
+      a.click(); URL.revokeObjectURL(a.href);
+    }
   } else if (v==="xls" || v==="doc"){
     const mime = v==="xls" ? "application/vnd.ms-excel" : "application/msword";
     const blob = new Blob([`<html><body>${out.innerHTML}</body></html>`], {type:mime});
@@ -328,8 +413,8 @@ async function ask(){
     const data = await r.json().catch(()=> ({}));
     if (!r.ok || data.ok === false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
 
-    saveSession(text, data);
-    renderAnswer(data);
+    renderAnswer(data);           // pinta
+    saveSession(text, data);      // guarda (asegurado)
   }catch(e){
     out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
   }finally{
@@ -340,10 +425,12 @@ async function ask(){
 /* ====== Limpieza / Nueva sesión ====== */
 btnClear.addEventListener("click", ()=>{
   q.value=""; out.innerHTML=""; clearStatus();
-  if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
+  if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel(), vid.pause();
 });
 btnNew.addEventListener("click", ()=>{
-  if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
+  // si hay contenido, guárdalo de nuevo explícitamente
+  if ((out.textContent||"").trim()) saveSession(q.value.trim()||"(sin pregunta)", {html: out.innerHTML});
+  if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel(), vid.pause();
   q.value=""; out.innerHTML=""; clearStatus();
 });
 
@@ -353,13 +440,19 @@ btnDict.addEventListener("click", toggleDict);
 btnToggleAV.addEventListener("click", ()=>{
   ttsEnabled = !ttsEnabled;
   btnToggleAV.textContent = ttsEnabled ? "⏸ Silenciar voz" : "⏯ Activar voz";
-  if (ttsEnabled && (out.textContent||"").trim()) speakAll(out.textContent);
-  if (!ttsEnabled && typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
+  if (ttsEnabled){
+    speakAllFromOut(); // lee lo que esté ya en pantalla
+  }else{
+    if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
+    vid.pause();
+  }
 });
-btnReplay.addEventListener("click", ()=>{ if ((out.textContent||"").trim()){ ttsEnabled = true; speakAll(out.textContent); }});
+btnReplay.addEventListener("click", ()=>{
+  if ((out.textContent||"").trim()){ ttsEnabled = true; btnToggleAV.textContent="⏸ Silenciar voz"; speakAllFromOut(); }
+});
 btnHist.addEventListener("click", openHistory);
 q.addEventListener("keydown", e=>{ if (e.key==="Enter" && (e.ctrlKey||e.metaKey)) ask(); });
+
 </script>
 </body>
 </html>
-
