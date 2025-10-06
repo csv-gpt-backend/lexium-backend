@@ -3,27 +3,34 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Asistente Ok Lexium</title>
+<title>Asistente Lexium Virt</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
     --ok:#16a34a; --err:#b91c1c;
+    --heroH: 65vh; /* alto del bloque fijo (video + imágenes) */
+    --wrapW: 1180px;
   }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
-  .wrap{max-width:1180px;margin:0 auto;padding:12px; padding-top:0;}
 
-  /* ===== SOLO el bloque media (img+video) permanece fijo y sin línea debajo ===== */
+  /* ===== Bloque superior fijo (cubre todo el ancho de la ventana) ===== */
   .mediaBar{
-    position:sticky; top:0; z-index:50;
-    background:#fff; padding:0; border-bottom:none;
+    position:fixed; top:0; left:0; width:100vw; z-index:50;
+    background:#fff; border-bottom:none; padding:0; margin:0;
   }
+  .mediaInner{max-width:var(--wrapW); margin:0 auto; padding:12px;}
   .heroGrid{display:grid; grid-template-columns:1fr 3fr 1fr; align-items:center; gap:8px;}
-  .sideImg{display:flex; justify-content:center; height:65vh; margin:0;}
+  .sideImg{display:flex; justify-content:center; height:var(--heroH); margin:0;}
   .sideImg img{max-width:100%; height:100%; object-fit:contain; opacity:.95}
-  .videoBox{height:65vh; margin:0;}
+  .videoBox{height:var(--heroH); margin:0;}
   .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
 
-  /* ===== La caja de texto y la barra NO son sticky (scrollean) ===== */
+  /* ===== Contenido (scroll) comienza DESPUÉS del bloque fijo ===== */
+  .contentWrap{
+    max-width:var(--wrapW); margin:0 auto;
+    padding:12px; padding-top:calc(var(--heroH) + 8px); /* reserva exacta del alto del héroe */
+  }
+
   .toolbar{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:8px 0}
   .toolbar button, .toolbar select{
     padding:9px 14px; border:1px solid var(--bd); border-radius:10px; background:#fff; cursor:pointer;
@@ -34,10 +41,13 @@
   .hist{position:fixed; right:14px; top:10px; z-index:60}
   .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
+  /* Caja de texto: 2 líneas fijas, sin resize */
   .query{
-    width:100%; min-height:46px; max-height:56px; resize:vertical;
-    border:1px solid var(--bd); border-radius:10px; padding:10px; font-size:16px;
+    width:100%; height:48px; min-height:48px; max-height:48px; resize:none;
+    border:1px solid var(--bd); border-radius:10px; padding:10px; font-size:16px; line-height:1.4;
   }
+
+  /* Respuesta: área scrolleable propia, para respuestas largas */
   .out{
     margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px;
     overflow:auto; white-space:pre-wrap; max-height:65vh;
@@ -57,54 +67,55 @@
 </style>
 </head>
 <body>
-<div class="wrap">
 
   <!-- botón Historial (arriba derecha) -->
   <div class="hist">
     <button id="btnHist" title="Ver sesiones guardadas">Historial</button>
   </div>
 
-  <!-- ===== Bloque superior SOLO media (fijo, sin línea) ===== -->
+  <!-- ===== Bloque superior fijo (video + imágenes) ===== -->
   <div class="mediaBar" aria-label="cabecera">
-    <div class="heroGrid">
-      <div class="sideImg">
-        <img src="left.png" alt="Logo izquierdo"/>
-      </div>
-      <div class="videoBox">
-        <video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
-      </div>
-      <div class="sideImg">
-        <img src="right.png" alt="Logo derecho"/>
+    <div class="mediaInner">
+      <div class="heroGrid">
+        <div class="sideImg">
+          <img src="left.png" alt="Logo izquierdo"/>
+        </div>
+        <div class="videoBox">
+          <video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
+        </div>
+        <div class="sideImg">
+          <img src="right.png" alt="Logo derecho"/>
+        </div>
       </div>
     </div>
   </div>
 
-  <!-- Caja de texto + barra de acciones (scroll aquí hacia abajo) -->
-  <div style="margin:10px 0 6px">
-    <textarea id="q" class="query" rows="2" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
+  <!-- ===== Contenido (scroll solo aquí) ===== -->
+  <div class="contentWrap">
+    <!-- Caja de texto + barra de acciones -->
+    <div style="margin:10px 0 6px">
+      <textarea id="q" class="query" rows="2" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
+    </div>
+
+    <div class="toolbar">
+      <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
+      <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
+      <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
+      <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
+      <button id="btnNew" title="Nueva sesión (limpia y guarda la actual)">＋ Nueva sesión</button>
+      <button id="btnClear" title="Limpiar pregunta y respuesta">🧹 Limpiar</button>
+      <select id="selExport" title="Exportar lo generado (PDF muestra vista previa)">
+        <option value="">Exportar…</option>
+        <option value="pdf">PDF (vista previa)</option>
+        <option value="xls">XLS</option>
+        <option value="doc">DOC</option>
+      </select>
+    </div>
+
+    <!-- Resultado -->
+    <div id="out" class="out" aria-live="polite"></div>
+    <div id="status" class="muted"></div>
   </div>
-
-  <div class="toolbar">
-    <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
-    <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
-    <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
-    <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
-    <button id="btnNew" title="Nueva sesión (limpia y guarda la actual)">＋ Nueva sesión</button>
-    <button id="btnClear" title="Limpiar pregunta y respuesta">🧹 Limpiar</button>
-    <select id="selExport" title="Exportar lo generado (PDF muestra vista previa)">
-      <option value="">Exportar…</option>
-      <option value="pdf">PDF (vista previa)</option>
-      <option value="xls">XLS</option>
-      <option value="doc">DOC</option>
-    </select>
-  </div>
-
-  <!-- Resultado -->
-  <div id="out" class="out" aria-live="polite"></div>
-  <div id="status" class="muted"></div>
-  <!-- mensaje inferior eliminado por solicitud -->
-
-</div>
 
 <script>
 /* ====== CONFIG ====== */
@@ -126,7 +137,7 @@ const btnClear = document.getElementById("btnClear");
 const selExport = document.getElementById("selExport");
 const btnHist = document.getElementById("btnHist");
 
-/* ====== Estado / utilidades ====== */
+/* ====== Utilidades ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
 function setStatusLoading(msg="Generando…"){
   statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
@@ -134,20 +145,25 @@ function setStatusLoading(msg="Generando…"){
 }
 function clearStatus(){ statusEl.textContent = ""; }
 
-/* ====== Historial robusto ====== */
+/* ====== Historial robusto (siempre guarda) ====== */
 function saveSession(question, data){
+  const minimal = { // minimizar tamaño para asegurar guardado
+    id: new Date().toISOString(),
+    question,
+    summary: (data?.general || "").slice(0, 500),
+    lists: Array.isArray(data?.lists) ? data.lists.slice(0,1) : [],
+    when: Date.now()
+  };
   try{
     const key="lexium_sessions";
     const all=JSON.parse(localStorage.getItem(key)||"[]");
-    const id=new Date().toISOString();
-    all.unshift({id,question,data});
+    all.unshift(minimal);
     localStorage.setItem(key, JSON.stringify(all.slice(0,50)));
   }catch(e){
     try{
       const key="lexium_sessions_fallback";
       const all=JSON.parse(sessionStorage.getItem(key)||"[]");
-      const id=new Date().toISOString();
-      all.unshift({id,question,data});
+      all.unshift(minimal);
       sessionStorage.setItem(key, JSON.stringify(all.slice(0,50)));
     }catch(_){}
   }
@@ -168,12 +184,13 @@ function openHistory(){
   <h2>Sesiones</h2>
   ${all.map(s=>`
     <details>
-      <summary><b>${esc(s.id)}</b> — ${esc(s.question)}</summary>
-      <pre>${esc(JSON.stringify(s.data, null, 2))}</pre>
+      <summary><b>${new Date(s.when).toLocaleString()}</b> — ${esc(s.question)}</summary>
+      <pre>${esc(s.summary||"")}</pre>
     </details>
   `).join("")}
   </body></html>`;
-  w.document.open(); w.document.write(html); w.document.close();
+  if (w){ w.document.open(); w.document.write(html); w.document.close(); }
+  else { alert("No se pudo abrir la ventana del historial (bloqueada por el navegador)."); }
 }
 
 /* ====== Dictado ====== */
@@ -195,7 +212,7 @@ function toggleDict(){
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado";}
 }
 
-/* ====== Voz femenina + controlador (pausar/reanudar/loop video) ====== */
+/* ====== Voz femenina + controlador TTS ====== */
 const PREFERRED_NAMES=[
   "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
   "Google español","Google español de Estados","Google US Español",
@@ -222,6 +239,20 @@ function chooseFemaleES(){
 function initVoice(){ selectedVoice=chooseFemaleES(); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
 
+/* === Convertir texto plano a lista numerada cuando convenga (visual y TTS) === */
+function generalToOrderedListHTML(g){
+  if (!g) return "";
+  const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const bulletLike = lines.filter(s=>/^[•\-–\*\d]+\s+/u.test(s)).length;
+  if (lines.length>=3 && bulletLike >= Math.floor(lines.length*0.6)) {
+    // convertir a <ol>
+    const items = lines.map(s=>s.replace(/^[•\-–\*\d.]+\s+/u,""));
+    return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
+  }
+  return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
+}
+
+/* === TTS helpers === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
@@ -294,13 +325,18 @@ function normalizeLists(lists){
 function renderAnswer(data){
   let html="";
 
-  if(data.general){ html+=`<p>${esc(data.general).replace(/\n/g,"<br>")}</p>`; }
+  // General: si parece listado, conviértelo a <ol> numerada
+  if(data.general){
+    html += generalToOrderedListHTML(data.general);
+  }
 
+  // Lists estructuradas
   const lists=normalizeLists(data.lists||[]);
   lists.forEach(l=>{
     html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
   });
 
+  // Tablas
   (data.tables||[]).forEach(t=>{
     const cols=t.columns||[]; const rows=t.rows||[];
     html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
@@ -312,13 +348,13 @@ function renderAnswer(data){
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
-  // Iniciar narración + video inmediatamente al tener respuesta
+  // Iniciar narración + video
   TTS.enabled = true;
   TTS.loadFromOut();
-  TTS.start(0); // siempre desde el inicio para cada nueva respuesta
+  TTS.start(0);
 }
 
-/* ====== Llamada al backend ====== */
+/* ====== Backend ====== */
 async function ask(){
   const text=q.value.trim(); if(!text) return;
   btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
@@ -334,7 +370,7 @@ async function ask(){
     const data = await r.json().catch(()=>({}));
     if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
     renderAnswer(data);
-    saveSession(text, data); // <— asegura historial
+    saveSession(text, data); // asegura historial
   }catch(e){
     out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
   }finally{
@@ -342,25 +378,46 @@ async function ask(){
   }
 }
 
-/* ====== Exportar ====== */
+/* ====== Exportar: PDF con vista previa sin pop-up ====== */
+function printHTML(html){
+  // 1) iframe oculto (preferido: no bloquea como popup)
+  const iframe = document.createElement('iframe');
+  iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
+  iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentWindow || iframe.contentDocument;
+  const idoc = doc.document || doc;
+  idoc.open(); idoc.write(html); idoc.close();
+  const doPrint = ()=>{ try{ (iframe.contentWindow || iframe).focus(); (iframe.contentWindow || iframe).print(); }catch(e){} };
+  // en algunos navegadores, necesita onload
+  setTimeout(doPrint, 50);
+  // cleanup (deja unos segundos por si el usuario imprime)
+  setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
+}
 selExport.addEventListener("change", ()=>{
   const v=selExport.value; selExport.value="";
   if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
   if(v==="pdf"){
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Export PDF</title>
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
       <style>body{font:16px/1.5 system-ui;margin:28px;color:#111}
-      table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
+             table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
       </head><body>${out.innerHTML}</body></html>`;
-    const w=window.open("", "_blank", "noopener,noreferrer");
-    if(w){
-      w.document.open(); w.document.write(html); w.document.close();
-      w.addEventListener("load", ()=>{ try{ w.focus(); w.print(); }catch{} }, {once:true});
-    }else{
-      const blob=new Blob([html],{type:"text/html"});
-      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="lexium_export.html"; a.click();
-      setTimeout(()=>URL.revokeObjectURL(a.href),500);
+    try{
+      printHTML(html); // vista previa sin popup
+    }catch(_){
+      // 2) Fallback: nueva pestaña
+      const w=window.open("", "_blank", "noopener,noreferrer");
+      if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
+      else{
+        // 3) Último recurso: descarga HTML
+        const blob=new Blob([html],{type:"text/html"});
+        const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="lexium_export.html"; a.click();
+        setTimeout(()=>URL.revokeObjectURL(a.href),500);
+      }
     }
-  }else if(v==="xls"||v==="doc"){
+    return;
+  }
+  if(v==="xls"||v==="doc"){
     const mime = v==="xls" ? "application/vnd.ms-excel" : "application/msword";
     const blob=new Blob([`<html><body>${out.innerHTML}</body></html>`],{type:mime});
     const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`export.${v}`; a.click();
@@ -371,19 +428,14 @@ selExport.addEventListener("change", ()=>{
 /* ====== Botones ====== */
 btnSend.addEventListener("click", ask);
 btnDict.addEventListener("click", toggleDict);
-
 btnToggleAV.addEventListener("click", ()=>{
   if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
   if(TTS.paused){ TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
   else if(TTS.speaking){ TTS.pause(); btnToggleAV.textContent="▶ Reanudar voz"; }
   else { TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
 });
-
 btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
-
-btnClear.addEventListener("click", ()=>{
-  q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll();
-});
+btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
 btnNew.addEventListener("click", ()=>{
   if((out.textContent||"").trim()) saveSession(q.value.trim()||"(sin pregunta)", {html: out.innerHTML});
   TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus();
