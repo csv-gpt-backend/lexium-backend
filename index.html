@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Asistente Lexium Virtual</title>
+<title>Asistente Lexium</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -180,11 +180,11 @@ function setSessions(arr){
   memSessions = arr.slice();
 }
 function saveSession(question, data){
-  // Toma lo visible por si el backend no trae campos estándar
   const visible = (out.textContent || "").trim();
   const summary = (data?.general || data?.answer || data?.text || data?.html || visible || "").slice(0, 1500);
-  if (!summary && !question) return; // evita guardar vacío
-  const rec = { id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), when: Date.now(), question: question || "(sin pregunta)", summary };
+  if (!summary && !question) return;
+  const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+  const rec = { id, when: Date.now(), question: question || "(sin pregunta)", summary };
   const all = getSessions(); all.unshift(rec); setSessions(all.slice(0,100));
 }
 function openHistoryModal(){
@@ -286,7 +286,7 @@ function buildTTSTextFromOut(){
   return parts.join("\n\n") || fallback;
 }
 
-/* === Controlador TTS (voz sincronizada con video y pausa/reanuda) === */
+/* === Controlador TTS (voz + video) === */
 const TTS={
   enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
   makeChunks(text,maxLen=360){
@@ -351,32 +351,116 @@ function renderAnswer(data){
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
-  // Narración + guardar historial (con un micro-retardo para asegurar out.textContent)
+  // Narración + guardar historial
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
   setTimeout(()=> saveSession(q.value.trim(), data), 30);
 }
 
-/* ====== Backend ====== */
-async function ask(){
-  const text=q.value.trim(); if(!text) return;
-  btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
-  setStatusLoading("Consultando…");
-  try{
-    let r = await fetch(`${API_BASE}${GPT_PATH}`, {
-      method:"POST", headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-      body: JSON.stringify({ q: text })
+/* ====== Helpers de red con timeout, abort y “hedged” ====== */
+const DEFAULT_TIMEOUT = 45000; // 45s
+let inFlight = null;           // para abortar si el usuario dispara otra consulta
+
+function fetchWithTimeout(url, opts={}, ms=DEFAULT_TIMEOUT){
+  const ctrl = new AbortController();
+  // Si el caller pasó su propio signal, encadenamos
+  if (opts && opts.signal) {
+    const userSignal = opts.signal;
+    if (userSignal.aborted) ctrl.abort();
+    else userSignal.addEventListener("abort", ()=>ctrl.abort(), {once:true});
+  }
+  const id = setTimeout(()=>ctrl.abort(), ms);
+  const p = fetch(url, {...opts, signal: ctrl.signal}).finally(()=>clearTimeout(id));
+  p._ctrl = ctrl; // guardamos el controller para poder abortar luego
+  return p;
+}
+async function toJSON(resp){ const data = await resp.json().catch(()=> ({})); return {resp, data}; }
+async function fastestSuccess(promises){
+  return new Promise((resolve, reject)=>{
+    let done = false, errs = [];
+    promises.forEach(p=>{
+      p.then(({resp, data})=>{
+        if (done) return;
+        if (resp.ok && data && data.ok !== false) {
+          done = true;
+          // aborta los otros
+          promises.forEach(pp=>{
+            if (pp._raw && pp._raw._ctrl && pp._raw !== p._raw) { try{ pp._raw._ctrl.abort(); }catch{} }
+          });
+          resolve({resp, data});
+        } else {
+          errs.push(new Error(data?.error || data?.general || `HTTP ${resp.status}`));
+          if (errs.length === promises.length) reject(errs[errs.length-1]);
+        }
+      }).catch(e=>{
+        errs.push(e);
+        if (errs.length === promises.length) reject(errs[errs.length-1]);
+      });
     });
-    if(r.status===404 || r.status===405){
-      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, { headers:{ "Accept":"application/json" } });
-    }
-    const data = await r.json().catch(()=>({}));
-    if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
+  });
+}
+
+/* ====== Backend (con hedged + retry) ====== */
+async function ask(){
+  const text = q.value.trim(); if (!text) return;
+
+  // aborta la consulta anterior si existiera
+  if (inFlight && inFlight.abort) inFlight.abort();
+
+  btnSend.disabled = true; const old = btnSend.textContent; btnSend.textContent = "Enviando…";
+  setStatusLoading("Consultando… (optimizando latencia)");
+
+  // estructura para abortar desde fuera si hace falta
+  const outerCtrl = new AbortController();
+  inFlight = { abort: ()=>outerCtrl.abort() };
+
+  const runOnce = async ()=>{
+    // 1) POST /api/gpt (arranca ya)
+    const postRaw = fetchWithTimeout(`${API_BASE}${GPT_PATH}`, {
+      method: "POST",
+      headers: {"Content-Type":"application/json","Accept":"application/json"},
+      body: JSON.stringify({ q: text }),
+      signal: outerCtrl.signal
+    }, DEFAULT_TIMEOUT);
+    const post = postRaw.then(toJSON); post._raw = postRaw;
+
+    // 2) Tras 1.2s, arrancamos GET /api/answer en paralelo
+    const getStart = new Promise(res=>setTimeout(res, 1200));
+    const get = getStart.then(()=>{
+      const getRaw = fetchWithTimeout(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
+        headers: {"Accept":"application/json"},
+        signal: outerCtrl.signal
+      }, DEFAULT_TIMEOUT);
+      const wrapped = getRaw.then(toJSON); wrapped._raw = getRaw;
+      return wrapped;
+    });
+
+    // 3) Gana el primero que llegue bien
+    return await fastestSuccess([post, get]);
+  };
+
+  try{
+    let {resp, data} = await runOnce();
+    if (!resp.ok || data.ok === false) throw new Error(data.error || data.general || `HTTP ${resp.status}`);
     renderAnswer(data);
-  }catch(e){
-    out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
-    setTimeout(()=> saveSession(q.value.trim(), {}), 30);
+  }catch(e1){
+    // 4) Un reintento rápido (p.ej. fallo transitorio)
+    try{
+      statusEl.innerHTML = `<span class="loader"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Reintentando…</span>`;
+      const {resp, data} = await runOnce();
+      if (!resp.ok || data.ok === false) throw new Error(data.error || data.general || `HTTP ${resp.status}`);
+      renderAnswer(data);
+    }catch(e2){
+      out.innerHTML = `<pre style="color:#b91c1c">
+No se pudo conectar con el servicio.
+Verifica la URL del API, CORS/OPTIONS y tu conexión.
+Detalle: ${(e2 && (e2.name||"Error"))}: ${String(e2).slice(0,300)}
+</pre>`;
+      setTimeout(()=> saveSession(q.value.trim(), {}), 30);
+    }
   }finally{
-    btnSend.disabled=false; btnSend.textContent=old; clearStatus();
+    clearStatus();
+    btnSend.disabled = false; btnSend.textContent = old;
+    inFlight = null;
   }
 }
 
