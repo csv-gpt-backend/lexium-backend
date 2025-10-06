@@ -1,313 +1,362 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>TTTAsistente Lexium</title>
-<style>
-  :root{ --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb; --ok:#16a34a; --warn:#d97706; --err:#b91c1c; }
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
-  .wrap{max-width:1180px;margin:0 auto;padding:12px;}
-  .hero{position:sticky;top:0;background:#fff;z-index:5;padding-top:4px;border-bottom:1px solid var(--bd)}
-  .heroGrid{display:grid;grid-template-columns:1fr 3fr 1fr;align-items:center;gap:8px;}
-  .sideImg{display:flex;justify-content:center}
-  .sideImg img{max-width:90%;height:auto;object-fit:contain;opacity:.95}
-  .videoBox video{width:100%;height:auto;border:none;display:block}
-  .toolbar{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin:8px 0}
-  .toolbar button, .toolbar select{ padding:9px 14px;border:1px solid var(--bd);border-radius:10px;background:#fff;cursor:pointer; }
-  .toolbar button:hover{background:#f5f7fb}
-  .hist{position:fixed;right:14px;top:10px;z-index:9}
-  .hist button{padding:8px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff}
-  .query{width:100%;min-height:60px;border:1px solid var(--bd);border-radius:10px;padding:10px;font-size:16px}
-  .out{margin:8px 0;border:1px solid var(--bd);border-radius:12px;padding:12px;overflow-x:auto}
-  table{width:100%;border-collapse:collapse;margin:10px 0}
-  th,td{border:1px solid var(--bd);padding:8px}
-  th{background:#f8fafc;text-align:left}
-  .muted{color:var(--muted);font-size:.9rem}
-  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--bd);font-size:.85rem}
-  .ok{color:var(--ok)} .warn{color:var(--warn)} .err{color:var(--err)}
-  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:space-between}
-  .left{display:flex;gap:8px;align-items:center}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MMMMLexium — Consulta</title>
+  <style>
+    :root{
+      --bg:#0b1020; --card:#111832; --muted:#94a3b8;
+      --text:#e5e7eb; --accent:#60a5fa; --ok:#34d399; --warn:#f59e0b;
+      --danger:#ef4444; --chip:#1f2a4a;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; background:linear-gradient(180deg,#0a0f1e 0%, #0e1630 100%);
+      color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Inter,Arial;
+    }
+    .wrap{max-width:1100px; margin:24px auto; padding:0 16px}
+    .header{display:flex; align-items:center; gap:12px; margin-bottom:14px}
+    .logo{width:36px; height:36px; border-radius:10px; background:#1a2547; display:grid; place-items:center; font-weight:700; color:#93c5fd}
+    h1{font-size:18px; margin:0}
+    .bar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:10px 0}
+    .chip{
+      background:var(--chip); color:#cbd5e1; border:1px solid #223055;
+      padding:6px 10px; border-radius:999px; font-size:12px; display:flex; align-items:center; gap:6px;
+    }
+    .chip b{color:#e2e8f0}
+    .card{
+      background:rgba(17,24,50,.7); border:1px solid #243152;
+      border-radius:16px; padding:14px; box-shadow:0 6px 24px rgba(0,0,0,.35);
+    }
+    .row{display:grid; grid-template-columns:1.3fr .7fr; gap:14px}
+    @media (max-width:900px){ .row{grid-template-columns:1fr} }
+
+    textarea, input[type="text"]{
+      width:100%; padding:12px 12px; border-radius:12px; border:1px solid #2a3a63;
+      background:#0e1530; color:var(--text); outline:none; font-size:15px;
+    }
+    textarea{min-height:84px; resize:vertical}
+    .actions{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+    button{
+      border:1px solid #2a3a63; background:#13204a; color:#e5e7eb;
+      padding:10px 12px; border-radius:12px; font-weight:600; cursor:pointer
+    }
+    button:hover{filter:brightness(1.05)}
+    button.ghost{background:#0e1530}
+    button.primary{background:#1b3a7a; border-color:#3959a2}
+    button.danger{background:#3a1620; border-color:#5a2430}
+    .status{display:flex; gap:8px; align-items:center; margin-top:8px; font-size:12px; color:var(--muted)}
+    .answer{
+      white-space:pre-wrap; line-height:1.45; font-size:15px;
+      min-height:130px; max-height:360px; overflow:auto; padding:12px;
+      border-radius:12px; border:1px solid #243152; background:#0d142e;
+    }
+    .panel{
+      display:flex; flex-direction:column; gap:8px;
+    }
+    .small{font-size:12px; color:#9fb1d1}
+    .hint{font-size:12px; color:#8aa0c8; margin-top:-2px}
+    .split{display:grid; gap:10px; grid-template-columns:1fr 1fr}
+    @media (max-width:640px){ .split{grid-template-columns:1fr} }
+    .video-wrap{background:#0d142e; border:1px solid #243152; border-radius:12px; padding:8px}
+    video{width:100%; border-radius:8px; display:block}
+    select{
+      background:#0e1530; border:1px solid #2a3a63; color:var(--text);
+      padding:8px 10px; border-radius:10px; font-size:14px; width:100%;
+    }
+    .spinner{display:none; width:16px; height:16px; border:2px solid #3a4f86; border-top-color:#90b4ff; border-radius:50%; animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,"Courier New",monospace}
+  </style>
 </head>
 <body>
-<div class="wrap">
+  <div class="wrap">
+    <div class="header">
+      <div class="logo">Lx</div>
+      <h1>Lexium — Consultas</h1>
+    </div>
 
-  <div class="hist"><button id="btnHist">Historial</button></div>
+    <div class="bar">
+      <div class="chip">Ruta: <b id="badge-ruta">—</b></div>
+      <div class="chip">Tiempo: <b id="badge-tiempo">—</b></div>
+      <div class="chip">Voz: <b id="badge-voz">Silencio</b></div>
+      <div class="chip">Mic: <b id="badge-mic">Off</b></div>
+    </div>
 
-  <div class="hero" aria-label="cabecera">
-    <div class="heroGrid">
-      <div class="sideImg"><img src="left.png" alt="Logo izquierdo"/></div>
-      <div class="videoBox">
-        <video id="vid" preload="none" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
+    <div class="row">
+      <!-- Columna izquierda: interacción -->
+      <div class="card">
+        <div class="panel">
+          <label class="small">Escribe tu pregunta</label>
+          <textarea id="q" placeholder="Ej.: ¿Qué es Lexium? o ¿Cómo se aplica la evaluación emocional?"></textarea>
+          <div class="hint">Enter = Enviar. Shift+Enter = salto de línea.</div>
+
+          <div class="actions">
+            <button class="primary" id="btn-enviar">Enviar</button>
+            <button id="btn-mic">🎤 Dictar</button>
+            <button id="btn-voz">⏯ Voz</button>
+            <button id="btn-replay">⟳ Reproducir nuevamente</button>
+            <button class="ghost" id="btn-new">＋ Nueva sesión</button>
+            <button class="ghost" id="btn-clear">🧹 Limpiar</button>
+            <button class="ghost" id="btn-export">Exportar…</button>
+            <div class="spinner" id="spinner"></div>
+          </div>
+
+          <div class="split">
+            <div>
+              <label class="small">Selecciona voz (nativo del navegador)</label>
+              <select id="voice-select"></select>
+            </div>
+            <div>
+              <label class="small">Volumen</label>
+              <input id="voice-volume" type="range" min="0" max="1" step="0.05" value="1" style="width:100%">
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="sideImg"><img src="right.png" alt="Logo derecho"/></div>
-    </div>
 
-    <div style="margin:8px 0">
-      <textarea id="q" class="query" rows="2" placeholder="Pregunta (ej: 'promedio de AUTOESTIMA', 't de Welch de AUTOESTIMA (A vs B)', 'lista de estudiantes', 'puntuaciones de LIDERAZGO')"></textarea>
-    </div>
+      <!-- Columna derecha: video / salida -->
+      <div class="card">
+        <div class="panel">
+          <label class="small">Respuesta</label>
+          <div id="answer" class="answer"></div>
 
-    <div class="toolbar">
-      <button id="btnSend">Enviar</button>
-      <button id="btnDict">🎤 Dictar</button>
-      <button id="btnToggleAV">⏯ Parar/Activar voz y video</button>
-      <button id="btnReplay">⟳ Reproducir nuevamente</button>
-      <button id="btnNew">＋ Nueva sesión</button>
-      <button id="btnClear">🧹 Limpiar</button>
-      <select id="selExport">
-        <option value="">Exportar…</option>
-        <option value="pdf">PDF (vista previa)</option>
-        <option value="xls">XLS</option>
-        <option value="doc">DOC</option>
-      </select>
-    </div>
+          <div class="video-wrap">
+            <label class="small">Video (opcional)</label>
+            <video id="video" src="" controls preload="metadata" playsinline></video>
+            <div class="actions">
+              <button id="btn-video-toggle">⏯ Parar/Activar video</button>
+              <input id="video-src" type="text" placeholder="Pega la URL/archivo del video (opcional)">
+            </div>
+          </div>
 
-    <div class="row" style="margin:8px 0">
-      <div class="left">
-        <span id="badgeMode" class="pill"><strong>Ruta:</strong> —</span>
-        <span id="badgeTime" class="pill"><strong>Tiempo:</strong> —</span>
+          <div class="status mono" id="status-line">Listo.</div>
+        </div>
       </div>
-      <span class="muted">Responde usando exclusivamente tu CSV/TXT del backend.</span>
     </div>
   </div>
 
-  <div id="out" class="out" aria-live="polite"></div>
-</div>
+  <script>
+    // ======== Config ========
+    const API_BASE = ""; // vacío = mismo origen. Si usas Cloud Run con dominio, pega aquí la URL base.
+    const ENDPOINT = "/api/answer";
 
-<script>
-/* Log de errores visibles */
-window.addEventListener('error', (e)=>{
-  const out=document.getElementById('out');
-  if(out) out.innerHTML = `<pre style="color:#b91c1c">JS: ${e.error?.message || e.message}</pre>`;
-});
-window.addEventListener('unhandledrejection', (e)=>{
-  const out=document.getElementById('out');
-  if(out) out.innerHTML = `<pre style="color:#b91c1c">PROMISE: ${e.reason?.message || e.reason}</pre>`;
-});
+    // ======== Elementos ========
+    const elQ = document.getElementById("q");
+    const elSend = document.getElementById("btn-enviar");
+    const elMic = document.getElementById("btn-mic");
+    const elVoz = document.getElementById("btn-voz");
+    const elReplay = document.getElementById("btn-replay");
+    const elNew = document.getElementById("btn-new");
+    const elClear = document.getElementById("btn-clear");
+    const elExport = document.getElementById("btn-export");
+    const elSpinner = document.getElementById("spinner");
+    const elAnswer = document.getElementById("answer");
+    const elRuta = document.getElementById("badge-ruta");
+    const elTiempo = document.getElementById("badge-tiempo");
+    const elVozBadge = document.getElementById("badge-voz");
+    const elMicBadge = document.getElementById("badge-mic");
+    const elStatus = document.getElementById("status-line");
+    const elVoiceSelect = document.getElementById("voice-select");
+    const elVoiceVolume = document.getElementById("voice-volume");
+    const elVideo = document.getElementById("video");
+    const elVideoSrc = document.getElementById("video-src");
+    const elVideoToggle = document.getElementById("btn-video-toggle");
 
-/* ====== CONFIG ====== */
-const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
-const PATH_ANSWER   = "/api/answer";        // GET (rápido)
-const PATH_GPT_TOOLS= "/api/gpt?mode=tools";// POST
-const PATH_GPT_FREE = "/api/gpt?mode=free"; // POST
+    // ======== Estado ========
+    let lastAnswer = "";
+    let speaking = false;
+    let recognizing = false;
+    let recognizer = null;
 
-/* ====== UI refs ====== */
-const q = document.getElementById("q");
-const out = document.getElementById("out");
-const vid = document.getElementById("vid");
-const btnSend = document.getElementById("btnSend");
-const btnDict = document.getElementById("btnDict");
-const btnToggleAV = document.getElementById("btnToggleAV");
-const btnReplay = document.getElementById("btnReplay");
-const btnNew = document.getElementById("btnNew");
-const btnClear = document.getElementById("btnClear");
-const selExport = document.getElementById("selExport");
-const btnHist = document.getElementById("btnHist");
-const badgeMode = document.getElementById("badgeMode");
-const badgeTime = document.getElementById("badgeTime");
+    // ======== Util ========
+    function setBusy(b){ elSpinner.style.display = b ? "inline-block" : "none"; }
+    function setStatus(msg){ elStatus.textContent = msg; }
+    function speakStop(){
+      window.speechSynthesis.cancel();
+      speaking = false;
+      elVozBadge.textContent = "Silencio";
+    }
+    function ms(n){
+      if (n == null) return "—";
+      const s = Number(n);
+      if (!isFinite(s)) return "—";
+      return s.toFixed(0) + " ms";
+    }
 
-/* ====== Voz ====== */
-let voices=[]; let currentVoice=null; let speaking=false; let paused=false; let lastSpokenText=""; let recognizer=null;
-function pickSpanishFemale(){
-  voices = window.speechSynthesis.getVoices();
-  const es = voices.filter(v=>/^es(-|_)/i.test(v.lang));
-  let fem = es.find(v=>/female|femenina|mujer/i.test(v.name));
-  currentVoice = fem || es[0] || voices[0] || null;
-}
-if (typeof speechSynthesis !== "undefined") {
-  pickSpanishFemale();
-  window.speechSynthesis.onvoiceschanged = pickSpanishFemale;
-}
-function speak(text){
-  if (!text) return;
-  lastSpokenText = text;
-  const u = new SpeechSynthesisUtterance(text);
-  if (currentVoice) u.voice = currentVoice;
-  u.lang = (currentVoice && currentVoice.lang) || "es-ES";
-  u.rate = 1; u.pitch = 1; u.volume = 1;
-  u.onstart = ()=>{ speaking = true; vid.play().catch(()=>{}); };
-  u.onend   = ()=>{ speaking = false; vid.pause(); };
-  u.onerror = ()=>{ speaking = false; vid.pause(); };
-  window.speechSynthesis.speak(u);
-}
-function toggleAV(){
-  if (speaking && !paused){ window.speechSynthesis.pause(); paused = true; vid.pause(); }
-  else if (speaking && paused){ window.speechSynthesis.resume(); paused = false; vid.play().catch(()=>{}); }
-  else { speak(lastSpokenText); }
-}
-function replay(){ if (window.speechSynthesis.speaking) window.speechSynthesis.cancel(); speak(lastSpokenText); }
+    // ======== Voz (TTS) ========
+    function loadVoices(){
+      const voices = window.speechSynthesis.getVoices();
+      elVoiceSelect.innerHTML = "";
+      // Prioriza voces en español (es-ES, es-MX, es-US, es-419)
+      const pref = v => /(^es[-_]|Spanish)/i.test(v.lang) || /Spanish/i.test(v.name);
+      const sorted = [...voices].sort((a,b) => (pref(b)-pref(a)) || a.name.localeCompare(b.name));
+      for(const v of sorted){
+        const opt = document.createElement("option");
+        opt.value = v.name;
+        opt.textContent = `${v.name} — ${v.lang}`;
+        elVoiceSelect.appendChild(opt);
+      }
+      // Selección por defecto: primera en español si existe
+      const def = [...elVoiceSelect.options].find(o => /es/i.test(o.textContent)) || elVoiceSelect.options[0];
+      if(def){ elVoiceSelect.value = def.value; }
+    }
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+    loadVoices();
 
-/* ====== Utilidades ====== */
-function now(){ return performance.now(); }
-function ms(n){ return `${n.toFixed(0)} ms`; }
-function setBadge(mode, timeMs){
-  badgeMode.innerHTML = `<strong>Ruta:</strong> ${mode}`;
-  badgeTime.innerHTML = `<strong>Tiempo:</strong> ${ms(timeMs)}`;
-  badgeMode.className = "pill " + (mode==="rápido" ? "ok" : (mode==="tools" ? "warn" : "err"));
-}
-function isUnrecognized(data){
-  if (!data || data.ok === false) return true;
-  const g = (data.general||"").toLowerCase();
-  if (g.includes("no reconocida")) return true;
-  const hasContent = (data.lists && data.lists.length) || (data.tables && data.tables.length) || (data.general && data.general.trim());
-  return !hasContent;
-}
-function escapeHtml(x){return x.replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]))}
+    function speak(text){
+      if(!text || !window.speechSynthesis) return;
+      speakStop();
+      const u = new SpeechSynthesisUtterance(text);
+      const sel = elVoiceSelect.value;
+      const voices = window.speechSynthesis.getVoices();
+      u.voice = voices.find(v => v.name === sel) || voices.find(v => /^es[-_]/i.test(v.lang)) || voices[0];
+      u.lang = (u.voice && u.voice.lang) || "es-ES";
+      u.rate = 1; u.pitch = 1; u.volume = parseFloat(elVoiceVolume.value || "1");
+      u.onstart = () => { speaking = true; elVozBadge.textContent = "Hablando"; };
+      u.onend   = () => { speaking = false; elVozBadge.textContent = "Silencio"; };
+      window.speechSynthesis.speak(u);
+    }
 
-/* Normaliza preguntas cortas */
-function normalizeQuestion(txt){
-  let q = (txt || "").trim();
-  if (/promedio/i.test(q) && /autoestima/i.test(q) && !/por.+paralelo/i.test(q)){ q += " por paralelo"; }
-  if (/p90/i.test(q) && /tensi[óo]n/i.test(q) && !/por.+paralelo/i.test(q)){ q += " por paralelo"; }
-  if (/welch/i.test(q) && !/\(.*\)/.test(q)){ q += " (A vs B)"; }
-  return q;
-}
+    // ======== Dictado (STT) ========
+    function ensureRecognizer(){
+      const R = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if(!R) return null;
+      const r = new R();
+      r.lang = "es-ES";
+      r.interimResults = true;
+      r.maxAlternatives = 1;
+      return r;
+    }
+    function micToggle(){
+      if(recognizing){ recognizer.stop(); return; }
+      recognizer = ensureRecognizer();
+      if(!recognizer){ alert("Dictado no soportado por este navegador."); return; }
+      elMicBadge.textContent = "On";
+      recognizing = true;
+      elMic.textContent = "⏹ Detener";
+      setStatus("Escuchando…");
+      recognizer.onresult = e => {
+        let finalText = "";
+        for(let i= e.resultIndex; i<e.results.length; i++){
+          const tr = e.results[i][0].transcript;
+          if(e.results[i].isFinal){ finalText += tr + " "; }
+        }
+        if(finalText) elQ.value = (elQ.value + " " + finalText).trim();
+      };
+      recognizer.onend = () => {
+        recognizing = false;
+        elMic.textContent = "🎤 Dictar";
+        elMicBadge.textContent = "Off";
+        setStatus("Dictado detenido.");
+      };
+      recognizer.onerror = () => {
+        recognizing = false;
+        elMic.textContent = "🎤 Dictar";
+        elMicBadge.textContent = "Off";
+        setStatus("Error de dictado.");
+      };
+      recognizer.start();
+    }
 
-/* ====== Render ====== */
-function renderAnswer(data){
-  let html = "";
-  if (data.general) html += `<p>${escapeHtml(data.general).replace(/\n/g,"<br>")}</p>`;
-  (data.lists||[]).forEach(l=>{
-    html += `<h3>${escapeHtml(l.title||"Lista")}</h3><ol>`;
-    (l.items||[]).forEach(it=> html += `<li>${escapeHtml(String(it))}</li>`);
-    html += `</ol>`;
-  });
-  (data.tables||[]).forEach(t=>{
-    const cols = t.columns||[]; const rows = t.rows||[];
-    html += `<h3>${escapeHtml(t.title||"Tabla")}</h3><table><thead><tr>`;
-    cols.forEach(c=> html+=`<th>${escapeHtml(String(c))}</th>`);
-    html += `</tr></thead><tbody>`;
-    rows.forEach(r=>{ html += `<tr>${r.map(x=>`<td>${escapeHtml(String(x))}</td>`).join("")}</tr>`; });
-    html += `</tbody></table>`;
-  });
-  out.innerHTML = html || "<em>Sin contenido.</em>";
-  if (data.general) { if (window.speechSynthesis.speaking) window.speechSynthesis.cancel(); speak(data.general); }
-}
+    // ======== Llamada al backend ========
+    async function preguntar(){
+      const q = (elQ.value || "").trim();
+      if(!q){ elQ.focus(); return; }
+      setBusy(true);
+      setStatus("Consultando…");
+      elRuta.textContent = "—";
+      elTiempo.textContent = "—";
 
-/* ====== Historial ====== */
-function saveSession(question, data){
-  const key = "lexium_sessions";
-  const all = JSON.parse(localStorage.getItem(key) || "[]");
-  const id = new Date().toISOString();
-  all.unshift({ id, question, data });
-  localStorage.setItem(key, JSON.stringify(all.slice(0,50)));
-}
-function openHistory(){
-  const key = "lexium_sessions";
-  const all = JSON.parse(localStorage.getItem(key) || "[]");
-  if (!all.length) { alert("Sin historial."); return; }
-  const w = window.open("", "_blank");
-  const html = `
-  <html><head><title>Historial</title>
-  <style>body{font:14px system-ui} pre{white-space:pre-wrap}</style></head><body>
-  <h2>Sesiones</h2>
-  ${all.map(s=>`
-    <details>
-      <summary><b>${s.id}</b> — ${escapeHtml(s.question)}</summary>
-      <pre>${escapeHtml(JSON.stringify(s.data, null, 2))}</pre>
-    </details>
-  `).join("")}
-  </body></html>`;
-  w.document.write(html); w.document.close();
-}
+      const t0 = performance.now();
+      try{
+        const url = (API_BASE || "") + ENDPOINT + "?q=" + encodeURIComponent(q);
+        const resp = await fetch(url, { method:"GET" });
+        const data = await resp.json();
+        const t1 = performance.now();
 
-/* ====== Exportar ====== */
-selExport.addEventListener("change", ()=>{
-  const v = selExport.value; selExport.value="";
-  if (!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
-  if (v==="pdf"){
-    const w = window.open("","_blank");
-    w.document.write(`<html><head><title>Export PDF</title></head><body>${out.innerHTML}</body></html>`);
-    w.document.close(); w.focus(); w.print();
-  } else if (v==="xls" || v==="doc"){
-    const mime = v==="xls" ? "application/vnd.ms-excel" : "application/msword";
-    const blob = new Blob([`<html><body>${out.innerHTML}</body></html>`], {type:mime});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `export.${v}`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-});
+        elRuta.textContent = data.ruta || "criterio";
+        elTiempo.textContent = (data.tiempo_ms != null) ? ms(data.tiempo_ms) : ms(t1 - t0);
 
-/* ====== Dictado ====== */
-function toggleDict(){
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert("Dictado no soportado."); return; }
-  if (!recognizer){
-    recognizer = new SR();
-    recognizer.lang = "es-ES";
-    recognizer.continuous = false;
-    recognizer.interimResults = false;
-    recognizer.onresult = e=>{
-      const t = Array.from(e.results).map(r=>r[0].transcript).join(" ");
-      q.value = (q.value ? q.value+" " : "") + t;
+        const text = (data && data.answer) ? String(data.answer) : "";
+        lastAnswer = text;
+        elAnswer.textContent = text;
+        setStatus("OK");
+        // Habla automáticamente si hay respuesta
+        if(text) speak(text);
+      }catch(err){
+        console.error(err);
+        elAnswer.textContent = "Hubo un problema al contactar el servicio.";
+        elRuta.textContent = "—";
+        elTiempo.textContent = "—";
+        setStatus("Error");
+      }finally{
+        setBusy(false);
+      }
+    }
+
+    // ======== Controles ========
+    elSend.onclick = preguntar;
+    elQ.addEventListener("keydown",(e)=>{
+      if(e.key==="Enter" && !e.shiftKey){
+        e.preventDefault();
+        preguntar();
+      }
+    });
+
+    elMic.onclick = micToggle;
+
+    elVoz.onclick = ()=>{
+      if(speaking){ speakStop(); }
+      else if(lastAnswer){ speak(lastAnswer); }
     };
-  }
-  if (recognizer.listening){ recognizer.stop(); recognizer.listening=false; btnDict.textContent="🎤 Dictar"; }
-  else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
-}
 
-/* ====== Envío con fallback (rápido → tools → free) ====== */
-async function ask(){
-  const textRaw = q.value.trim();
-  if (!textRaw) return;
-  const text = normalizeQuestion(textRaw);
+    elReplay.onclick = ()=>{ if(lastAnswer){ speak(lastAnswer); } };
 
-  out.innerHTML = '<em>Procesando…</em>';
-  const t0 = performance.now();
+    elNew.onclick = ()=>{
+      // Si en el futuro manejas sesión en backend, aquí podrías resetear el id.
+      elQ.value = "";
+      lastAnswer = "";
+      elAnswer.textContent = "";
+      elRuta.textContent = "—";
+      elTiempo.textContent = "—";
+      setStatus("Nueva sesión local iniciada.");
+      speakStop();
+    };
 
-  try{
-    // 1) rápido (GET /api/answer)
-    const urlFast = `${API_BASE}${PATH_ANSWER}?q=${encodeURIComponent(text)}`;
-    const rFast = await fetch(urlFast, { headers:{ Accept:"application/json" } });
-    const dFast = await rFast.json().catch(()=>null);
-    if (rFast.ok && dFast && !isUnrecognized(dFast)) {
-      setBadge("rápido", performance.now()-t0);
-      saveSession(text, dFast); renderAnswer(dFast); return;
-    }
+    elClear.onclick = ()=>{
+      elQ.value = "";
+      elQ.focus();
+    };
 
-    // 2) tools (POST /api/gpt?mode=tools)
-    const rTools = await fetch(`${API_BASE}${PATH_GPT_TOOLS}`, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ q: text })
+    elExport.onclick = ()=>{
+      const ts = new Date().toISOString().replace(/[:.]/g,"-");
+      const txt = [
+        "Pregunta:",
+        (elQ.value || "").trim(),
+        "",
+        "Respuesta:",
+        lastAnswer,
+        "",
+        `Ruta: ${elRuta.textContent} | Tiempo: ${elTiempo.textContent}`
+      ].join("\n");
+      const blob = new Blob([txt], {type:"text/plain;charset=utf-8"});
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `lexium-respuesta-${ts}.txt`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    };
+
+    // Video
+    elVideoToggle.onclick = ()=>{
+      if(elVideo.paused) elVideo.play(); else elVideo.pause();
+    };
+    elVideoSrc.addEventListener("change", ()=>{
+      const v = (elVideoSrc.value||"").trim();
+      if(v){ elVideo.src = v; setStatus("Video cargado."); }
     });
-    const dTools = await rTools.json().catch(()=>null);
-    if (rTools.ok && dTools && !isUnrecognized(dTools)) {
-      setBadge("tools", performance.now()-t0);
-      saveSession(text, dTools); renderAnswer(dTools); return;
-    }
-
-    // 3) free (POST /api/gpt?mode=free)
-    const rFree = await fetch(`${API_BASE}${PATH_GPT_FREE}`, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body: JSON.stringify({ q: text })
-    });
-    const dFree = await rFree.json().catch(()=>null);
-    if (rFree.ok && dFree && dFree.ok !== false) {
-      setBadge("free", performance.now()-t0);
-      saveSession(text, dFree); renderAnswer(dFree); return;
-    }
-
-    throw new Error((dFree?.error || dTools?.error || dFast?.error) || "Sin respuesta útil.");
-  }catch(e){
-    setBadge("error", performance.now()-t0);
-    out.innerHTML = `<pre style="color:#b91c1c">${String(e)}</pre>`;
-  }
-}
-
-/* ====== Limpieza / Nueva sesión / Eventos ====== */
-btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; if (window.speechSynthesis.speaking) window.speechSynthesis.cancel(); });
-btnNew.addEventListener("click", ()=>{ if (window.speechSynthesis.speaking) window.speechSynthesis.cancel(); q.value=""; out.innerHTML=""; });
-btnSend.addEventListener("click", ask);
-btnDict.addEventListener("click", toggleDict);
-btnToggleAV.addEventListener("click", toggleAV);
-btnReplay.addEventListener("click", replay);
-btnHist.addEventListener("click", openHistory);
-q.addEventListener("keydown", e=>{ if (e.key==="Enter" && (e.ctrlKey||e.metaKey)) ask(); });
-</script>
+  </script>
 </body>
 </html>
