@@ -3,66 +3,47 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Asistente Lexium Sudamérica</title>
+<title>Asistente Lexium</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
     --ok:#16a34a; --err:#b91c1c;
-    --heroH: 65vh; /* alto del bloque fijo (video + imágenes) */
+    --heroH: 65vh;
     --wrapW: 1180px;
   }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
 
-  /* ===== Bloque superior fijo ===== */
   .mediaBar{
     position:fixed; top:0; left:0; width:100vw; z-index:50;
     background:#fff; border-bottom:none; padding:0; margin:0;
-    /* Evitar que intercepte clics sobre botones que estén debajo */
     pointer-events:none;
   }
-  .mediaBar *{ pointer-events:none; } /* el video no necesita interacción manual */
+  .mediaBar *{ pointer-events:none; }
   .mediaInner{max-width:var(--wrapW); margin:0 auto; padding:12px;}
-  /* derecha un poco más ancha para agrandar right.png SIN recortar */
   .heroGrid{display:grid; grid-template-columns:1fr 3fr 1.16fr; align-items:center; gap:8px;}
   .sideImg{display:flex; justify-content:center; height:var(--heroH); margin:0;}
   .sideImg img{max-width:100%; height:100%; object-fit:contain; opacity:.95}
   .videoBox{height:var(--heroH); margin:0;}
   .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
 
-  /* ===== Contenido (scroll) comienza DESPUÉS del bloque fijo ===== */
-  .contentWrap{
-    max-width:var(--wrapW); margin:0 auto;
-    padding:12px; padding-top:calc(var(--heroH) + 8px); /* reserva exacta del alto del héroe */
-  }
+  .contentWrap{max-width:var(--wrapW); margin:0 auto; padding:12px; padding-top:calc(var(--heroH) + 8px);}
 
   .toolbar{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:8px 0}
-  .toolbar button, .toolbar select{
-    padding:9px 14px; border:1px solid var(--bd); border-radius:10px; background:#fff; cursor:pointer;
-  }
+  .toolbar button, .toolbar select{padding:9px 14px; border:1px solid var(--bd); border-radius:10px; background:#fff; cursor:pointer;}
   .toolbar button:hover{background:#f5f7fb}
   .toolbar button[disabled]{opacity:.6; cursor:not-allowed}
 
   .hist{position:fixed; right:14px; top:10px; z-index:60}
   .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
-  /* Caja de texto: 2 líneas fijas, sin resize */
-  .query{
-    width:100%; height:48px; min-height:48px; max-height:48px; resize:none;
-    border:1px solid var(--bd); border-radius:10px; padding:10px; font-size:16px; line-height:1.4;
-  }
-
-  /* Respuesta: área scrolleable propia */
-  .out{
-    margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px;
-    overflow:auto; white-space:pre-wrap; max-height:65vh;
-  }
+  .query{width:100%; height:48px; min-height:48px; max-height:48px; resize:none; border:1px solid var(--bd); border-radius:10px; padding:10px; font-size:16px; line-height:1.4;}
+  .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
   .muted{color:var(--muted); font-size:.9rem}
 
   table{width:100%; border-collapse:collapse; margin:10px 0}
   th,td{border:1px solid var(--bd); padding:8px}
   th{background:#f8fafc; text-align:left}
 
-  /* loader */
   .loader{display:inline-flex; align-items:center; gap:8px; font-size:.95rem; color:var(--muted)}
   .dot{width:8px; height:8px; border-radius:50%; background:var(--pri); opacity:.7; animation:bounce 1s infinite}
   .dot:nth-child(2){animation-delay:.15s}
@@ -72,12 +53,10 @@
 </head>
 <body>
 
-  <!-- botón Historial (arriba derecha) -->
   <div class="hist">
     <button id="btnHist" title="Ver sesiones guardadas">Historial</button>
   </div>
 
-  <!-- ===== Bloque superior fijo (video + imágenes) ===== -->
   <div class="mediaBar" aria-label="cabecera">
     <div class="mediaInner">
       <div class="heroGrid">
@@ -94,9 +73,7 @@
     </div>
   </div>
 
-  <!-- ===== Contenido (solo aquí hay scroll) ===== -->
   <div class="contentWrap">
-    <!-- Caja de texto + barra de acciones -->
     <div style="margin:10px 0 6px">
       <textarea id="q" class="query" rows="2" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
     </div>
@@ -116,7 +93,6 @@
       </select>
     </div>
 
-    <!-- Resultado -->
     <div id="out" class="out" aria-live="polite"></div>
     <div id="status" class="muted"></div>
   </div>
@@ -149,27 +125,18 @@ function setStatusLoading(msg="Generando…"){
 }
 function clearStatus(){ statusEl.textContent = ""; }
 
-/* ====== Historial (siempre guarda algo visible) ====== */
+/* ====== Historial ====== */
 function saveSession(question, data){
   const visible = (document.getElementById('out')?.textContent || "").trim();
   const summary = (data?.general || data?.answer || data?.text || data?.html || visible || "").slice(0, 1000);
-  const minimal = {
-    id: new Date().toISOString(),
-    question: question || "(sin pregunta)",
-    summary,
-    when: Date.now()
-  };
+  const minimal = { id: new Date().toISOString(), question: question || "(sin pregunta)", summary, when: Date.now() };
   try{
-    const key="lexium_sessions";
-    const all=JSON.parse(localStorage.getItem(key)||"[]");
-    all.unshift(minimal);
-    localStorage.setItem(key, JSON.stringify(all.slice(0,50)));
+    const key="lexium_sessions"; const all=JSON.parse(localStorage.getItem(key)||"[]");
+    all.unshift(minimal); localStorage.setItem(key, JSON.stringify(all.slice(0,50)));
   }catch(e){
     try{
-      const key="lexium_sessions_fallback";
-      const all=JSON.parse(sessionStorage.getItem(key)||"[]");
-      all.unshift(minimal);
-      sessionStorage.setItem(key, JSON.stringify(all.slice(0,50)));
+      const key="lexium_sessions_fallback"; const all=JSON.parse(sessionStorage.getItem(key)||"[]");
+      all.unshift(minimal); sessionStorage.setItem(key, JSON.stringify(all.slice(0,50)));
     }catch(_){}
   }
 }
@@ -204,10 +171,7 @@ function toggleDict(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){ alert("Dictado no soportado en este navegador."); return; }
   if(!recognizer){
-    recognizer=new SR();
-    recognizer.lang="es-ES";
-    recognizer.continuous=false;
-    recognizer.interimResults=false;
+    recognizer=new SR(); recognizer.lang="es-ES"; recognizer.continuous=false; recognizer.interimResults=false;
     recognizer.onresult=e=>{
       const t=Array.from(e.results).map(r=>r[0].transcript).join(" ");
       q.value=(q.value? q.value+" " : "") + t;
@@ -217,7 +181,7 @@ function toggleDict(){
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado";}
 }
 
-/* ====== Voz femenina + controlador TTS ====== */
+/* ====== Voz femenina + TTS ====== */
 const PREFERRED_NAMES=[
   "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
   "Google español","Google español de Estados","Google US Español",
@@ -244,38 +208,34 @@ function chooseFemaleES(){
 function initVoice(){ selectedVoice=chooseFemaleES(); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
 
+/* === Regex corregida (sin escapes inválidos con 'u') === */
+const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
+
 /* === Convertir texto general a lista numerada (visual) === */
 function generalToOrderedListHTML(g){
   if (!g) return "";
   const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-  const bulletLike = lines.filter(s=>/^(?:•|\-|\–|\*|\d+\.)\s+/u.test(s)).length;
+  const bulletLike = lines.filter(s=>BULLET_RE.test(s)).length;
 
-  // Si hay bullets, o si hay muchas líneas cortas sin puntuación final → numerar
   const manyPlainLines = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length;
   const shouldNumber = (lines.length>=3) && (bulletLike>0 || manyPlainLines >= Math.ceil(lines.length*0.6));
 
   if (shouldNumber) {
-    const items = lines.map(s=>s.replace(/^(?:•|\-|\–|\*|\d+\.)\s+/u,"")).filter(Boolean);
+    const items = lines.map(s=>s.replace(BULLET_RE,"")).filter(Boolean);
     return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
   }
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* === TTS helpers (pausa clara entre elementos) === */
+/* === TTS helpers === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
-  // Párrafos
   c.querySelectorAll("p").forEach(p=>{const t=p.textContent.trim(); if(t) parts.push(t);});
-  // Listas → "1. Nombre." (punto + salto de línea = pausa)
   c.querySelectorAll("ol,ul").forEach(list=>{
     const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
-    if(items.length){
-      const numbered = items.map((t,i)=>`${i+1}. ${t}.`).join("\n");
-      parts.push(numbered);
-    }
+    if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); }
   });
-  // Tablas → enumerar por columna NOMBRE o primera
   c.querySelectorAll("table").forEach(tbl=>{
     const rows=[...tbl.querySelectorAll("tbody tr")]; if(!rows.length) return;
     const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim().toUpperCase());
@@ -290,7 +250,6 @@ function buildTTSTextFromOut(){
   return parts.join("\n\n") || fallback;
 }
 
-/* === Controlador TTS (pausar/reanudar, sincronizado con video) === */
 const TTS={
   enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
   makeChunks(text,maxLen=360){
@@ -343,21 +302,14 @@ function normalizeLists(lists){
 /* ====== Render ====== */
 function renderAnswer(data){
   let html="";
-
   const generalTxt = data.general || data.answer || data.text || "";
+  if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
 
-  // General: si parece listado, conviértelo a <ol> numerada (visual)
-  if(generalTxt){
-    html += generalToOrderedListHTML(generalTxt);
-  }
-
-  // Lists estructuradas
   const lists=normalizeLists(data.lists||[]);
   lists.forEach(l=>{
     html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
   });
 
-  // Tablas
   (data.tables||[]).forEach(t=>{
     const cols=t.columns||[]; const rows=t.rows||[];
     html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
@@ -369,10 +321,7 @@ function renderAnswer(data){
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
-  // Iniciar narración + video
-  TTS.enabled = true;
-  TTS.loadFromOut();
-  TTS.start(0);
+  TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 }
 
 /* ====== Backend ====== */
@@ -391,10 +340,9 @@ async function ask(){
     const data = await r.json().catch(()=>({}));
     if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
     renderAnswer(data);
-    saveSession(text, data); // historial
+    saveSession(text, data);
   }catch(e){
     out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
-    // guarda igual la sesión con lo que se ve en pantalla para no perder el rastro
     saveSession(text, {});
   }finally{
     btnSend.disabled=false; btnSend.textContent=old; clearStatus();
@@ -421,9 +369,8 @@ selExport.addEventListener("change", ()=>{
       <style>body{font:16px/1.5 system-ui;margin:28px;color:#111}
              table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
       </head><body>${out.innerHTML}</body></html>`;
-    try{
-      printHTML(html);
-    }catch(_){
+    try{ printHTML(html); }
+    catch(_){
       const w=window.open("", "_blank", "noopener,noreferrer");
       if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
       else{
@@ -453,16 +400,13 @@ btnToggleAV.addEventListener("click", ()=>{
 });
 btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
 btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
-btnNew.addEventListener("click", ()=>{
-  saveSession(q.value.trim()||"(sin pregunta)", {});
-  TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus();
-});
+btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunta)", {}); TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus(); });
 btnHist.addEventListener("click", openHistory);
 
 /* ====== UX ====== */
 q.addEventListener("keydown",(e)=>{ if(e.key==="Enter" && (e.ctrlKey||e.metaKey)) ask(); });
 
-/* ====== Mostrar errores JS en pantalla (por si algo impide los clics) ====== */
+/* Mostrar errores JS en pantalla */
 window.addEventListener("error", (e)=>{
   const msg = (e?.error?.stack || e?.message || String(e)).slice(0, 600);
   const box = document.getElementById("status");
