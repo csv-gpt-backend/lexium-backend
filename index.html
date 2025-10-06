@@ -3,45 +3,54 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Asistente Virtal Lexium</title>
+<title>Asistente Ok Lexium</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
     --ok:#16a34a; --err:#b91c1c;
   }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
-  .wrap{max-width:1180px;margin:0 auto;padding:12px;}
+  .wrap{max-width:1180px;margin:0 auto;padding:12px; padding-top:0;}
 
-  /* ===== Solo el bloque media (img+video) es fijo ===== */
-  .mediaBar{position:sticky;top:0;background:#fff;z-index:5;padding:6px 0;border-bottom:1px solid var(--bd)}
-  .heroGrid{display:grid;grid-template-columns:1fr 3fr 1fr;align-items:center;gap:8px;}
-  .sideImg{display:flex;justify-content:center;height:65vh}
-  .sideImg img{max-width:100%;height:100%;object-fit:contain;opacity:.95}
-  .videoBox{height:65vh}
-  .videoBox video{width:100%;height:100%;object-fit:cover;border:none;display:block;border-radius:10px}
+  /* ===== SOLO el bloque media (img+video) permanece fijo y sin línea debajo ===== */
+  .mediaBar{
+    position:sticky; top:0; z-index:50;
+    background:#fff; padding:0; border-bottom:none;
+  }
+  .heroGrid{display:grid; grid-template-columns:1fr 3fr 1fr; align-items:center; gap:8px;}
+  .sideImg{display:flex; justify-content:center; height:65vh; margin:0;}
+  .sideImg img{max-width:100%; height:100%; object-fit:contain; opacity:.95}
+  .videoBox{height:65vh; margin:0;}
+  .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
 
-  /* ===== La caja de texto y la barra YA NO son sticky ===== */
-  .toolbar{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin:8px 0}
+  /* ===== La caja de texto y la barra NO son sticky (scrollean) ===== */
+  .toolbar{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:8px 0}
   .toolbar button, .toolbar select{
-    padding:9px 14px;border:1px solid var(--bd);border-radius:10px;background:#fff;cursor:pointer;
+    padding:9px 14px; border:1px solid var(--bd); border-radius:10px; background:#fff; cursor:pointer;
   }
   .toolbar button:hover{background:#f5f7fb}
-  .toolbar button[disabled]{opacity:.6;cursor:not-allowed}
+  .toolbar button[disabled]{opacity:.6; cursor:not-allowed}
 
-  .hist{position:fixed;right:14px;top:10px;z-index:9}
-  .hist button{padding:8px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff}
+  .hist{position:fixed; right:14px; top:10px; z-index:60}
+  .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
-  .query{width:100%;min-height:60px;border:1px solid var(--bd);border-radius:10px;padding:10px;font-size:16px}
-  .out{margin:8px 0;border:1px solid var(--bd);border-radius:12px;padding:12px;overflow-x:auto;white-space:pre-wrap}
-  .muted{color:var(--muted);font-size:.9rem}
+  .query{
+    width:100%; min-height:46px; max-height:56px; resize:vertical;
+    border:1px solid var(--bd); border-radius:10px; padding:10px; font-size:16px;
+  }
+  .out{
+    margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px;
+    overflow:auto; white-space:pre-wrap; max-height:65vh;
+  }
+  .muted{color:var(--muted); font-size:.9rem}
 
-  table{width:100%;border-collapse:collapse;margin:10px 0}
-  th,td{border:1px solid var(--bd);padding:8px}
-  th{background:#f8fafc;text-align:left}
+  table{width:100%; border-collapse:collapse; margin:10px 0}
+  th,td{border:1px solid var(--bd); padding:8px}
+  th{background:#f8fafc; text-align:left}
 
   /* loader */
-  .loader{display:inline-flex;align-items:center;gap:8px;font-size:.95rem;color:var(--muted)}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--pri);opacity:.7;animation:bounce 1s infinite}
+  .loader{display:inline-flex; align-items:center; gap:8px; font-size:.95rem; color:var(--muted)}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--pri); opacity:.7; animation:bounce 1s infinite}
   .dot:nth-child(2){animation-delay:.15s}
   .dot:nth-child(3){animation-delay:.3s}
   @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
@@ -55,24 +64,24 @@
     <button id="btnHist" title="Ver sesiones guardadas">Historial</button>
   </div>
 
-  <!-- ===== Bloque superior SOLO media (fijo) ===== -->
+  <!-- ===== Bloque superior SOLO media (fijo, sin línea) ===== -->
   <div class="mediaBar" aria-label="cabecera">
     <div class="heroGrid">
       <div class="sideImg">
-        <img src="left.png" alt="Logo izquierdo" title="Santillana"/>
+        <img src="left.png" alt="Logo izquierdo"/>
       </div>
       <div class="videoBox">
         <video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
       </div>
       <div class="sideImg">
-        <img src="right.png" alt="Logo derecho" title="Compartir"/>
+        <img src="right.png" alt="Logo derecho"/>
       </div>
     </div>
   </div>
 
-  <!-- Caja de texto + barra de acciones (NO sticky) -->
+  <!-- Caja de texto + barra de acciones (scroll aquí hacia abajo) -->
   <div style="margin:10px 0 6px">
-    <textarea id="q" class="query" rows="2" placeholder="Escribe tu pregunta (ej: promedio de AUTOESTIMA por paralelo, t de Welch de AUTOESTIMA (A vs B), explicar asertividad según evaluacion.txt). Ctrl/⌘+Enter para enviar."></textarea>
+    <textarea id="q" class="query" rows="2" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
   </div>
 
   <div class="toolbar">
@@ -93,15 +102,15 @@
   <!-- Resultado -->
   <div id="out" class="out" aria-live="polite"></div>
   <div id="status" class="muted"></div>
-  <div class="muted">La respuesta se genera estrictamente usando el CSV y los TXT cargados en tu backend. El modelo no calcula: los números vienen de tus herramientas.</div>
+  <!-- mensaje inferior eliminado por solicitud -->
 
 </div>
 
 <script>
 /* ====== CONFIG ====== */
-const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app"; // ← tu URL de Cloud Run
-const GPT_PATH = "/api/gpt";           // endpoint preferido
-const FALLBACK_PATH = "/api/answer";   // compatibilidad si /api/gpt no existe
+const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
+const GPT_PATH = "/api/gpt";
+const FALLBACK_PATH = "/api/answer";
 
 /* ====== UI refs ====== */
 const q = document.getElementById("q");
@@ -117,132 +126,7 @@ const btnClear = document.getElementById("btnClear");
 const selExport = document.getElementById("selExport");
 const btnHist = document.getElementById("btnHist");
 
-/* ====== Estado de voz ====== */
-let selectedVoice = null;
-let ttsEnabled = false;
-
-/* ====== Voz femenina español (forzada lo más posible) ====== */
-const PREFERRED_NAMES = [
-  // Windows
-  "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
-  // Chrome/Android
-  "Google español","Google español de Estados","Google US Español",
-  // macOS
-  "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"
-];
-const SP_LANGS = ["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
-
-function scoreVoice(v){
-  const name=(v.name||"").toLowerCase(), lang=(v.lang||"").toLowerCase();
-  let s=0;
-  if (SP_LANGS.some(l=>lang.startsWith(l.toLowerCase()))) s+=5;
-  if (PREFERRED_NAMES.some(n=>name.includes(n.toLowerCase()))) s+=6;
-  if (name.includes("female")||name.includes("femenina")||name.includes("mujer")) s+=4;
-  if (name.includes("google")) s+=2;
-  if (name.includes("microsoft")) s+=2;
-  return s;
-}
-function chooseFemaleES(){
-  if (typeof speechSynthesis==="undefined") return null;
-  const vs=speechSynthesis.getVoices(); if(!vs.length) return null;
-  // intenta por nombre exacto primero
-  for (const n of PREFERRED_NAMES){
-    const m=vs.find(v=>v.name.toLowerCase().includes(n.toLowerCase()));
-    if(m) return m;
-  }
-  // luego por score
-  return vs.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a))[0]||null;
-}
-function initVoice(){ selectedVoice = chooseFemaleES(); }
-if (typeof speechSynthesis !== "undefined"){
-  speechSynthesis.onvoiceschanged = initVoice;
-  setTimeout(initVoice, 150);
-}
-
-/* ====== Construir texto TTS natural (enumera listas y tablas) ====== */
-function buildTTSTextFromOut(){
-  // 1) Si hay <ol>/<ul>, enumera: "1. Nombre; 2. Nombre; ..."
-  // 2) Si hay tablas, lee columna "NOMBRE" o la primera.
-  // 3) Además incluye párrafos del texto general.
-  const container = document.createElement("div");
-  container.innerHTML = out.innerHTML;
-
-  const parts = [];
-
-  // General (párrafos)
-  container.querySelectorAll("p").forEach(p=>{
-    const t = p.textContent.trim();
-    if (t) parts.push(t);
-  });
-
-  // Listas ordenadas / no ordenadas
-  const lists = container.querySelectorAll("ol,ul");
-  lists.forEach(list=>{
-    const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
-    if(items.length){
-      const numbered = items.map((t,i)=>`${i+1}. ${t}`).join("; ");
-      parts.push(numbered);
-    }
-  });
-
-  // Tablas -> enumerar por primera columna significativa
-  container.querySelectorAll("table").forEach(tbl=>{
-    const rows = [...tbl.querySelectorAll("tbody tr")];
-    if (!rows.length) return;
-    const headers = [...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim().toUpperCase());
-    let col = 0;
-    const idxNombre = headers.findIndex(h=>/NOMBRE/.test(h));
-    if (idxNombre>=0) col = idxNombre;
-    const names = rows.map((tr,i)=>{
-      const cells=[...tr.querySelectorAll("td")];
-      const val=(cells[col]?.textContent||cells[0]?.textContent||"").trim();
-      return `${i+1}. ${val}`;
-    }).filter(Boolean);
-    if(names.length) parts.push(names.join("; "));
-  });
-
-  // Si no se detectó nada, usa todo el texto plano
-  const fallback = (out.textContent||"").trim();
-  const joined = parts.join(". ");
-  return joined || fallback;
-}
-
-/* ====== TTS: leer TODA la respuesta por bloques (y sincronizar video) ====== */
-function chunkText(text, maxLen=340){
-  const arr=[]; const parts = String(text).split(/(\.|\?|!|\n)/);
-  let buf="";
-  for (let i=0;i<parts.length;i+=2){
-    const seg = (parts[i]||"")+(parts[i+1]||"");
-    if ((buf+seg).length<=maxLen) buf += seg;
-    else { if (buf.trim()) arr.push(buf.trim()); buf = seg; }
-  }
-  if (buf.trim()) arr.push(buf.trim());
-  return arr;
-}
-function speakAllFromOut(){
-  if (typeof speechSynthesis==="undefined" || !ttsEnabled) return;
-  const text = buildTTSTextFromOut();
-  speechSynthesis.cancel();
-  const chunks = chunkText(text, 360);
-  if (!chunks.length) return;
-  let i=0;
-  function next(){
-    if (!ttsEnabled || i>=chunks.length) { vid.pause(); return; }
-    const u = new SpeechSynthesisUtterance(chunks[i++]);
-    if (selectedVoice) u.voice = selectedVoice;
-    u.lang = (selectedVoice?.lang) || "es-ES";
-    u.rate = 0.98;               // pronunciación más clara
-    u.pitch = 1.08;              // leve tono más agudo (femenino si la voz es neutra)
-    u.volume = 1;
-    u.onstart = ()=>{ vid.play().catch(()=>{}); };
-    u.onend = next; 
-    u.onerror = next;
-    speechSynthesis.speak(u);
-  }
-  next();
-}
-
-/* ====== Utils ====== */
+/* ====== Estado / utilidades ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
 function setStatusLoading(msg="Generando…"){
   statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
@@ -250,83 +134,36 @@ function setStatusLoading(msg="Generando…"){
 }
 function clearStatus(){ statusEl.textContent = ""; }
 
-/* Normaliza listas (soporta varios formatos del backend) */
-function normalizeLists(lists){
-  if (!Array.isArray(lists)) return [];
-  return lists.map((entry, i) => {
-    if (Array.isArray(entry)) {
-      const flat = entry.every(x => typeof x === "string" || typeof x === "number");
-      return { title: `Lista ${i+1}`, items: flat ? entry : entry.map(x => Array.isArray(x) ? x.join(" ") : String(x)) };
-    } else if (entry && typeof entry === "object") {
-      return { title: entry.title || `Lista ${i+1}`, items: Array.isArray(entry.items) ? entry.items : [] };
-    } else {
-      return { title: `Lista ${i+1}`, items: [String(entry)] };
-    }
-  });
-}
-
-/* ====== Render ====== */
-function renderAnswer(data){
-  let html = "";
-
-  if (data.general) {
-    html += `<p>${esc(data.general).replace(/\n/g,"<br>")}</p>`;
-  }
-
-  const lists = normalizeLists(data.lists || []);
-  lists.forEach(l=>{
-    html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
-  });
-
-  (data.tables||[]).forEach(t=>{
-    const cols = t.columns||[];
-    const rows = t.rows||[];
-    html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
-    html += cols.map(c=>`<th>${esc(c)}</th>`).join("");
-    html += `</tr></thead><tbody>`;
-    rows.forEach(r=>{
-      html += `<tr>` + r.map(x=>`<td>${esc(x)}</td>`).join("") + `</tr>`;
-    });
-    html += `</tbody></table>`;
-  });
-
-  out.innerHTML = html || "<em>Sin contenido.</em>";
-
-  // Leer TODO (numerado) si la voz está activada
-  if (ttsEnabled) speakAllFromOut();
-}
-
-/* ====== Sesiones (historial con fallback) ====== */
+/* ====== Historial robusto ====== */
 function saveSession(question, data){
   try{
-    const key = "lexium_sessions";
-    const all = JSON.parse(localStorage.getItem(key) || "[]" );
-    const id = new Date().toISOString();
-    all.unshift({ id, question, data });
+    const key="lexium_sessions";
+    const all=JSON.parse(localStorage.getItem(key)||"[]");
+    const id=new Date().toISOString();
+    all.unshift({id,question,data});
     localStorage.setItem(key, JSON.stringify(all.slice(0,50)));
   }catch(e){
     try{
-      const key = "lexium_sessions_fallback";
-      const all = JSON.parse(sessionStorage.getItem(key) || "[]" );
-      const id = new Date().toISOString();
-      all.unshift({ id, question, data });
+      const key="lexium_sessions_fallback";
+      const all=JSON.parse(sessionStorage.getItem(key)||"[]");
+      const id=new Date().toISOString();
+      all.unshift({id,question,data});
       sessionStorage.setItem(key, JSON.stringify(all.slice(0,50)));
     }catch(_){}
   }
 }
 function readSessions(){
   try{
-    const a = JSON.parse(localStorage.getItem("lexium_sessions")||"[]");
-    const b = JSON.parse(sessionStorage.getItem("lexium_sessions_fallback")||"[]");
-    return [...a, ...b];
+    const a=JSON.parse(localStorage.getItem("lexium_sessions")||"[]");
+    const b=JSON.parse(sessionStorage.getItem("lexium_sessions_fallback")||"[]");
+    return [...a,...b];
   }catch(e){ return []; }
 }
 function openHistory(){
-  const all = readSessions();
-  if (!all.length) { alert("Sin historial."); return; }
-  const w = window.open("", "_blank","noopener,noreferrer");
-  const html = `
-  <html><head><title>Historial</title>
+  const all=readSessions();
+  if(!all.length){ alert("Sin historial."); return; }
+  const w=window.open("", "_blank","noopener,noreferrer");
+  const html=`<html><head><title>Historial</title>
   <style>body{font:14px system-ui} pre{white-space:pre-wrap}</style></head><body>
   <h2>Sesiones</h2>
   ${all.map(s=>`
@@ -339,120 +176,222 @@ function openHistory(){
   w.document.open(); w.document.write(html); w.document.close();
 }
 
-/* ====== Exportar ====== */
-selExport.addEventListener("change", ()=>{
-  const v = selExport.value; selExport.value="";
-  if (!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
-  if (v==="pdf"){ // vista previa con print y fallback
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Export PDF</title>
-      <style>body{font:16px/1.5 system-ui;margin:28px;color:#111} table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
-      </head><body>${out.innerHTML}</body></html>`;
-    const w = window.open("","_blank","noopener,noreferrer");
-    if (w){
-      w.document.open(); w.document.write(html); w.document.close();
-      w.onload = ()=> setTimeout(()=>w.print(), 50);
-    }else{
-      // si el bloqueador de popups lo impide: descarga HTML como alternativa
-      const blob = new Blob([html], {type:"text/html"});
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = "lexium_export.html";
-      a.click(); URL.revokeObjectURL(a.href);
-    }
-  } else if (v==="xls" || v==="doc"){
-    const mime = v==="xls" ? "application/vnd.ms-excel" : "application/msword";
-    const blob = new Blob([`<html><body>${out.innerHTML}</body></html>`], {type:mime});
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `export.${v}`;
-    a.click();
-    URL.revokeObjectURL(a.href);
-  }
-});
-
 /* ====== Dictado ====== */
-let recognizer = null;
+let recognizer=null;
 function toggleDict(){
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert("Dictado no soportado en este navegador."); return; }
-  if (!recognizer){
-    recognizer = new SR();
-    recognizer.lang = "es-ES";
-    recognizer.continuous = false;
-    recognizer.interimResults = false;
-    recognizer.onresult = e=>{
-      const t = Array.from(e.results).map(r=>r[0].transcript).join(" ");
-      q.value = (q.value ? q.value+" " : "") + t;
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ alert("Dictado no soportado en este navegador."); return; }
+  if(!recognizer){
+    recognizer=new SR();
+    recognizer.lang="es-ES";
+    recognizer.continuous=false;
+    recognizer.interimResults=false;
+    recognizer.onresult=e=>{
+      const t=Array.from(e.results).map(r=>r[0].transcript).join(" ");
+      q.value=(q.value? q.value+" " : "") + t;
     };
   }
-  if (recognizer.listening){ recognizer.stop(); recognizer.listening=false; btnDict.textContent="🎤 Dictar"; }
-  else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
+  if(recognizer.listening){ recognizer.stop(); recognizer.listening=false; btnDict.textContent="🎤 Dictar";}
+  else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado";}
 }
 
-/* ====== Enviar a backend (POST /api/gpt con fallback a /api/answer) ====== */
+/* ====== Voz femenina + controlador (pausar/reanudar/loop video) ====== */
+const PREFERRED_NAMES=[
+  "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
+  "Google español","Google español de Estados","Google US Español",
+  "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"
+];
+const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
+
+let selectedVoice=null;
+function scoreVoice(v){
+  const name=(v.name||"").toLowerCase(), lang=(v.lang||"").toLowerCase();
+  let s=0;
+  if (SP_LANGS.some(l=>lang.startsWith(l.toLowerCase()))) s+=5;
+  if (PREFERRED_NAMES.some(n=>name.includes(n.toLowerCase()))) s+=6;
+  if (name.includes("female")||name.includes("femenina")||name.includes("mujer")) s+=4;
+  if (name.includes("google")) s+=2; if (name.includes("microsoft")) s+=2;
+  return s;
+}
+function chooseFemaleES(){
+  if(typeof speechSynthesis==="undefined") return null;
+  const vs=speechSynthesis.getVoices(); if(!vs.length) return null;
+  for(const n of PREFERRED_NAMES){ const m=vs.find(v=>v.name.toLowerCase().includes(n.toLowerCase())); if(m) return m; }
+  return vs.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a))[0]||null;
+}
+function initVoice(){ selectedVoice=chooseFemaleES(); }
+if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
+
+function buildTTSTextFromOut(){
+  const c=document.createElement("div"); c.innerHTML=out.innerHTML;
+  const parts=[];
+  c.querySelectorAll("p").forEach(p=>{const t=p.textContent.trim(); if(t) parts.push(t);});
+  c.querySelectorAll("ol,ul").forEach(list=>{
+    const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
+    if(items.length) parts.push(items.map((t,i)=>`${i+1}. ${t}`).join("; "));
+  });
+  c.querySelectorAll("table").forEach(tbl=>{
+    const rows=[...tbl.querySelectorAll("tbody tr")]; if(!rows.length) return;
+    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim().toUpperCase());
+    let col=0; const iN=headers.findIndex(h=>/NOMBRE/.test(h)); if(iN>=0) col=iN;
+    const items=rows.map((tr,i)=>{const t=(tr.querySelectorAll("td")[col]?.textContent||tr.querySelector("td")?.textContent||"").trim(); return `${i+1}. ${t}`;}).filter(Boolean);
+    if(items.length) parts.push(items.join("; "));
+  });
+  const fallback=(out.textContent||"").trim();
+  return parts.join(". ") || fallback;
+}
+
+const TTS={
+  enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
+  makeChunks(text,maxLen=360){
+    const res=[]; const parts=String(text).split(/(\.|\?|!|\n)/);
+    let buf=""; for(let i=0;i<parts.length;i+=2){ const seg=(parts[i]||"")+(parts[i+1]||"");
+      if((buf+seg).length<=maxLen) buf+=seg; else{ if(buf.trim()) res.push(buf.trim()); buf=seg; } }
+    if(buf.trim()) res.push(buf.trim()); return res;
+  },
+  loadFromOut(){ this.textCache=buildTTSTextFromOut(); this.chunks=this.makeChunks(this.textCache); this.i=0; },
+  speakNext(){
+    if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
+    const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
+    if(selectedVoice) u.voice=selectedVoice;
+    u.lang=(selectedVoice?.lang)||"es-ES"; u.rate=0.98; u.pitch=1.08; u.volume=1;
+    u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.play().catch(()=>{});} };
+    u.onend =()=>{ this.speakNext(); };
+    u.onerror=()=>{ this.speakNext(); };
+    this.utter=u; speechSynthesis.speak(u);
+  },
+  start(fromIndex=0){
+    if(typeof speechSynthesis==="undefined" || !this.chunks.length) return;
+    this.enabled=true; if(fromIndex>=0) this.i=fromIndex;
+    speechSynthesis.cancel(); this.speakNext();
+  },
+  pause(){ if(this.speaking && !this.paused){ speechSynthesis.pause(); this.paused=true; if(vid) vid.pause(); } },
+  resume(){ if(this.paused){ speechSynthesis.resume(); this.paused=false; if(vid) vid.play().catch(()=>{}); }
+           else if(!this.speaking && this.enabled){ this.speakNext(); } },
+  restartFromStart(){ this.enabled=true; this.loadFromOut(); this.start(0); },
+  finish(){ this.speaking=false; this.paused=false; this.utter=null; if(vid){ vid.loop=false; vid.pause(); } },
+  stopAll(){ this.enabled=false; this.paused=false; this.speaking=false; this.utter=null;
+             if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel();
+             if(vid){ vid.loop=false; vid.pause(); } }
+};
+
+/* ====== Normalizar listas/tablas del backend ====== */
+function normalizeLists(lists){
+  if(!Array.isArray(lists)) return [];
+  return lists.map((entry,i)=>{
+    if(Array.isArray(entry)){
+      const flat=entry.every(x=>typeof x==="string"||typeof x==="number");
+      return {title:`Lista ${i+1}`, items: flat? entry : entry.map(x=>Array.isArray(x)? x.join(" ") : String(x))};
+    }else if(entry && typeof entry==="object"){
+      return {title: entry.title||`Lista ${i+1}`, items: Array.isArray(entry.items)? entry.items: []};
+    }else{
+      return {title:`Lista ${i+1}`, items:[String(entry)]};
+    }
+  });
+}
+
+/* ====== Render ====== */
+function renderAnswer(data){
+  let html="";
+
+  if(data.general){ html+=`<p>${esc(data.general).replace(/\n/g,"<br>")}</p>`; }
+
+  const lists=normalizeLists(data.lists||[]);
+  lists.forEach(l=>{
+    html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
+  });
+
+  (data.tables||[]).forEach(t=>{
+    const cols=t.columns||[]; const rows=t.rows||[];
+    html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
+    html += cols.map(c=>`<th>${esc(c)}</th>`).join("");
+    html += `</tr></thead><tbody>`;
+    rows.forEach(r=>{ html += `<tr>` + r.map(x=>`<td>${esc(x)}</td>`).join("") + `</tr>`; });
+    html += `</tbody></table>`;
+  });
+
+  out.innerHTML = html || "<em>Sin contenido.</em>";
+
+  // Iniciar narración + video inmediatamente al tener respuesta
+  TTS.enabled = true;
+  TTS.loadFromOut();
+  TTS.start(0); // siempre desde el inicio para cada nueva respuesta
+}
+
+/* ====== Llamada al backend ====== */
 async function ask(){
-  const text = q.value.trim();
-  if (!text) return;
-
-  btnSend.disabled = true; const old = btnSend.textContent; btnSend.textContent = "Enviando…";
+  const text=q.value.trim(); if(!text) return;
+  btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
   setStatusLoading("Consultando…");
-
   try{
     let r = await fetch(`${API_BASE}${GPT_PATH}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Accept":"application/json" },
+      method:"POST", headers:{ "Content-Type":"application/json", "Accept":"application/json" },
       body: JSON.stringify({ q: text })
     });
-
-    if (r.status === 404 || r.status === 405) {
-      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
-        headers:{ "Accept":"application/json" }
-      });
+    if(r.status===404 || r.status===405){
+      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, { headers:{ "Accept":"application/json" } });
     }
-
-    const data = await r.json().catch(()=> ({}));
-    if (!r.ok || data.ok === false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
-
-    renderAnswer(data);           // pinta
-    saveSession(text, data);      // guarda (asegurado)
+    const data = await r.json().catch(()=>({}));
+    if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
+    renderAnswer(data);
+    saveSession(text, data); // <— asegura historial
   }catch(e){
     out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
   }finally{
-    btnSend.disabled = false; btnSend.textContent = old; clearStatus();
+    btnSend.disabled=false; btnSend.textContent=old; clearStatus();
   }
 }
 
-/* ====== Limpieza / Nueva sesión ====== */
-btnClear.addEventListener("click", ()=>{
-  q.value=""; out.innerHTML=""; clearStatus();
-  if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel(), vid.pause();
-});
-btnNew.addEventListener("click", ()=>{
-  // si hay contenido, guárdalo de nuevo explícitamente
-  if ((out.textContent||"").trim()) saveSession(q.value.trim()||"(sin pregunta)", {html: out.innerHTML});
-  if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel(), vid.pause();
-  q.value=""; out.innerHTML=""; clearStatus();
-});
-
-/* ====== Eventos ====== */
-btnSend.addEventListener("click", ask);
-btnDict.addEventListener("click", toggleDict);
-btnToggleAV.addEventListener("click", ()=>{
-  ttsEnabled = !ttsEnabled;
-  btnToggleAV.textContent = ttsEnabled ? "⏸ Silenciar voz" : "⏯ Activar voz";
-  if (ttsEnabled){
-    speakAllFromOut(); // lee lo que esté ya en pantalla
-  }else{
-    if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
-    vid.pause();
+/* ====== Exportar ====== */
+selExport.addEventListener("change", ()=>{
+  const v=selExport.value; selExport.value="";
+  if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
+  if(v==="pdf"){
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Export PDF</title>
+      <style>body{font:16px/1.5 system-ui;margin:28px;color:#111}
+      table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
+      </head><body>${out.innerHTML}</body></html>`;
+    const w=window.open("", "_blank", "noopener,noreferrer");
+    if(w){
+      w.document.open(); w.document.write(html); w.document.close();
+      w.addEventListener("load", ()=>{ try{ w.focus(); w.print(); }catch{} }, {once:true});
+    }else{
+      const blob=new Blob([html],{type:"text/html"});
+      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="lexium_export.html"; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),500);
+    }
+  }else if(v==="xls"||v==="doc"){
+    const mime = v==="xls" ? "application/vnd.ms-excel" : "application/msword";
+    const blob=new Blob([`<html><body>${out.innerHTML}</body></html>`],{type:mime});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`export.${v}`; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),500);
   }
 });
-btnReplay.addEventListener("click", ()=>{
-  if ((out.textContent||"").trim()){ ttsEnabled = true; btnToggleAV.textContent="⏸ Silenciar voz"; speakAllFromOut(); }
+
+/* ====== Botones ====== */
+btnSend.addEventListener("click", ask);
+btnDict.addEventListener("click", toggleDict);
+
+btnToggleAV.addEventListener("click", ()=>{
+  if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
+  if(TTS.paused){ TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
+  else if(TTS.speaking){ TTS.pause(); btnToggleAV.textContent="▶ Reanudar voz"; }
+  else { TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
+});
+
+btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
+
+btnClear.addEventListener("click", ()=>{
+  q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll();
+});
+btnNew.addEventListener("click", ()=>{
+  if((out.textContent||"").trim()) saveSession(q.value.trim()||"(sin pregunta)", {html: out.innerHTML});
+  TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus();
 });
 btnHist.addEventListener("click", openHistory);
-q.addEventListener("keydown", e=>{ if (e.key==="Enter" && (e.ctrlKey||e.metaKey)) ask(); });
 
+/* ====== UX ====== */
+q.addEventListener("keydown",(e)=>{ if(e.key==="Enter" && (e.ctrlKey||e.metaKey)) ask(); });
 </script>
 </body>
 </html>
