@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Asistente Lexium</title>
+<title>Asistente Lexium Virtual</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -13,10 +13,11 @@
   }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
 
+  /* ===== Bloque superior fijo ===== */
   .mediaBar{
     position:fixed; top:0; left:0; width:100vw; z-index:50;
     background:#fff; border-bottom:none; padding:0; margin:0;
-    pointer-events:none;
+    pointer-events:none; /* no intercepta clics */
   }
   .mediaBar *{ pointer-events:none; }
   .mediaInner{max-width:var(--wrapW); margin:0 auto; padding:12px;}
@@ -26,8 +27,8 @@
   .videoBox{height:var(--heroH); margin:0;}
   .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
 
+  /* ===== Contenido (scroll) ===== */
   .contentWrap{max-width:var(--wrapW); margin:0 auto; padding:12px; padding-top:calc(var(--heroH) + 8px);}
-
   .toolbar{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:8px 0}
   .toolbar button, .toolbar select{padding:9px 14px; border:1px solid var(--bd); border-radius:10px; background:#fff; cursor:pointer;}
   .toolbar button:hover{background:#f5f7fb}
@@ -36,10 +37,20 @@
   .hist{position:fixed; right:14px; top:10px; z-index:60}
   .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
-  .query{width:100%; height:48px; min-height:48px; max-height:48px; resize:none; border:1px solid var(--bd); border-radius:10px; padding:10px; font-size:16px; line-height:1.4;}
+  /* Caja de texto: UNA sola línea */
+  .query{
+    width:100%;
+    height:42px;
+    border:1px solid var(--bd);
+    border-radius:10px;
+    padding:10px 12px;
+    font-size:16px;
+    line-height:20px;
+    box-sizing:border-box;
+  }
+
   .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
   .muted{color:var(--muted); font-size:.9rem}
-
   table{width:100%; border-collapse:collapse; margin:10px 0}
   th,td{border:1px solid var(--bd); padding:8px}
   th{background:#f8fafc; text-align:left}
@@ -49,33 +60,41 @@
   .dot:nth-child(2){animation-delay:.15s}
   .dot:nth-child(3){animation-delay:.3s}
   @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
+
+  /* ===== Modal Historial (sin pop-up) ===== */
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:1000;}
+  .modal.show{display:flex;}
+  .panel{background:#fff; border-radius:14px; width:min(900px,92vw); max-height:86vh; overflow:auto; box-shadow:0 10px 30px rgba(0,0,0,.2)}
+  .panel header{display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--bd)}
+  .panel header h3{margin:0; font-size:18px}
+  .panel .body{padding:12px 16px}
+  .panel .actions{display:flex; gap:8px; align-items:center}
+  .panel .actions button{padding:8px 10px; border:1px solid var(--bd); border-radius:10px; background:#fff; cursor:pointer}
+  details{border:1px solid var(--bd); border-radius:10px; padding:8px 10px; margin:8px 0}
 </style>
 </head>
 <body>
 
+  <!-- Botón Historial -->
   <div class="hist">
     <button id="btnHist" title="Ver sesiones guardadas">Historial</button>
   </div>
 
+  <!-- Bloque fijo -->
   <div class="mediaBar" aria-label="cabecera">
     <div class="mediaInner">
       <div class="heroGrid">
-        <div class="sideImg left">
-          <img src="left.png" alt="Logo izquierdo"/>
-        </div>
-        <div class="videoBox">
-          <video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
-        </div>
-        <div class="sideImg right">
-          <img src="right.png" alt="Logo derecho"/>
-        </div>
+        <div class="sideImg left"><img src="left.png" alt="Logo izquierdo"/></div>
+        <div class="videoBox"><video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video></div>
+        <div class="sideImg right"><img src="right.png" alt="Logo derecho"/></div>
       </div>
     </div>
   </div>
 
+  <!-- Contenido con scroll -->
   <div class="contentWrap">
     <div style="margin:10px 0 6px">
-      <textarea id="q" class="query" rows="2" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
+      <input id="q" class="query" type="text" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…" autocomplete="off" />
     </div>
 
     <div class="toolbar">
@@ -95,6 +114,21 @@
 
     <div id="out" class="out" aria-live="polite"></div>
     <div id="status" class="muted"></div>
+  </div>
+
+  <!-- Modal Historial -->
+  <div id="histModal" class="modal" aria-hidden="true">
+    <div class="panel" role="dialog" aria-modal="true" aria-label="Historial">
+      <header>
+        <h3>Historial</h3>
+        <div class="actions">
+          <button id="btnHistDownload" title="Descargar historial JSON">⬇️ Descargar</button>
+          <button id="btnHistClear" title="Borrar historial">🗑️ Borrar</button>
+          <button id="btnHistClose" title="Cerrar">Cerrar ✖</button>
+        </div>
+      </header>
+      <div id="histBody" class="body"></div>
+    </div>
   </div>
 
 <script>
@@ -117,52 +151,58 @@ const btnClear = document.getElementById("btnClear");
 const selExport = document.getElementById("selExport");
 const btnHist = document.getElementById("btnHist");
 
+/* ====== Modal Historial refs ====== */
+const histModal = document.getElementById("histModal");
+const histBody = document.getElementById("histBody");
+const btnHistClose = document.getElementById("btnHistClose");
+const btnHistClear = document.getElementById("btnHistClear");
+const btnHistDownload = document.getElementById("btnHistDownload");
+
 /* ====== Utilidades ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
 function setStatusLoading(msg="Generando…"){
-  statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
-    <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
+  statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
 }
 function clearStatus(){ statusEl.textContent = ""; }
 
-/* ====== Historial ====== */
+/* ====== Historial (persistente con fallback) ====== */
+const HIST_KEY = "lexium_sessions_v2";
+let memSessions = []; // fallback final
+
+function getSessions(){
+  try{ const s = localStorage.getItem(HIST_KEY); if(s) return JSON.parse(s); }catch(e){}
+  try{ const s = sessionStorage.getItem(HIST_KEY); if(s) return JSON.parse(s); }catch(e){}
+  return memSessions.slice();
+}
+function setSessions(arr){
+  try{ localStorage.setItem(HIST_KEY, JSON.stringify(arr)); return; }catch(e){}
+  try{ sessionStorage.setItem(HIST_KEY, JSON.stringify(arr)); return; }catch(e){}
+  memSessions = arr.slice();
+}
 function saveSession(question, data){
-  const visible = (document.getElementById('out')?.textContent || "").trim();
-  const summary = (data?.general || data?.answer || data?.text || data?.html || visible || "").slice(0, 1000);
-  const minimal = { id: new Date().toISOString(), question: question || "(sin pregunta)", summary, when: Date.now() };
-  try{
-    const key="lexium_sessions"; const all=JSON.parse(localStorage.getItem(key)||"[]");
-    all.unshift(minimal); localStorage.setItem(key, JSON.stringify(all.slice(0,50)));
-  }catch(e){
-    try{
-      const key="lexium_sessions_fallback"; const all=JSON.parse(sessionStorage.getItem(key)||"[]");
-      all.unshift(minimal); sessionStorage.setItem(key, JSON.stringify(all.slice(0,50)));
-    }catch(_){}
-  }
+  // Toma lo visible por si el backend no trae campos estándar
+  const visible = (out.textContent || "").trim();
+  const summary = (data?.general || data?.answer || data?.text || data?.html || visible || "").slice(0, 1500);
+  if (!summary && !question) return; // evita guardar vacío
+  const rec = { id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now()), when: Date.now(), question: question || "(sin pregunta)", summary };
+  const all = getSessions(); all.unshift(rec); setSessions(all.slice(0,100));
 }
-function readSessions(){
-  try{
-    const a=JSON.parse(localStorage.getItem("lexium_sessions")||"[]");
-    const b=JSON.parse(sessionStorage.getItem("lexium_sessions_fallback")||"[]");
-    return [...a,...b];
-  }catch(e){ return []; }
+function openHistoryModal(){
+  const all = getSessions();
+  histBody.innerHTML = all.length
+    ? all.map(s=>`
+      <details>
+        <summary><b>${new Date(s.when).toLocaleString()}</b> — ${esc(s.question)}</summary>
+        <pre>${esc(s.summary || "(sin resumen)")}</pre>
+      </details>
+    `).join("")
+    : "<p class='muted'>Sin historial todavía. Realiza una consulta y se guardará automáticamente.</p>";
+  histModal.classList.add("show");
+  histModal.setAttribute("aria-hidden","false");
 }
-function openHistory(){
-  const all=readSessions();
-  if(!all.length){ alert("Sin historial."); return; }
-  const w=window.open("", "_blank","noopener,noreferrer");
-  const html=`<html><head><title>Historial</title>
-  <style>body{font:14px system-ui} pre{white-space:pre-wrap}</style></head><body>
-  <h2>Sesiones</h2>
-  ${all.map(s=>`
-    <details>
-      <summary><b>${new Date(s.when).toLocaleString()}</b> — ${esc(s.question)}</summary>
-      <pre>${esc(s.summary||"(sin resumen)")}</pre>
-    </details>
-  `).join("")}
-  </body></html>`;
-  if (w){ w.document.open(); w.document.write(html); w.document.close(); }
-  else { alert("No se pudo abrir la ventana del historial (bloqueada por el navegador)."); }
+function closeHistoryModal(){
+  histModal.classList.remove("show");
+  histModal.setAttribute("aria-hidden","true");
 }
 
 /* ====== Dictado ====== */
@@ -188,12 +228,10 @@ const PREFERRED_NAMES=[
   "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"
 ];
 const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
-
 let selectedVoice=null;
 function scoreVoice(v){
   const name=(v.name||"").toLowerCase(), lang=(v.lang||"").toLowerCase();
-  let s=0;
-  if (SP_LANGS.some(l=>lang.startsWith(l.toLowerCase()))) s+=5;
+  let s=0; if (SP_LANGS.some(l=>lang.startsWith(l.toLowerCase()))) s+=5;
   if (PREFERRED_NAMES.some(n=>name.includes(n.toLowerCase()))) s+=6;
   if (name.includes("female")||name.includes("femenina")||name.includes("mujer")) s+=4;
   if (name.includes("google")) s+=2; if (name.includes("microsoft")) s+=2;
@@ -208,18 +246,16 @@ function chooseFemaleES(){
 function initVoice(){ selectedVoice=chooseFemaleES(); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
 
-/* === Regex corregida (sin escapes inválidos con 'u') === */
+/* === Regex bullets (unicode ok) === */
 const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
 
-/* === Convertir texto general a lista numerada (visual) === */
+/* === Numeración visual si el texto parece listado === */
 function generalToOrderedListHTML(g){
   if (!g) return "";
   const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const bulletLike = lines.filter(s=>BULLET_RE.test(s)).length;
-
   const manyPlainLines = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length;
   const shouldNumber = (lines.length>=3) && (bulletLike>0 || manyPlainLines >= Math.ceil(lines.length*0.6));
-
   if (shouldNumber) {
     const items = lines.map(s=>s.replace(BULLET_RE,"")).filter(Boolean);
     return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
@@ -227,7 +263,7 @@ function generalToOrderedListHTML(g){
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* === TTS helpers === */
+/* === TTS: construir texto desde pantalla === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
@@ -250,6 +286,7 @@ function buildTTSTextFromOut(){
   return parts.join("\n\n") || fallback;
 }
 
+/* === Controlador TTS (voz sincronizada con video y pausa/reanuda) === */
 const TTS={
   enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
   makeChunks(text,maxLen=360){
@@ -284,29 +321,22 @@ const TTS={
              if(vid){ vid.loop=false; vid.pause(); } }
 };
 
-/* ====== Normalizar listas/tablas del backend ====== */
-function normalizeLists(lists){
-  if(!Array.isArray(lists)) return [];
-  return lists.map((entry,i)=>{
-    if(Array.isArray(entry)){
-      const flat=entry.every(x=>typeof x==="string"||typeof x==="number");
-      return {title:`Lista ${i+1}`, items: flat? entry : entry.map(x=>Array.isArray(x)? x.join(" ") : String(x))};
-    }else if(entry && typeof entry==="object"){
-      return {title: entry.title||`Lista ${i+1}`, items: Array.isArray(entry.items)? entry.items: []};
-    }else{
-      return {title:`Lista ${i+1}`, items:[String(entry)]};
-    }
-  });
-}
-
 /* ====== Render ====== */
 function renderAnswer(data){
   let html="";
   const generalTxt = data.general || data.answer || data.text || "";
   if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
 
-  const lists=normalizeLists(data.lists||[]);
-  lists.forEach(l=>{
+  const lists = Array.isArray(data.lists) ? data.lists : [];
+  const normLists = lists.map((entry,i)=>{
+    if(Array.isArray(entry)){
+      const flat=entry.every(x=>typeof x==="string"||typeof x==="number");
+      return {title:`Lista ${i+1}`, items: flat? entry : entry.map(x=>Array.isArray(x)? x.join(" ") : String(x))};
+    }else if(entry && typeof entry==="object"){
+      return {title: entry.title||`Lista ${i+1}`, items: Array.isArray(entry.items)? entry.items: []};
+    }else return {title:`Lista ${i+1}`, items:[String(entry)]};
+  });
+  normLists.forEach(l=>{
     html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
   });
 
@@ -321,7 +351,9 @@ function renderAnswer(data){
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
+  // Narración + guardar historial (con un micro-retardo para asegurar out.textContent)
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
+  setTimeout(()=> saveSession(q.value.trim(), data), 30);
 }
 
 /* ====== Backend ====== */
@@ -340,10 +372,9 @@ async function ask(){
     const data = await r.json().catch(()=>({}));
     if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
     renderAnswer(data);
-    saveSession(text, data);
   }catch(e){
     out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
-    saveSession(text, {});
+    setTimeout(()=> saveSession(q.value.trim(), {}), 30);
   }finally{
     btnSend.disabled=false; btnSend.textContent=old; clearStatus();
   }
@@ -371,13 +402,9 @@ selExport.addEventListener("change", ()=>{
       </head><body>${out.innerHTML}</body></html>`;
     try{ printHTML(html); }
     catch(_){
-      const w=window.open("", "_blank", "noopener,noreferrer");
-      if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
-      else{
-        const blob=new Blob([html],{type:"text/html"});
-        const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="lexium_export.html"; a.click();
-        setTimeout(()=>URL.revokeObjectURL(a.href),500);
-      }
+      const blob=new Blob([html],{type:"text/html"});
+      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="lexium_export.html"; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),500);
     }
     return;
   }
@@ -390,7 +417,7 @@ selExport.addEventListener("change", ()=>{
 });
 
 /* ====== Botones ====== */
-try { btnSend.addEventListener("click", ask); btnSend._wired = true; } catch {}
+btnSend.addEventListener("click", ask);
 btnDict.addEventListener("click", toggleDict);
 btnToggleAV.addEventListener("click", ()=>{
   if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
@@ -399,12 +426,34 @@ btnToggleAV.addEventListener("click", ()=>{
   else { TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
 });
 btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
-btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
-btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunta)", {}); TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus(); });
-btnHist.addEventListener("click", openHistory);
+btnClear.addEventListener("click", ()=>{
+  if (out.textContent.trim() || q.value.trim()) saveSession(q.value.trim(), {});
+  q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll();
+});
+btnNew.addEventListener("click", ()=>{
+  if (out.textContent.trim() || q.value.trim()) saveSession(q.value.trim(), {});
+  TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus();
+});
+
+/* ====== Historial (modal) ====== */
+btnHist.addEventListener("click", openHistoryModal);
+btnHistClose.addEventListener("click", closeHistoryModal);
+histModal.addEventListener("click", e=>{ if(e.target===histModal) closeHistoryModal(); });
+btnHistClear.addEventListener("click", ()=>{
+  if (confirm("¿Borrar todo el historial?")) setSessions([]), openHistoryModal();
+});
+btnHistDownload.addEventListener("click", ()=>{
+  const data = JSON.stringify(getSessions(), null, 2);
+  const blob = new Blob([data], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "historial_lexium.json";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+});
 
 /* ====== UX ====== */
-q.addEventListener("keydown",(e)=>{ if(e.key==="Enter" && (e.ctrlKey||e.metaKey)) ask(); });
+q.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); ask(); } });
 
 /* Mostrar errores JS en pantalla */
 window.addEventListener("error", (e)=>{
@@ -412,7 +461,7 @@ window.addEventListener("error", (e)=>{
   const box = document.getElementById("status");
   if (box) box.innerHTML = '<pre style="color:#b91c1c;background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:8px;white-space:pre-wrap">JS error: '
     + msg + '</pre>';
-}, {once:false});
+});
 </script>
 </body>
 </html>
