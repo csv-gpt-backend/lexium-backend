@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Asistente Lexium Virt</title>
+<title>Asistente Lexium 1616</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -13,16 +13,17 @@
   }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
 
-  /* ===== Bloque superior fijo (cubre todo el ancho de la ventana) ===== */
+  /* ===== Bloque superior fijo ===== */
   .mediaBar{
     position:fixed; top:0; left:0; width:100vw; z-index:50;
     background:#fff; border-bottom:none; padding:0; margin:0;
   }
   .mediaInner{max-width:var(--wrapW); margin:0 auto; padding:12px;}
   .heroGrid{display:grid; grid-template-columns:1fr 3fr 1fr; align-items:center; gap:8px;}
-  .sideImg{display:flex; justify-content:center; height:var(--heroH); margin:0;}
-  .sideImg img{max-width:100%; height:100%; object-fit:contain; opacity:.95}
-  .videoBox{height:var(--heroH); margin:0;}
+  .sideImg{display:flex; justify-content:center; height:var(--heroH); margin:0; overflow:hidden;}
+  .sideImg img{max-width:100%; height:100%; object-fit:contain; opacity:.95; transform-origin:center center;}
+  .sideImg.right img{ transform: scale(1.08); }         /* ← right.png “dos puntitos” más grande */
+  .videoBox{height:var(--heroH); margin:0; overflow:hidden;}
   .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
 
   /* ===== Contenido (scroll) comienza DESPUÉS del bloque fijo ===== */
@@ -77,13 +78,13 @@
   <div class="mediaBar" aria-label="cabecera">
     <div class="mediaInner">
       <div class="heroGrid">
-        <div class="sideImg">
+        <div class="sideImg left">
           <img src="left.png" alt="Logo izquierdo"/>
         </div>
         <div class="videoBox">
           <video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
         </div>
-        <div class="sideImg">
+        <div class="sideImg right">
           <img src="right.png" alt="Logo derecho"/>
         </div>
       </div>
@@ -145,13 +146,12 @@ function setStatusLoading(msg="Generando…"){
 }
 function clearStatus(){ statusEl.textContent = ""; }
 
-/* ====== Historial robusto (siempre guarda) ====== */
+/* ====== Historial ====== */
 function saveSession(question, data){
-  const minimal = { // minimizar tamaño para asegurar guardado
+  const minimal = {
     id: new Date().toISOString(),
     question,
-    summary: (data?.general || "").slice(0, 500),
-    lists: Array.isArray(data?.lists) ? data.lists.slice(0,1) : [],
+    summary: (data?.general || data?.answer || data?.text || "").slice(0, 600),
     when: Date.now()
   };
   try{
@@ -239,37 +239,45 @@ function chooseFemaleES(){
 function initVoice(){ selectedVoice=chooseFemaleES(); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
 
-/* === Convertir texto plano a lista numerada cuando convenga (visual y TTS) === */
+/* === Convertir general a lista numerada (visual) cuando vienen bullets/lineas === */
 function generalToOrderedListHTML(g){
   if (!g) return "";
   const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-  const bulletLike = lines.filter(s=>/^[•\-–\*\d]+\s+/u.test(s)).length;
+  const bulletLike = lines.filter(s=>/^(?:•|\-|\–|\*|\d+\.)\s+/u.test(s)).length;
   if (lines.length>=3 && bulletLike >= Math.floor(lines.length*0.6)) {
-    // convertir a <ol>
-    const items = lines.map(s=>s.replace(/^[•\-–\*\d.]+\s+/u,""));
+    const items = lines.map(s=>s.replace(/^(?:•|\-|\–|\*|\d+\.)\s+/u,"")).filter(Boolean);
     return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
   }
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* === TTS helpers === */
+/* === TTS helpers (narración con pausa clara entre elementos) === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
+  // Párrafos
   c.querySelectorAll("p").forEach(p=>{const t=p.textContent.trim(); if(t) parts.push(t);});
+  // Listas → "1. Nombre." (cada item termina en punto y salto de línea para PAUSA)
   c.querySelectorAll("ol,ul").forEach(list=>{
     const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
-    if(items.length) parts.push(items.map((t,i)=>`${i+1}. ${t}`).join("; "));
+    if(items.length){
+      const numbered = items.map((t,i)=>`${i+1}. ${t}.`).join("\n"); // ← punto + salto de línea = pausa natural
+      parts.push(numbered);
+    }
   });
+  // Tablas → enumerar por columna NOMBRE o primera
   c.querySelectorAll("table").forEach(tbl=>{
     const rows=[...tbl.querySelectorAll("tbody tr")]; if(!rows.length) return;
     const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim().toUpperCase());
     let col=0; const iN=headers.findIndex(h=>/NOMBRE/.test(h)); if(iN>=0) col=iN;
-    const items=rows.map((tr,i)=>{const t=(tr.querySelectorAll("td")[col]?.textContent||tr.querySelector("td")?.textContent||"").trim(); return `${i+1}. ${t}`;}).filter(Boolean);
-    if(items.length) parts.push(items.join("; "));
+    const items=rows.map((tr,i)=>{
+      const t=(tr.querySelectorAll("td")[col]?.textContent||tr.querySelector("td")?.textContent||"").trim();
+      return `${i+1}. ${t}.`;
+    }).filter(Boolean).join("\n"); // cada item termina en punto + salto de línea
+    if(items) parts.push(items);
   });
   const fallback=(out.textContent||"").trim();
-  return parts.join(". ") || fallback;
+  return parts.join("\n\n") || fallback;
 }
 
 const TTS={
@@ -325,9 +333,12 @@ function normalizeLists(lists){
 function renderAnswer(data){
   let html="";
 
-  // General: si parece listado, conviértelo a <ol> numerada
-  if(data.general){
-    html += generalToOrderedListHTML(data.general);
+  // Usar general || answer || text
+  const generalTxt = data.general || data.answer || data.text || "";
+
+  // General: si parece listado, conviértelo a <ol> numerada (visual)
+  if(generalTxt){
+    html += generalToOrderedListHTML(generalTxt);
   }
 
   // Lists estructuradas
@@ -370,7 +381,7 @@ async function ask(){
     const data = await r.json().catch(()=>({}));
     if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
     renderAnswer(data);
-    saveSession(text, data); // asegura historial
+    saveSession(text, data); // historial
   }catch(e){
     out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
   }finally{
@@ -380,7 +391,6 @@ async function ask(){
 
 /* ====== Exportar: PDF con vista previa sin pop-up ====== */
 function printHTML(html){
-  // 1) iframe oculto (preferido: no bloquea como popup)
   const iframe = document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
   iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0';
@@ -388,10 +398,7 @@ function printHTML(html){
   const doc = iframe.contentWindow || iframe.contentDocument;
   const idoc = doc.document || doc;
   idoc.open(); idoc.write(html); idoc.close();
-  const doPrint = ()=>{ try{ (iframe.contentWindow || iframe).focus(); (iframe.contentWindow || iframe).print(); }catch(e){} };
-  // en algunos navegadores, necesita onload
-  setTimeout(doPrint, 50);
-  // cleanup (deja unos segundos por si el usuario imprime)
+  setTimeout(()=>{ try{ (iframe.contentWindow || iframe).focus(); (iframe.contentWindow || iframe).print(); }catch{} }, 60);
   setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
 }
 selExport.addEventListener("change", ()=>{
@@ -403,13 +410,11 @@ selExport.addEventListener("change", ()=>{
              table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
       </head><body>${out.innerHTML}</body></html>`;
     try{
-      printHTML(html); // vista previa sin popup
+      printHTML(html);
     }catch(_){
-      // 2) Fallback: nueva pestaña
       const w=window.open("", "_blank", "noopener,noreferrer");
       if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
       else{
-        // 3) Último recurso: descarga HTML
         const blob=new Blob([html],{type:"text/html"});
         const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="lexium_export.html"; a.click();
         setTimeout(()=>URL.revokeObjectURL(a.href),500);
