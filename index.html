@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Asistente Lexium 1616</title>
+<title>Asistente Lexium Sudamérica</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -17,13 +17,16 @@
   .mediaBar{
     position:fixed; top:0; left:0; width:100vw; z-index:50;
     background:#fff; border-bottom:none; padding:0; margin:0;
+    /* Evitar que intercepte clics sobre botones que estén debajo */
+    pointer-events:none;
   }
+  .mediaBar *{ pointer-events:none; } /* el video no necesita interacción manual */
   .mediaInner{max-width:var(--wrapW); margin:0 auto; padding:12px;}
-  .heroGrid{display:grid; grid-template-columns:1fr 3fr 1fr; align-items:center; gap:8px;}
-  .sideImg{display:flex; justify-content:center; height:var(--heroH); margin:0; overflow:hidden;}
-  .sideImg img{max-width:100%; height:100%; object-fit:contain; opacity:.95; transform-origin:center center;}
-  .sideImg.right img{ transform: scale(1.08); }         /* ← right.png “dos puntitos” más grande */
-  .videoBox{height:var(--heroH); margin:0; overflow:hidden;}
+  /* derecha un poco más ancha para agrandar right.png SIN recortar */
+  .heroGrid{display:grid; grid-template-columns:1fr 3fr 1.16fr; align-items:center; gap:8px;}
+  .sideImg{display:flex; justify-content:center; height:var(--heroH); margin:0;}
+  .sideImg img{max-width:100%; height:100%; object-fit:contain; opacity:.95}
+  .videoBox{height:var(--heroH); margin:0;}
   .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
 
   /* ===== Contenido (scroll) comienza DESPUÉS del bloque fijo ===== */
@@ -48,7 +51,7 @@
     border:1px solid var(--bd); border-radius:10px; padding:10px; font-size:16px; line-height:1.4;
   }
 
-  /* Respuesta: área scrolleable propia, para respuestas largas */
+  /* Respuesta: área scrolleable propia */
   .out{
     margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px;
     overflow:auto; white-space:pre-wrap; max-height:65vh;
@@ -91,7 +94,7 @@
     </div>
   </div>
 
-  <!-- ===== Contenido (scroll solo aquí) ===== -->
+  <!-- ===== Contenido (solo aquí hay scroll) ===== -->
   <div class="contentWrap">
     <!-- Caja de texto + barra de acciones -->
     <div style="margin:10px 0 6px">
@@ -99,7 +102,7 @@
     </div>
 
     <div class="toolbar">
-      <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
+      <button id="btnSend" title="Enviar consulta al backend" onclick="ask()">Enviar</button>
       <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
       <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
       <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
@@ -146,12 +149,14 @@ function setStatusLoading(msg="Generando…"){
 }
 function clearStatus(){ statusEl.textContent = ""; }
 
-/* ====== Historial ====== */
+/* ====== Historial (siempre guarda algo visible) ====== */
 function saveSession(question, data){
+  const visible = (document.getElementById('out')?.textContent || "").trim();
+  const summary = (data?.general || data?.answer || data?.text || data?.html || visible || "").slice(0, 1000);
   const minimal = {
     id: new Date().toISOString(),
-    question,
-    summary: (data?.general || data?.answer || data?.text || "").slice(0, 600),
+    question: question || "(sin pregunta)",
+    summary,
     when: Date.now()
   };
   try{
@@ -185,7 +190,7 @@ function openHistory(){
   ${all.map(s=>`
     <details>
       <summary><b>${new Date(s.when).toLocaleString()}</b> — ${esc(s.question)}</summary>
-      <pre>${esc(s.summary||"")}</pre>
+      <pre>${esc(s.summary||"(sin resumen)")}</pre>
     </details>
   `).join("")}
   </body></html>`;
@@ -239,29 +244,34 @@ function chooseFemaleES(){
 function initVoice(){ selectedVoice=chooseFemaleES(); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
 
-/* === Convertir general a lista numerada (visual) cuando vienen bullets/lineas === */
+/* === Convertir texto general a lista numerada (visual) === */
 function generalToOrderedListHTML(g){
   if (!g) return "";
   const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const bulletLike = lines.filter(s=>/^(?:•|\-|\–|\*|\d+\.)\s+/u.test(s)).length;
-  if (lines.length>=3 && bulletLike >= Math.floor(lines.length*0.6)) {
+
+  // Si hay bullets, o si hay muchas líneas cortas sin puntuación final → numerar
+  const manyPlainLines = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length;
+  const shouldNumber = (lines.length>=3) && (bulletLike>0 || manyPlainLines >= Math.ceil(lines.length*0.6));
+
+  if (shouldNumber) {
     const items = lines.map(s=>s.replace(/^(?:•|\-|\–|\*|\d+\.)\s+/u,"")).filter(Boolean);
     return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
   }
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* === TTS helpers (narración con pausa clara entre elementos) === */
+/* === TTS helpers (pausa clara entre elementos) === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
   // Párrafos
   c.querySelectorAll("p").forEach(p=>{const t=p.textContent.trim(); if(t) parts.push(t);});
-  // Listas → "1. Nombre." (cada item termina en punto y salto de línea para PAUSA)
+  // Listas → "1. Nombre." (punto + salto de línea = pausa)
   c.querySelectorAll("ol,ul").forEach(list=>{
     const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
     if(items.length){
-      const numbered = items.map((t,i)=>`${i+1}. ${t}.`).join("\n"); // ← punto + salto de línea = pausa natural
+      const numbered = items.map((t,i)=>`${i+1}. ${t}.`).join("\n");
       parts.push(numbered);
     }
   });
@@ -273,13 +283,14 @@ function buildTTSTextFromOut(){
     const items=rows.map((tr,i)=>{
       const t=(tr.querySelectorAll("td")[col]?.textContent||tr.querySelector("td")?.textContent||"").trim();
       return `${i+1}. ${t}.`;
-    }).filter(Boolean).join("\n"); // cada item termina en punto + salto de línea
+    }).filter(Boolean).join("\n");
     if(items) parts.push(items);
   });
   const fallback=(out.textContent||"").trim();
   return parts.join("\n\n") || fallback;
 }
 
+/* === Controlador TTS (pausar/reanudar, sincronizado con video) === */
 const TTS={
   enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
   makeChunks(text,maxLen=360){
@@ -333,7 +344,6 @@ function normalizeLists(lists){
 function renderAnswer(data){
   let html="";
 
-  // Usar general || answer || text
   const generalTxt = data.general || data.answer || data.text || "";
 
   // General: si parece listado, conviértelo a <ol> numerada (visual)
@@ -384,6 +394,8 @@ async function ask(){
     saveSession(text, data); // historial
   }catch(e){
     out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
+    // guarda igual la sesión con lo que se ve en pantalla para no perder el rastro
+    saveSession(text, {});
   }finally{
     btnSend.disabled=false; btnSend.textContent=old; clearStatus();
   }
@@ -431,7 +443,7 @@ selExport.addEventListener("change", ()=>{
 });
 
 /* ====== Botones ====== */
-btnSend.addEventListener("click", ask);
+try { btnSend.addEventListener("click", ask); btnSend._wired = true; } catch {}
 btnDict.addEventListener("click", toggleDict);
 btnToggleAV.addEventListener("click", ()=>{
   if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
@@ -442,13 +454,21 @@ btnToggleAV.addEventListener("click", ()=>{
 btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
 btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
 btnNew.addEventListener("click", ()=>{
-  if((out.textContent||"").trim()) saveSession(q.value.trim()||"(sin pregunta)", {html: out.innerHTML});
+  saveSession(q.value.trim()||"(sin pregunta)", {});
   TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus();
 });
 btnHist.addEventListener("click", openHistory);
 
 /* ====== UX ====== */
 q.addEventListener("keydown",(e)=>{ if(e.key==="Enter" && (e.ctrlKey||e.metaKey)) ask(); });
+
+/* ====== Mostrar errores JS en pantalla (por si algo impide los clics) ====== */
+window.addEventListener("error", (e)=>{
+  const msg = (e?.error?.stack || e?.message || String(e)).slice(0, 600);
+  const box = document.getElementById("status");
+  if (box) box.innerHTML = '<pre style="color:#b91c1c;background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:8px;white-space:pre-wrap">JS error: '
+    + msg + '</pre>';
+}, {once:false});
 </script>
 </body>
 </html>
