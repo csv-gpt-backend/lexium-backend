@@ -3,51 +3,41 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Lexium — Consultas 1807</title>
+<title>Lexium — Consultas1829</title>
 <style>
   :root{--bg:#fff;--fg:#111;--muted:#6b7280;--pri:#0d6efd;--bd:#e5e7eb;--err:#b91c1c}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
   .wrap{max-width:1180px;margin:0 auto;padding:12px}
-
-  /* Cabecera fija (video + logos + controles) */
   .hero{position:sticky;top:0;background:#fff;z-index:5;padding-top:4px;border-bottom:1px solid var(--bd)}
   .heroGrid{display:grid;grid-template-columns:1fr 3fr 1fr;align-items:center;gap:8px}
   .sideImg{display:flex;justify-content:center}
   .sideImg img{max-width:92%;height:auto;object-fit:contain;opacity:.95}
   .videoBox video{width:100%;height:auto;border:none;display:block;border-radius:10px}
-
   .toolbar{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin:8px 0}
   .toolbar button,.toolbar select{padding:9px 14px;border:1px solid var(--bd);border-radius:10px;background:#fff;cursor:pointer}
   .toolbar button[disabled]{opacity:.6;cursor:not-allowed}
-
-  /* Caja de pregunta en 1 sola línea */
+  .hist{position:fixed;right:14px;top:10px;z-index:9999}
+  .hist button{padding:8px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff}
   .query{width:100%;height:40px;border:1px solid var(--bd);border-radius:10px;padding:10px 12px;font-size:16px}
-
-  /* Área de respuesta (scroll solo aquí) */
+  .statusDock{position:fixed;top:10px;left:12px;z-index:9999;pointer-events:none}
+  #status{min-width:140px;display:none;background:#fff;border:1px solid var(--bd);border-radius:10px;padding:6px 10px;box-shadow:0 2px 8px rgba(0,0,0,.06);color:var(--muted)}
   .out{margin:8px 0;border:1px solid var(--bd);border-radius:12px;padding:12px;overflow:auto;max-height:calc(100vh - 290px)}
   table{width:100%;border-collapse:collapse;margin:10px 0}
   th,td{border:1px solid var(--bd);padding:8px}
   th{background:#f8fafc;text-align:left}
-
-  /* Burbuja de estado fija (arriba-izquierda) */
-  .statusDock{position:fixed;top:10px;left:12px;z-index:9999;pointer-events:none}
-  #status{min-width:140px;display:none;background:#fff;border:1px solid var(--bd);border-radius:10px;padding:6px 10px;box-shadow:0 2px 8px rgba(0,0,0,.06);color:var(--muted)}
   .loader{display:inline-flex;align-items:center;gap:8px;font-size:.95rem}
   .dot{width:8px;height:8px;border-radius:50%;background:var(--pri);opacity:.8;animation:bounce 1s infinite}
   .dot:nth-child(2){animation-delay:.15s}.dot:nth-child(3){animation-delay:.3s}
   @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
-
   .err{color:var(--err);white-space:pre-wrap}
-  .hist{position:fixed;right:14px;top:10px;z-index:9999}
-  .hist button{padding:8px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <!-- Historial -->
-  <div class="hist"><button id="btnHist">Historial</button></div>
+  <div class="hist">
+    <button id="btnHist">Historial</button>
+  </div>
 
-  <!-- Cabecera (logos + video + controles) -->
   <div class="hero" aria-label="cabecera">
     <div class="heroGrid">
       <div class="sideImg"><img src="left.png" alt="Logo izquierdo"></div>
@@ -77,16 +67,18 @@
     </div>
   </div>
 
-  <!-- Estado fijo arriba-izquierda -->
   <div class="statusDock"><div id="status"></div></div>
-
-  <!-- Respuesta -->
   <div id="out" class="out" aria-live="polite"></div>
 </div>
 
 <script>
-/* ====== CONFIG ====== */
-const API_BASE = "https://lexium-api-nqh4ai2hnq-tl.a.run.app"; // <— cambia si tu URL es otra
+/* ====== CONFIG DINÁMICA DEL API ====== */
+const DEFAULT_CANDIDATES = [
+  "https://lexium-api-nqh4ai2hnq-tl.a.run.app",
+  "https://lexium-api-383217514425.southamerica-west1.run.app"
+];
+let API_BASE = localStorage.getItem("lexium_api_base") || DEFAULT_CANDIDATES[0];
+
 const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
 const HEALTH_TIMEOUT_MS = 4000;
@@ -107,28 +99,31 @@ const btnClear = document.getElementById("btnClear");
 const selExport = document.getElementById("selExport");
 const btnHist = document.getElementById("btnHist");
 
-/* ====== Estado petición/voz ====== */
-let voices = [], currentVoice = null, speaking = false, paused = false, lastSpokenText = "";
-let recognizer = null;
-let inFlightAbort = null;
-let sendLabel = btnSend.textContent;
+/* === Botón rápido para configurar API === */
+const apiBtn = document.createElement("button");
+apiBtn.textContent = "⚙️ API";
+apiBtn.style.marginLeft = "8px";
+apiBtn.title = "Configurar URL del API";
+apiBtn.onclick = () => {
+  const val = prompt("Pega el Service URL exacto de Cloud Run:", API_BASE || "");
+  if (!val) return;
+  API_BASE = val.trim().replace(/\/+$/,"");
+  localStorage.setItem("lexium_api_base", API_BASE);
+  alert("API_BASE actualizado:\n" + API_BASE);
+};
+document.querySelector(".hist").appendChild(apiBtn);
 
-/* ====== Estado (arriba-izquierda) ====== */
+/* ====== Estado (arriba-izquierda) & botón ====== */
+let voices = [], currentVoice = null, speaking = false, paused = false, lastSpokenText = "";
+let recognizer = null, inFlightAbort = null, sendLabel = btnSend.textContent;
+
 function setStatusLoading(msg="Consultando…"){
   statusBox.style.display = "block";
   statusBox.innerHTML = `<span class="loader"><span class="dot"></span><span class="dot"></span><span class="dot"></span>${msg}</span>`;
 }
-function setStatusText(msg){
-  statusBox.style.display = "block";
-  statusBox.textContent = msg;
-}
+function setStatusText(msg){ statusBox.style.display="block"; statusBox.textContent = msg; }
 function clearStatus(){ statusBox.style.display="none"; statusBox.textContent=""; }
-
-/* ====== Botón Enviar: bloqueo consistente ====== */
-function setUiBusy(busy){
-  btnSend.disabled = !!busy;
-  btnSend.textContent = busy ? "Enviando…" : sendLabel;
-}
+function setUiBusy(b){ btnSend.disabled=!!b; btnSend.textContent = b ? "Enviando…" : (sendLabel || "Enviar"); }
 
 /* ====== Voz ====== */
 function pickSpanishFemale(){
@@ -162,8 +157,41 @@ function toggleAV(){
 }
 function replay(){ if (speechSynthesis?.speaking) speechSynthesis.cancel(); speak(lastSpokenText); }
 
-/* ====== Utils ====== */
+/* ====== Utils & fetch ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+function fetchWithTimeout(url, opts={}, ms=15000){
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), ms);
+  const merged = { ...opts, signal: ctrl.signal };
+  return { promise: fetch(url, merged).finally(()=>clearTimeout(t)), abort: ()=>ctrl.abort() };
+}
+
+/* ====== Preflight tolerante (no depende solo de /healthz) ====== */
+async function preflight(){
+  if (await checkHealth(API_BASE)) return true;
+  for (const cand of DEFAULT_CANDIDATES) {
+    if (!cand || cand === API_BASE) continue;
+    if (await checkHealth(cand)) {
+      API_BASE = cand.replace(/\/+$/,'');
+      localStorage.setItem("lexium_api_base", API_BASE);
+      setStatusText("API actualizado automáticamente.");
+      return true;
+    }
+  }
+  return false; // seguimos intentando igual
+}
+async function checkHealth(base){
+  try{
+    const root = base.replace(/\/+$/,'');
+    let r = await fetch(`${root}/healthz`, { method:"GET" }).catch(()=>null);
+    if (r && r.ok) return true;
+    r = await fetch(`${root}/api/debug-map`, { method:"GET" }).catch(()=>null);
+    if (r && r.ok) return true;
+    r = await fetch(`${root}/api/answer?q=ping`, { method:"HEAD" }).catch(()=>null);
+    if (!r) r = await fetch(`${root}/api/answer?q=ping`, { method:"GET" }).catch(()=>null);
+    return !!(r && r.ok);
+  }catch{ return false; }
+}
 
 /* ====== Render ====== */
 function renderAnswer(data){
@@ -214,38 +242,20 @@ function toggleDict(){
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
 }
 
-/* ====== fetch con timeout ====== */
-function fetchWithTimeout(url, opts={}, ms=15000){
-  const ctrl = new AbortController();
-  const t = setTimeout(()=>ctrl.abort(), ms);
-  const merged = { ...opts, signal: ctrl.signal };
-  return { promise: fetch(url, merged).finally(()=>clearTimeout(t)), abort: ()=>ctrl.abort() };
-}
-
-/* Ping rápido */
-async function preflight(){
-  const { promise } = fetchWithTimeout(`${API_BASE}/healthz`, {}, HEALTH_TIMEOUT_MS);
-  const r = await promise.catch(()=>null);
-  return !!(r && r.ok);
-}
-
 /* ====== Enviar ====== */
 async function ask(){
-  if (btnSend.disabled) return;                 // evita doble clic
+  if (btnSend.disabled) return;
   const text = q.value.trim(); if (!text) return;
 
-  // cancela petición anterior si hubiera
-  if (inFlightAbort){ inFlightAbort(); inFlightAbort = null; }
+  if (inFlightAbort){ inFlightAbort(); inFlightAbort=null; }
 
   setUiBusy(true);
   if (speechSynthesis?.speaking) speechSynthesis.cancel();
-  out.innerHTML = "";
-  setStatusLoading("Consultando…");
+  out.innerHTML = ""; setStatusLoading("Consultando…");
 
   try{
-    // health check
     const ok = await preflight();
-    if (!ok){ out.innerHTML = `<pre class="err">El servicio no responde (healthz).</pre>`; return; }
+    if (!ok) setStatusText("No se pudo verificar salud; intentando de todos modos…");
 
     let lastErr = null;
     for (let i=1;i<=MAX_TRIES;i++){
@@ -260,7 +270,6 @@ async function ask(){
       let r;
       try{ r = await promise; }catch(e){ lastErr = e; }
 
-      // Fallback si /api/gpt no existe
       if (r && (r.status===404 || r.status===405)){
         try{
           const f = fetchWithTimeout(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {}, CLIENT_TIMEOUT_MS);
@@ -279,13 +288,11 @@ async function ask(){
         }
       }catch(e){ lastErr = e; }
     }
+
     const msg = `No se pudo conectar con el servicio.\nDetalle: ${lastErr?.name||"Error"}: ${lastErr?.message||String(lastErr)}`;
     out.innerHTML = `<pre class="err">${esc(msg)}</pre>`;
   } finally {
-    // siempre desbloquea
-    setUiBusy(false);
-    clearStatus();
-    inFlightAbort = null;
+    setUiBusy(false); clearStatus(); inFlightAbort=null;
   }
 }
 
@@ -296,17 +303,10 @@ btnDict.addEventListener("click", toggleDict);
 btnToggleAV.addEventListener("click", toggleAV);
 btnReplay.addEventListener("click", replay);
 btnHist.addEventListener("click", openHistory);
+btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; if (speechSynthesis?.speaking) speechSynthesis.cancel(); if (inFlightAbort){ inFlightAbort(); inFlightAbort=null; } setUiBusy(false); clearStatus(); });
+btnNew.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; if (speechSynthesis?.speaking) speechSynthesis.cancel(); if (inFlightAbort){ inFlightAbort(); inFlightAbort=null; } setUiBusy(false); clearStatus(); });
 
-/* Limpiar / Nueva sesión también cancelan todo y desbloquean */
-function haltAll(){
-  if (speechSynthesis?.speaking) speechSynthesis.cancel();
-  if (inFlightAbort){ inFlightAbort(); inFlightAbort=null; }
-  setUiBusy(false); clearStatus();
-}
-btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; haltAll(); });
-btnNew.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; haltAll(); });
-
-/* Exportar */
+/* ====== Exportar ====== */
 selExport.addEventListener("change", ()=>{
   const v = selExport.value; selExport.value="";
   if (!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
