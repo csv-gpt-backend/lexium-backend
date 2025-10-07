@@ -3,45 +3,58 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Lexium — Consultas 1759</title>
+<title>Lexium — Consultas 1807</title>
 <style>
   :root{--bg:#fff;--fg:#111;--muted:#6b7280;--pri:#0d6efd;--bd:#e5e7eb;--err:#b91c1c}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
   .wrap{max-width:1180px;margin:0 auto;padding:12px}
+
+  /* Cabecera fija (video + logos + controles) */
   .hero{position:sticky;top:0;background:#fff;z-index:5;padding-top:4px;border-bottom:1px solid var(--bd)}
   .heroGrid{display:grid;grid-template-columns:1fr 3fr 1fr;align-items:center;gap:8px}
   .sideImg{display:flex;justify-content:center}
   .sideImg img{max-width:92%;height:auto;object-fit:contain;opacity:.95}
   .videoBox video{width:100%;height:auto;border:none;display:block;border-radius:10px}
+
   .toolbar{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin:8px 0}
   .toolbar button,.toolbar select{padding:9px 14px;border:1px solid var(--bd);border-radius:10px;background:#fff;cursor:pointer}
   .toolbar button[disabled]{opacity:.6;cursor:not-allowed}
-  .hist{position:fixed;right:14px;top:10px;z-index:9}
-  .hist button{padding:8px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff}
+
+  /* Caja de pregunta en 1 sola línea */
   .query{width:100%;height:40px;border:1px solid var(--bd);border-radius:10px;padding:10px 12px;font-size:16px}
+
+  /* Área de respuesta (scroll solo aquí) */
   .out{margin:8px 0;border:1px solid var(--bd);border-radius:12px;padding:12px;overflow:auto;max-height:calc(100vh - 290px)}
-  .muted{color:var(--muted);font-size:.9rem}
   table{width:100%;border-collapse:collapse;margin:10px 0}
   th,td{border:1px solid var(--bd);padding:8px}
   th{background:#f8fafc;text-align:left}
-  .loader{display:inline-flex;align-items:center;gap:8px;font-size:.95rem;color:var(--muted)}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--pri);opacity:.7;animation:bounce 1s infinite}
+
+  /* Burbuja de estado fija (arriba-izquierda) */
+  .statusDock{position:fixed;top:10px;left:12px;z-index:9999;pointer-events:none}
+  #status{min-width:140px;display:none;background:#fff;border:1px solid var(--bd);border-radius:10px;padding:6px 10px;box-shadow:0 2px 8px rgba(0,0,0,.06);color:var(--muted)}
+  .loader{display:inline-flex;align-items:center;gap:8px;font-size:.95rem}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--pri);opacity:.8;animation:bounce 1s infinite}
   .dot:nth-child(2){animation-delay:.15s}.dot:nth-child(3){animation-delay:.3s}
   @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
-  .err{color:var(--err)}
+
+  .err{color:var(--err);white-space:pre-wrap}
+  .hist{position:fixed;right:14px;top:10px;z-index:9999}
+  .hist button{padding:8px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff}
 </style>
 </head>
 <body>
 <div class="wrap">
+  <!-- Historial -->
   <div class="hist"><button id="btnHist">Historial</button></div>
 
+  <!-- Cabecera (logos + video + controles) -->
   <div class="hero" aria-label="cabecera">
     <div class="heroGrid">
-      <div class="sideImg"><img src="left.png" alt="Logo izquierdo"/></div>
+      <div class="sideImg"><img src="left.png" alt="Logo izquierdo"></div>
       <div class="videoBox">
         <video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
       </div>
-      <div class="sideImg"><img src="right.png" alt="Logo derecho" style="transform:scale(1.03)"/></div>
+      <div class="sideImg"><img src="right.png" alt="Logo derecho" style="transform:scale(1.03)"></div>
     </div>
 
     <div style="margin:8px 0">
@@ -64,23 +77,26 @@
     </div>
   </div>
 
+  <!-- Estado fijo arriba-izquierda -->
+  <div class="statusDock"><div id="status"></div></div>
+
+  <!-- Respuesta -->
   <div id="out" class="out" aria-live="polite"></div>
-  <div id="status" class="muted"></div>
 </div>
 
 <script>
 /* ====== CONFIG ====== */
-const API_BASE = "https://lexium-api-nqh4ai2hnq-tl.a.run.app";   // <— TU URL ACTUAL DE CLOUD RUN
+const API_BASE = "https://lexium-api-nqh4ai2hnq-tl.a.run.app"; // <— cambia si tu URL es otra
 const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
-const HEALTH_TIMEOUT_MS = 4000;    // 4s
-const CLIENT_TIMEOUT_MS = 15000;   // 15s por intento
-const MAX_TRIES = 2;               // 2 intentos
+const HEALTH_TIMEOUT_MS = 4000;
+const CLIENT_TIMEOUT_MS = 15000;
+const MAX_TRIES = 2;
 
 /* ====== UI refs ====== */
 const q = document.getElementById("q");
 const out = document.getElementById("out");
-const statusEl = document.getElementById("status");
+const statusBox = document.getElementById("status");
 const vid = document.getElementById("vid");
 const btnSend = document.getElementById("btnSend");
 const btnDict = document.getElementById("btnDict");
@@ -91,15 +107,30 @@ const btnClear = document.getElementById("btnClear");
 const selExport = document.getElementById("selExport");
 const btnHist = document.getElementById("btnHist");
 
-/* ====== Voz ====== */
-let voices = [];
-let currentVoice = null;
-let speaking = false;
-let paused = false;
-let lastSpokenText = "";
+/* ====== Estado petición/voz ====== */
+let voices = [], currentVoice = null, speaking = false, paused = false, lastSpokenText = "";
 let recognizer = null;
 let inFlightAbort = null;
+let sendLabel = btnSend.textContent;
 
+/* ====== Estado (arriba-izquierda) ====== */
+function setStatusLoading(msg="Consultando…"){
+  statusBox.style.display = "block";
+  statusBox.innerHTML = `<span class="loader"><span class="dot"></span><span class="dot"></span><span class="dot"></span>${msg}</span>`;
+}
+function setStatusText(msg){
+  statusBox.style.display = "block";
+  statusBox.textContent = msg;
+}
+function clearStatus(){ statusBox.style.display="none"; statusBox.textContent=""; }
+
+/* ====== Botón Enviar: bloqueo consistente ====== */
+function setUiBusy(busy){
+  btnSend.disabled = !!busy;
+  btnSend.textContent = busy ? "Enviando…" : sendLabel;
+}
+
+/* ====== Voz ====== */
 function pickSpanishFemale(){
   voices = (typeof speechSynthesis !== "undefined") ? speechSynthesis.getVoices() : [];
   const es = voices.filter(v=>/^es(-|_)?/i.test(v.lang||""));
@@ -123,17 +154,16 @@ function speak(text){
   u.onerror = ()=>{ speaking = false; vid.pause(); };
   speechSynthesis.speak(u);
 }
-function toggleAV(){ if(!speechSynthesis) return;
+function toggleAV(){
+  if (!speechSynthesis) return;
   if (speaking && !paused){ speechSynthesis.pause(); paused = true; vid.pause(); }
   else if (speaking && paused){ speechSynthesis.resume(); paused = false; vid.play().catch(()=>{}); }
   else { speak(lastSpokenText); }
 }
-function replay(){ if(speechSynthesis?.speaking) speechSynthesis.cancel(); speak(lastSpokenText); }
+function replay(){ if (speechSynthesis?.speaking) speechSynthesis.cancel(); speak(lastSpokenText); }
 
 /* ====== Utils ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
-function setStatusLoading(msg){ statusEl.innerHTML = `<span class="loader"><span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`; }
-function clearStatus(){ statusEl.textContent = ""; }
 
 /* ====== Render ====== */
 function renderAnswer(data){
@@ -184,7 +214,7 @@ function toggleDict(){
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
 }
 
-/* ====== Fetch con timeout ====== */
+/* ====== fetch con timeout ====== */
 function fetchWithTimeout(url, opts={}, ms=15000){
   const ctrl = new AbortController();
   const t = setTimeout(()=>ctrl.abort(), ms);
@@ -192,86 +222,89 @@ function fetchWithTimeout(url, opts={}, ms=15000){
   return { promise: fetch(url, merged).finally(()=>clearTimeout(t)), abort: ()=>ctrl.abort() };
 }
 
-/* Health check rápido (4s) */
+/* Ping rápido */
 async function preflight(){
   const { promise } = fetchWithTimeout(`${API_BASE}/healthz`, {}, HEALTH_TIMEOUT_MS);
   const r = await promise.catch(()=>null);
   return !!(r && r.ok);
 }
 
-let inFlightAbort = null;
-
+/* ====== Enviar ====== */
 async function ask(){
+  if (btnSend.disabled) return;                 // evita doble clic
   const text = q.value.trim(); if (!text) return;
 
-  // cancela petición en curso
-  if (inFlightAbort){ inFlightAbort(); inFlightAbort=null; }
+  // cancela petición anterior si hubiera
+  if (inFlightAbort){ inFlightAbort(); inFlightAbort = null; }
 
-  // ping rápido
-  setStatusLoading("Comprobando servicio…");
-  const ok = await preflight();
-  if (!ok){
-    out.innerHTML = `<pre class="err">El servicio no está disponible (healthz falló).</pre>`;
-    clearStatus(); return;
-  }
+  setUiBusy(true);
+  if (speechSynthesis?.speaking) speechSynthesis.cancel();
+  out.innerHTML = "";
+  setStatusLoading("Consultando…");
 
-  btnSend.disabled = true; const old = btnSend.textContent; btnSend.textContent = "Enviando…";
-  out.innerHTML = ""; setStatusLoading("Consultando…"); if (speechSynthesis?.speaking) speechSynthesis.cancel();
+  try{
+    // health check
+    const ok = await preflight();
+    if (!ok){ out.innerHTML = `<pre class="err">El servicio no responde (healthz).</pre>`; return; }
 
-  let lastErr = null;
-  for (let i=1;i<=MAX_TRIES;i++){
-    setStatusLoading(i===1 ? "Consultando…" : `Reintentando… (${i}/${MAX_TRIES})`);
-    const { promise, abort } = fetchWithTimeout(`${API_BASE}${GPT_PATH}`, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json","Accept":"application/json" },
-      body: JSON.stringify({ q: text })
-    }, CLIENT_TIMEOUT_MS);
-    inFlightAbort = abort;
+    let lastErr = null;
+    for (let i=1;i<=MAX_TRIES;i++){
+      setStatusLoading(i===1 ? "Consultando…" : `Reintentando… (${i}/${MAX_TRIES})`);
+      const { promise, abort } = fetchWithTimeout(`${API_BASE}${GPT_PATH}`, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json","Accept":"application/json" },
+        body: JSON.stringify({ q: text })
+      }, CLIENT_TIMEOUT_MS);
+      inFlightAbort = abort;
 
-    let r;
-    try{
-      r = await promise;
-    }catch(e){
-      lastErr = e;
-    }
+      let r;
+      try{ r = await promise; }catch(e){ lastErr = e; }
 
-    // /api/gpt no existe -> fallback
-    if (r && (r.status===404 || r.status===405)){
+      // Fallback si /api/gpt no existe
+      if (r && (r.status===404 || r.status===405)){
+        try{
+          const f = fetchWithTimeout(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {}, CLIENT_TIMEOUT_MS);
+          inFlightAbort = f.abort;
+          r = await f.promise;
+        }catch(e){ lastErr = e; }
+      }
+
       try{
-        const f = fetchWithTimeout(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {}, CLIENT_TIMEOUT_MS);
-        inFlightAbort = f.abort;
-        r = await f.promise;
+        if (r && r.ok){
+          const data = await r.json();
+          saveSession(text, data);
+          renderAnswer(data);
+          clearStatus();
+          return;
+        }
       }catch(e){ lastErr = e; }
     }
-
-    try{
-      if (r && r.ok){
-        const data = await r.json();
-        saveSession(text, data);
-        renderAnswer(data);
-        clearStatus();
-        btnSend.disabled=false; btnSend.textContent=old; inFlightAbort=null;
-        return;
-      }
-    }catch(e){ lastErr = e; }
+    const msg = `No se pudo conectar con el servicio.\nDetalle: ${lastErr?.name||"Error"}: ${lastErr?.message||String(lastErr)}`;
+    out.innerHTML = `<pre class="err">${esc(msg)}</pre>`;
+  } finally {
+    // siempre desbloquea
+    setUiBusy(false);
+    clearStatus();
+    inFlightAbort = null;
   }
-
-  const msg = `No se pudo conectar con el servicio.
-Verifica la URL del API o tu conexión.
-Detalle: ${lastErr?.name || "Error"}: ${lastErr?.message || String(lastErr)}`;
-  out.innerHTML = `<pre class="err">${esc(msg)}</pre>`;
-  clearStatus(); btnSend.disabled=false; btnSend.textContent=old; inFlightAbort=null;
 }
 
-/* Eventos */
+/* ====== Eventos ====== */
 btnSend.addEventListener("click", ask);
+q.addEventListener("keydown", e=>{ if (e.key==="Enter") ask(); });
 btnDict.addEventListener("click", toggleDict);
 btnToggleAV.addEventListener("click", toggleAV);
 btnReplay.addEventListener("click", replay);
 btnHist.addEventListener("click", openHistory);
-btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); speechSynthesis?.speaking && speechSynthesis.cancel(); inFlightAbort?.(); inFlightAbort=null; });
-btnNew.addEventListener("click",   ()=>{ q.value=""; out.innerHTML=""; clearStatus(); speechSynthesis?.speaking && speechSynthesis.cancel(); inFlightAbort?.(); inFlightAbort=null; });
-q.addEventListener("keydown", e=>{ if (e.key==="Enter") ask(); });
+
+/* Limpiar / Nueva sesión también cancelan todo y desbloquean */
+function haltAll(){
+  if (speechSynthesis?.speaking) speechSynthesis.cancel();
+  if (inFlightAbort){ inFlightAbort(); inFlightAbort=null; }
+  setUiBusy(false); clearStatus();
+}
+btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; haltAll(); });
+btnNew.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; haltAll(); });
 
 /* Exportar */
 selExport.addEventListener("change", ()=>{
