@@ -3,92 +3,118 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Lexium — Consultas1829</title>
+<title>Lexium — Consultas1851</title>
 <style>
-  :root{--bg:#fff;--fg:#111;--muted:#6b7280;--pri:#0d6efd;--bd:#e5e7eb;--err:#b91c1c}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
-  .wrap{max-width:1180px;margin:0 auto;padding:12px}
+  :root{
+    --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
+    --ok:#16a34a; --err:#b91c1c;
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.45 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
+  .wrap{max-width:1180px;margin:0 auto;padding:12px;}
+
+  /* Cabecera fija (video + imágenes) */
   .hero{position:sticky;top:0;background:#fff;z-index:5;padding-top:4px;border-bottom:1px solid var(--bd)}
-  .heroGrid{display:grid;grid-template-columns:1fr 3fr 1fr;align-items:center;gap:8px}
-  .sideImg{display:flex;justify-content:center}
+  .heroGrid{display:grid;grid-template-columns:1fr 3fr 1fr;align-items:center;gap:8px;}
+  .sideImg{display:flex;justify-content:center;align-items:center;min-height:80px}
   .sideImg img{max-width:92%;height:auto;object-fit:contain;opacity:.95}
   .videoBox video{width:100%;height:auto;border:none;display:block;border-radius:10px}
+
+  /* Caja de texto en UNA línea */
+  .query{width:100%;height:44px;border:1px solid var(--bd);border-radius:10px;padding:10px;font-size:16px;resize:none;overflow:hidden}
+
   .toolbar{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap;margin:8px 0}
-  .toolbar button,.toolbar select{padding:9px 14px;border:1px solid var(--bd);border-radius:10px;background:#fff;cursor:pointer}
+  .toolbar button, .toolbar select{
+    padding:9px 14px;border:1px solid var(--bd);border-radius:10px;background:#fff;cursor:pointer;
+  }
+  .toolbar button:hover{background:#f5f7fb}
   .toolbar button[disabled]{opacity:.6;cursor:not-allowed}
-  .hist{position:fixed;right:14px;top:10px;z-index:9999}
-  .hist button{padding:8px 12px;border:1px solid var(--bd);border-radius:10px;background:#fff}
-  .query{width:100%;height:40px;border:1px solid var(--bd);border-radius:10px;padding:10px 12px;font-size:16px}
-  .statusDock{position:fixed;top:10px;left:12px;z-index:9999;pointer-events:none}
-  #status{min-width:140px;display:none;background:#fff;border:1px solid var(--bd);border-radius:10px;padding:6px 10px;box-shadow:0 2px 8px rgba(0,0,0,.06);color:var(--muted)}
-  .out{margin:8px 0;border:1px solid var(--bd);border-radius:12px;padding:12px;overflow:auto;max-height:calc(100vh - 290px)}
+
+  .out{margin:10px 0;border:1px solid var(--bd);border-radius:12px;padding:12px;overflow:auto;max-height:calc(100vh - 260px)}
+  .muted{color:var(--muted);font-size:.9rem}
+
   table{width:100%;border-collapse:collapse;margin:10px 0}
   th,td{border:1px solid var(--bd);padding:8px}
   th{background:#f8fafc;text-align:left}
-  .loader{display:inline-flex;align-items:center;gap:8px;font-size:.95rem}
-  .dot{width:8px;height:8px;border-radius:50%;background:var(--pri);opacity:.8;animation:bounce 1s infinite}
-  .dot:nth-child(2){animation-delay:.15s}.dot:nth-child(3){animation-delay:.3s}
+
+  /* Loader + Status fijo arriba-izquierda */
+  #status {
+    position: fixed;
+    top: 10px;
+    left: 12px;
+    z-index: 1000;
+    background: rgba(255,255,255,.92);
+    border: 1px solid var(--bd);
+    border-radius: 10px;
+    padding: 6px 10px;
+    font-size: .92rem;
+    color: #374151;
+  }
+  .loader{display:inline-flex;align-items:center;gap:8px;font-size:.95rem;color:var(--muted)}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--pri);opacity:.7;animation:bounce 1s infinite}
+  .dot:nth-child(2){animation-delay:.15s}
+  .dot:nth-child(3){animation-delay:.3s}
   @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
-  .err{color:var(--err);white-space:pre-wrap}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="hist">
-    <button id="btnHist">Historial</button>
+
+  <!-- botón Historial -->
+  <div style="position:fixed;right:14px;top:10px;z-index:9">
+    <button id="btnHist" title="Ver sesiones guardadas">Historial</button>
   </div>
 
+  <!-- Bloque superior fijo -->
   <div class="hero" aria-label="cabecera">
     <div class="heroGrid">
-      <div class="sideImg"><img src="left.png" alt="Logo izquierdo"></div>
+      <div class="sideImg"><img src="left.png" alt="Logo izquierdo" /></div>
       <div class="videoBox">
         <video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
       </div>
-      <div class="sideImg"><img src="right.png" alt="Logo derecho" style="transform:scale(1.03)"></div>
+      <div class="sideImg"><img src="right.png" alt="Logo derecho" style="transform:scale(1.05)" /></div>
     </div>
 
+    <!-- Caja de texto + barra de acciones -->
     <div style="margin:8px 0">
-      <input id="q" class="query" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…" />
+      <textarea id="q" class="query" rows="1" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
     </div>
 
     <div class="toolbar">
-      <button id="btnSend">Enviar</button>
-      <button id="btnDict">🎤 Dictar</button>
-      <button id="btnToggleAV">⏯ Reanudar voz</button>
-      <button id="btnReplay">⟳ Reproducir</button>
-      <button id="btnNew">＋ Nueva sesión</button>
-      <button id="btnClear">🧹 Limpiar</button>
-      <select id="selExport">
+      <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
+      <button id="btnDict" title="Dictar por voz">🎤 Dictar</button>
+      <button id="btnToggleAV" title="Parar/Activar voz y video">⏯ Reanudar voz</button>
+      <button id="btnReplay" title="Reproducir desde el inicio">⟳ Reproducir</button>
+      <button id="btnNew" title="Nueva sesión">＋ Nueva sesión</button>
+      <button id="btnClear" title="Limpiar">🧹 Limpiar</button>
+      <select id="selExport" title="Exportar (PDF muestra vista previa)">
         <option value="">Exportar…</option>
         <option value="pdf">PDF (vista previa)</option>
         <option value="xls">XLS</option>
         <option value="doc">DOC</option>
       </select>
+      <button id="btnCfg">⚙️ Configurar URL del API</button>
     </div>
   </div>
 
-  <div class="statusDock"><div id="status"></div></div>
+  <!-- Resultado -->
+  <div id="status"></div>
   <div id="out" class="out" aria-live="polite"></div>
+
 </div>
 
 <script>
-/* ====== CONFIG DINÁMICA DEL API ====== */
-const DEFAULT_CANDIDATES = [
-  "https://lexium-api-nqh4ai2hnq-tl.a.run.app",
-  "https://lexium-api-383217514425.southamerica-west1.run.app"
-];
-let API_BASE = localStorage.getItem("lexium_api_base") || DEFAULT_CANDIDATES[0];
-
+/* ====== CONFIG ====== */
+const DEFAULT_API_BASE = "https://lexium-api-nqh4ai2hnq-tl.a.run.app";
+const API_BASE = () => localStorage.getItem("lexium_api_base") || DEFAULT_API_BASE;
 const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
 const HEALTH_TIMEOUT_MS = 7000;
 const CLIENT_TIMEOUT_MS = 45000;
-const MAX_TRIES = 2;
 
 /* ====== UI refs ====== */
 const q = document.getElementById("q");
 const out = document.getElementById("out");
-const statusBox = document.getElementById("status");
+const statusEl = document.getElementById("status");
 const vid = document.getElementById("vid");
 const btnSend = document.getElementById("btnSend");
 const btnDict = document.getElementById("btnDict");
@@ -98,215 +124,183 @@ const btnNew = document.getElementById("btnNew");
 const btnClear = document.getElementById("btnClear");
 const selExport = document.getElementById("selExport");
 const btnHist = document.getElementById("btnHist");
+const btnCfg = document.getElementById("btnCfg");
 
-/* === Botón rápido para configurar API === */
-const apiBtn = document.createElement("button");
-apiBtn.textContent = "⚙️ API";
-apiBtn.style.marginLeft = "8px";
-apiBtn.title = "Configurar URL del API";
-apiBtn.onclick = () => {
-  const val = prompt("Pega el Service URL exacto de Cloud Run:", API_BASE || "");
-  if (!val) return;
-  API_BASE = val.trim().replace(/\/+$/,"");
-  localStorage.setItem("lexium_api_base", API_BASE);
-  alert("API_BASE actualizado:\n" + API_BASE);
-};
-document.querySelector(".hist").appendChild(apiBtn);
+/* ====== Estado de voz/video ====== */
+let voices = [];
+let currentVoice = null;
+let speaking = false;
+let paused = false;
+let lastSpokenText = "";
+let recognizer = null;
 
-/* ====== Estado (arriba-izquierda) & botón ====== */
-let voices = [], currentVoice = null, speaking = false, paused = false, lastSpokenText = "";
-let recognizer = null, inFlightAbort = null, sendLabel = btnSend.textContent;
-
-function setStatusLoading(msg="Consultando…"){
-  statusBox.style.display = "block";
-  statusBox.innerHTML = `<span class="loader"><span class="dot"></span><span class="dot"></span><span class="dot"></span>${msg}</span>`;
-}
-function setStatusText(msg){ statusBox.style.display="block"; statusBox.textContent = msg; }
-function clearStatus(){ statusBox.style.display="none"; statusBox.textContent=""; }
-function setUiBusy(b){ btnSend.disabled=!!b; btnSend.textContent = b ? "Enviando…" : (sendLabel || "Enviar"); }
-
-/* ====== Voz ====== */
+/* ====== Voz: elegir española femenina si existe ====== */
 function pickSpanishFemale(){
   voices = (typeof speechSynthesis !== "undefined") ? speechSynthesis.getVoices() : [];
   const es = voices.filter(v=>/^es(-|_)?/i.test(v.lang||""));
-  let fem = es.find(v=>/female|femenina|mujer|Mónica|Monica|Conchita|Lucia/i.test(v.name||""));
+  // heurística de nombres femeninos comunes
+  const femNames = /(Female|Mujer|Sabina|Lucia|Lucía|Conchita|Paulina|María|Carla|Helena|Camila|Isabel|Sofia|Sofía)/i;
+  let fem = es.find(v=>femNames.test(v.name||""));
   currentVoice = fem || es[0] || voices[0] || null;
 }
 if (typeof speechSynthesis !== "undefined") {
   pickSpanishFemale();
   window.speechSynthesis.onvoiceschanged = pickSpanishFemale;
 }
+
+/* ====== Hablar con pausa natural ====== */
 function speak(text){
   if (!text || typeof speechSynthesis === "undefined") return;
-  if (speechSynthesis.speaking) speechSynthesis.cancel();
   lastSpokenText = text;
   const u = new SpeechSynthesisUtterance(text);
   if (currentVoice) u.voice = currentVoice;
   u.lang = (currentVoice && currentVoice.lang) || "es-ES";
   u.rate = 1; u.pitch = 1; u.volume = 1;
   u.onstart = ()=>{ speaking = true; paused = false; vid.play().catch(()=>{}); };
-  u.onend = ()=>{ speaking = false; vid.pause(); };
-  u.onerror = ()=>{ speaking = false; vid.pause(); };
+  u.onend   = ()=>{ speaking = false; paused = false; vid.pause(); };
+  u.onerror = ()=>{ speaking = false; paused = false; vid.pause(); };
   speechSynthesis.speak(u);
 }
+/* Pausar/Reanudar */
 function toggleAV(){
-  if (!speechSynthesis) return;
-  if (speaking && !paused){ speechSynthesis.pause(); paused = true; vid.pause(); }
-  else if (speaking && paused){ speechSynthesis.resume(); paused = false; vid.play().catch(()=>{}); }
-  else { speak(lastSpokenText); }
+  if (typeof speechSynthesis === "undefined") return;
+  if (speechSynthesis.speaking && !speechSynthesis.paused){
+    speechSynthesis.pause(); paused = true; vid.pause();
+  } else if (speechSynthesis.paused){
+    speechSynthesis.resume(); paused = false; vid.play().catch(()=>{});
+  } else if (lastSpokenText){
+    speak(lastSpokenText); // continua desde inicio si no hay sesión activa
+  }
 }
-function replay(){ if (speechSynthesis?.speaking) speechSynthesis.cancel(); speak(lastSpokenText); }
+/* Reproducir desde el principio */
+function replay(){
+  if (typeof speechSynthesis !== "undefined") {
+    if (speechSynthesis.speaking) speechSynthesis.cancel();
+  }
+  speak(lastSpokenText || out.innerText);
+}
 
-/* ====== Utils & fetch ====== */
+/* ====== Utils ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
-function fetchWithTimeout(url, opts={}, ms=15000){
-  const ctrl = new AbortController();
-  const t = setTimeout(()=>ctrl.abort(), ms);
-  const merged = { ...opts, signal: ctrl.signal };
-  return { promise: fetch(url, merged).finally(()=>clearTimeout(t)), abort: ()=>ctrl.abort() };
+function setStatusLoading(msg="Consultando…"){
+  statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span> ${esc(msg)}</span>`;
 }
+function clearStatus(){ statusEl.textContent = ""; }
 
-/* ====== Preflight tolerante (no depende solo de /healthz) ====== */
-async function preflight(){
-  if (await checkHealth(API_BASE)) return true;
-  for (const cand of DEFAULT_CANDIDATES) {
-    if (!cand || cand === API_BASE) continue;
-    if (await checkHealth(cand)) {
-      API_BASE = cand.replace(/\/+$/,'');
-      localStorage.setItem("lexium_api_base", API_BASE);
-      setStatusText("API actualizado automáticamente.");
-      return true;
+/* ===== Warm-up & fetch con reintentos ===== */
+async function warmUp() {
+  try {
+    await fetch(`${API_BASE()}/api/debug-map`, {
+      method: "GET",
+      cache: "no-store",
+      signal: AbortSignal.timeout(HEALTH_TIMEOUT_MS)
+    });
+  } catch {}
+}
+warmUp();
+setInterval(warmUp, 4 * 60 * 1000);
+
+async function tryFetchJson(url, opts = {}, tries = 3) {
+  let lastErr;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const controller = new AbortController();
+      const t = setTimeout(() => controller.abort(), CLIENT_TIMEOUT_MS);
+      const res = await fetch(url, { ...opts, cache: "no-store", signal: controller.signal });
+      clearTimeout(t);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      lastErr = e;
+      if (i < tries - 1) await new Promise(r => setTimeout(r, i === 0 ? 1000 : 3000));
     }
   }
-  return false; // seguimos intentando igual
-}
-async function checkHealth(base){
-  try{
-    const root = base.replace(/\/+$/,'');
-    let r = await fetch(`${root}/healthz`, { method:"GET" }).catch(()=>null);
-    if (r && r.ok) return true;
-    r = await fetch(`${root}/api/debug-map`, { method:"GET" }).catch(()=>null);
-    if (r && r.ok) return true;
-    r = await fetch(`${root}/api/answer?q=ping`, { method:"HEAD" }).catch(()=>null);
-    if (!r) r = await fetch(`${root}/api/answer?q=ping`, { method:"GET" }).catch(()=>null);
-    return !!(r && r.ok);
-  }catch{ return false; }
+  throw lastErr;
 }
 
-/* ====== Render ====== */
+/* Normaliza listas (si vienen arrays de strings o estructuras {title,items}) */
+function normalizeLists(lists){
+  if (!Array.isArray(lists)) return [];
+  return lists.map((entry, i) => {
+    if (Array.isArray(entry)) {
+      const items = entry.map(x => String(x));
+      return { title: `Lista ${i+1}`, items };
+    } else if (entry && typeof entry === "object") {
+      const title = entry.title || `Lista ${i+1}`;
+      const items = Array.isArray(entry.items) ? entry.items.map(x=>String(x)) : [];
+      return { title, items };
+    } else {
+      return { title: `Lista ${i+1}`, items: [String(entry)] };
+    }
+  });
+}
+
+/* Render */
 function renderAnswer(data){
   let html = "";
-  if (data.general) html += `<p>${esc(data.general).replace(/\n/g,"<br>")}</p>`;
-  (data.lists||[]).forEach((l,i)=>{
-    const title = l.title || `Lista ${i+1}`;
-    html += `<h3>${esc(title)}</h3><ol>` + (l.items||[]).map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
+
+  if (data.general) {
+    // Inserta numeración al inicio de cada línea tipo lista simple
+    const gen = String(data.general).replace(/^\s*[-•]\s*/gm, "");
+    html += `<p>${esc(gen).replace(/\n/g,"<br>")}</p>`;
+  }
+
+  const lists = normalizeLists(data.lists || []);
+  lists.forEach(l=>{
+    const items = l.items.map((it, idx)=>`<li><b>${idx+1}.</b> ${esc(it)}</li>`).join("");
+    html += `<h3>${esc(l.title||"Lista")}</h3><ol>${items}</ol>`;
   });
+
   (data.tables||[]).forEach(t=>{
-    const cols = t.columns||[], rows=t.rows||[];
+    const cols = t.columns||[];
+    const rows = t.rows||[];
     html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
-    html += cols.map(c=>`<th>${esc(c)}</th>`).join("") + `</tr></thead><tbody>`;
-    rows.forEach(r=>{ html += `<tr>` + r.map(x=>`<td>${esc(x)}`).join("") + `</td></tr>`; });
+    html += cols.map(c=>`<th>${esc(c)}</th>`).join("");
+    html += `</tr></thead><tbody>`;
+    rows.forEach(r=>{
+      html += `<tr>` + r.map(x=>`<td>${esc(x)}</td>`).join("") + `</tr>`;
+    });
     html += `</tbody></table>`;
   });
+
   out.innerHTML = html || "<em>Sin contenido.</em>";
-  if (data.general) speak(data.general);
+
+  // Voz: narra el campo general si está
+  if (data.general) {
+    if (typeof speechSynthesis !== "undefined" && speechSynthesis.speaking) speechSynthesis.cancel();
+    speak(data.general);
+  }
 }
 
-/* ====== Historial ====== */
+/* ==== Historial ==== */
 function saveSession(question, data){
-  const key="lexium_sessions"; const all = JSON.parse(localStorage.getItem(key)||"[]");
-  all.unshift({ts:new Date().toISOString(), q:question, data});
+  const key = "lexium_sessions";
+  const all = JSON.parse(localStorage.getItem(key) || "[]" );
+  const id = new Date().toISOString();
+  all.unshift({ id, question, data });
   localStorage.setItem(key, JSON.stringify(all.slice(0,50)));
 }
 function openHistory(){
-  const key="lexium_sessions"; const all = JSON.parse(localStorage.getItem(key)||"[]");
-  if (!all.length){ alert("Sin historial."); return; }
+  const key = "lexium_sessions";
+  const all = JSON.parse(localStorage.getItem(key) || "[]");
+  if (!all.length) { alert("Sin historial."); return; }
   const w = window.open("", "_blank","noopener,noreferrer");
-  w.document.write(`<html><head><title>Historial</title><style>body{font:14px system-ui} pre{white-space:pre-wrap}</style></head><body>
+  const html = `
+  <html><head><title>Historial</title>
+  <style>body{font:14px system-ui} pre{white-space:pre-wrap}</style></head><body>
   <h2>Sesiones</h2>
-  ${all.map(s=>`<details><summary><b>${esc(s.ts)}</b> — ${esc(s.q)}</summary><pre>${esc(JSON.stringify(s.data,null,2))}</pre></details>`).join("")}
-  </body></html>`);
-  w.document.close();
+  ${all.map(s=>`
+    <details>
+      <summary><b>${esc(s.id)}</b> — ${esc(s.question)}</summary>
+      <pre>${esc(JSON.stringify(s.data, null, 2))}</pre>
+    </details>
+  `).join("")}
+  </body></html>`;
+  w.document.write(html); w.document.close();
 }
 
-/* ====== Dictado ====== */
-function toggleDict(){
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR){ alert("Dictado no soportado en este navegador."); return; }
-  if (!recognizer){
-    recognizer = new SR();
-    recognizer.lang = "es-ES";
-    recognizer.onresult = e => { const t=[...e.results].map(r=>r[0].transcript).join(" "); q.value = (q.value? q.value+" " :"")+t; };
-  }
-  if (recognizer.listening){ recognizer.stop(); recognizer.listening=false; btnDict.textContent="🎤 Dictar"; }
-  else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
-}
-
-/* ====== Enviar ====== */
-async function ask(){
-  if (btnSend.disabled) return;
-  const text = q.value.trim(); if (!text) return;
-
-  if (inFlightAbort){ inFlightAbort(); inFlightAbort=null; }
-
-  setUiBusy(true);
-  if (speechSynthesis?.speaking) speechSynthesis.cancel();
-  out.innerHTML = ""; setStatusLoading("Consultando…");
-
-  try{
-    const ok = await preflight();
-    if (!ok) setStatusText("No se pudo verificar salud; intentando de todos modos…");
-
-    let lastErr = null;
-    for (let i=1;i<=MAX_TRIES;i++){
-      setStatusLoading(i===1 ? "Consultando…" : `Reintentando… (${i}/${MAX_TRIES})`);
-      const { promise, abort } = fetchWithTimeout(`${API_BASE}${GPT_PATH}`, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json","Accept":"application/json" },
-        body: JSON.stringify({ q: text })
-      }, CLIENT_TIMEOUT_MS);
-      inFlightAbort = abort;
-
-      let r;
-      try{ r = await promise; }catch(e){ lastErr = e; }
-
-      if (r && (r.status===404 || r.status===405)){
-        try{
-          const f = fetchWithTimeout(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {}, CLIENT_TIMEOUT_MS);
-          inFlightAbort = f.abort;
-          r = await f.promise;
-        }catch(e){ lastErr = e; }
-      }
-
-      try{
-        if (r && r.ok){
-          const data = await r.json();
-          saveSession(text, data);
-          renderAnswer(data);
-          clearStatus();
-          return;
-        }
-      }catch(e){ lastErr = e; }
-    }
-
-    const msg = `No se pudo conectar con el servicio.\nDetalle: ${lastErr?.name||"Error"}: ${lastErr?.message||String(lastErr)}`;
-    out.innerHTML = `<pre class="err">${esc(msg)}</pre>`;
-  } finally {
-    setUiBusy(false); clearStatus(); inFlightAbort=null;
-  }
-}
-
-/* ====== Eventos ====== */
-btnSend.addEventListener("click", ask);
-q.addEventListener("keydown", e=>{ if (e.key==="Enter") ask(); });
-btnDict.addEventListener("click", toggleDict);
-btnToggleAV.addEventListener("click", toggleAV);
-btnReplay.addEventListener("click", replay);
-btnHist.addEventListener("click", openHistory);
-btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; if (speechSynthesis?.speaking) speechSynthesis.cancel(); if (inFlightAbort){ inFlightAbort(); inFlightAbort=null; } setUiBusy(false); clearStatus(); });
-btnNew.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; if (speechSynthesis?.speaking) speechSynthesis.cancel(); if (inFlightAbort){ inFlightAbort(); inFlightAbort=null; } setUiBusy(false); clearStatus(); });
-
-/* ====== Exportar ====== */
+/* ==== Exportar ==== */
 selExport.addEventListener("change", ()=>{
   const v = selExport.value; selExport.value="";
   if (!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
@@ -314,16 +308,97 @@ selExport.addEventListener("change", ()=>{
     const w = window.open("","_blank","noopener,noreferrer");
     w.document.write(`<html><head><title>Export PDF</title></head><body>${out.innerHTML}</body></html>`);
     w.document.close(); w.focus(); w.print();
-  }else if (v==="xls" || v==="doc"){
+  } else if (v==="xls" || v==="doc"){
     const mime = v==="xls" ? "application/vnd.ms-excel" : "application/msword";
     const blob = new Blob([`<html><body>${out.innerHTML}</body></html>`], {type:mime});
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
     a.download = `export.${v}`;
-    a.click(); URL.revokeObjectURL(a.href);
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 });
+
+/* ==== Dictado ==== */
+function toggleDict(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert("Dictado no soportado en este navegador."); return; }
+  if (!recognizer){
+    recognizer = new SR();
+    recognizer.lang = "es-ES";
+    recognizer.continuous = false;
+    recognizer.interimResults = false;
+    recognizer.onresult = e=>{
+      const t = Array.from(e.results).map(r=>r[0].transcript).join(" ");
+      q.value = (q.value ? q.value+" " : "") + t;
+    };
+  }
+  if (recognizer.listening){ recognizer.stop(); recognizer.listening=false; btnDict.textContent="🎤 Dictar"; }
+  else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
+}
+
+/* ==== Enviar ==== */
+async function ask(){
+  const text = q.value.trim();
+  if (!text) return;
+
+  btnSend.disabled = true; const old = btnSend.textContent; btnSend.textContent = "Enviando…";
+  setStatusLoading("Consultando a GPT + herramientas…");
+
+  try{
+    const base = API_BASE();
+
+    // 1) Probar /api/gpt
+    let data = await tryFetchJson(`${base}${GPT_PATH}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept":"application/json" },
+      body: JSON.stringify({ q: text })
+    });
+
+    // 2) Fallback si hace falta
+    if (!data || data.ok === false || (data.lists?.length===0 && data.tables?.length===0 && !data.general)) {
+      data = await tryFetchJson(`${base}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
+        headers: { "Accept":"application/json" }
+      });
+    }
+
+    saveSession(text, data);
+    renderAnswer(data);
+  }catch(e){
+    out.innerHTML = `<pre style="color:#b91c1c">No se pudo conectar con el servicio.
+Verifica la URL del API, CORS/OPTIONS y tu conexión.
+Detalle: ${String(e && e.name === 'AbortError' ? 'Se agotó el tiempo de espera del cliente' : e)}</pre>`;
+  }finally{
+    btnSend.disabled = false; btnSend.textContent = old; clearStatus();
+  }
+}
+
+/* ==== Configurar API ==== */
+btnCfg.addEventListener("click", ()=>{
+  const cur = API_BASE();
+  const val = prompt("Pega el Service URL exacto de Cloud Run:", cur);
+  if (val) localStorage.setItem("lexium_api_base", val.trim());
+});
+
+/* ==== Limpieza / Nueva sesión ==== */
+btnClear.addEventListener("click", ()=>{
+  q.value=""; out.innerHTML=""; clearStatus();
+  if (typeof speechSynthesis !== "undefined" && speechSynthesis.speaking) speechSynthesis.cancel();
+});
+btnNew.addEventListener("click", ()=>{
+  if (typeof speechSynthesis !== "undefined" && speechSynthesis.speaking) speechSynthesis.cancel();
+  q.value=""; out.innerHTML=""; clearStatus();
+});
+
+/* ==== Eventos ==== */
+btnSend.addEventListener("click", ask);
+btnDict.addEventListener("click", toggleDict);
+btnToggleAV.addEventListener("click", toggleAV);
+btnReplay.addEventListener("click", replay);
+btnHist.addEventListener("click", openHistory);
+q.addEventListener("keydown", e=>{ if (e.key==="Enter") { e.preventDefault(); ask(); } });
+
+console.log("ready!");
 </script>
 </body>
 </html>
-
