@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Lexium — Consultas1755</title>
+<title>Lexium — Consultas 1759</title>
 <style>
   :root{--bg:#fff;--fg:#111;--muted:#6b7280;--pri:#0d6efd;--bd:#e5e7eb;--err:#b91c1c}
   html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial}
@@ -70,11 +70,12 @@
 
 <script>
 /* ====== CONFIG ====== */
-const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
+const API_BASE = "https://lexium-api-nqh4ai2hnq-tl.a.run.app";   // <— TU URL ACTUAL DE CLOUD RUN
 const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
-const CLIENT_TIMEOUT_MS = 25000;        // 25s por intento
-const MAX_TRIES = 3;
+const HEALTH_TIMEOUT_MS = 4000;    // 4s
+const CLIENT_TIMEOUT_MS = 15000;   // 15s por intento
+const MAX_TRIES = 2;               // 2 intentos
 
 /* ====== UI refs ====== */
 const q = document.getElementById("q");
@@ -90,7 +91,7 @@ const btnClear = document.getElementById("btnClear");
 const selExport = document.getElementById("selExport");
 const btnHist = document.getElementById("btnHist");
 
-/* ====== Estado voz ====== */
+/* ====== Voz ====== */
 let voices = [];
 let currentVoice = null;
 let speaking = false;
@@ -109,7 +110,6 @@ if (typeof speechSynthesis !== "undefined") {
   pickSpanishFemale();
   window.speechSynthesis.onvoiceschanged = pickSpanishFemale;
 }
-
 function speak(text){
   if (!text || typeof speechSynthesis === "undefined") return;
   if (speechSynthesis.speaking) speechSynthesis.cancel();
@@ -123,16 +123,12 @@ function speak(text){
   u.onerror = ()=>{ speaking = false; vid.pause(); };
   speechSynthesis.speak(u);
 }
-function toggleAV(){
-  if (typeof speechSynthesis === "undefined") return;
+function toggleAV(){ if(!speechSynthesis) return;
   if (speaking && !paused){ speechSynthesis.pause(); paused = true; vid.pause(); }
   else if (speaking && paused){ speechSynthesis.resume(); paused = false; vid.play().catch(()=>{}); }
   else { speak(lastSpokenText); }
 }
-function replay(){
-  if (typeof speechSynthesis !== "undefined" && speechSynthesis.speaking) speechSynthesis.cancel();
-  speak(lastSpokenText);
-}
+function replay(){ if(speechSynthesis?.speaking) speechSynthesis.cancel(); speak(lastSpokenText); }
 
 /* ====== Utils ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
@@ -188,20 +184,36 @@ function toggleDict(){
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
 }
 
-/* ====== Fetch con timeout y reintentos ====== */
-function fetchWithTimeout(url, opts={}, ms=CLIENT_TIMEOUT_MS){
+/* ====== Fetch con timeout ====== */
+function fetchWithTimeout(url, opts={}, ms=15000){
   const ctrl = new AbortController();
   const t = setTimeout(()=>ctrl.abort(), ms);
   const merged = { ...opts, signal: ctrl.signal };
   return { promise: fetch(url, merged).finally(()=>clearTimeout(t)), abort: ()=>ctrl.abort() };
 }
 
-async function ask(){
-  const text = q.value.trim();
-  if (!text) return;
+/* Health check rápido (4s) */
+async function preflight(){
+  const { promise } = fetchWithTimeout(`${API_BASE}/healthz`, {}, HEALTH_TIMEOUT_MS);
+  const r = await promise.catch(()=>null);
+  return !!(r && r.ok);
+}
 
-  // cancela petición en curso si la hay
-  if (inFlightAbort){ inFlightAbort(); inFlightAbort = null; }
+let inFlightAbort = null;
+
+async function ask(){
+  const text = q.value.trim(); if (!text) return;
+
+  // cancela petición en curso
+  if (inFlightAbort){ inFlightAbort(); inFlightAbort=null; }
+
+  // ping rápido
+  setStatusLoading("Comprobando servicio…");
+  const ok = await preflight();
+  if (!ok){
+    out.innerHTML = `<pre class="err">El servicio no está disponible (healthz falló).</pre>`;
+    clearStatus(); return;
+  }
 
   btnSend.disabled = true; const old = btnSend.textContent; btnSend.textContent = "Enviando…";
   out.innerHTML = ""; setStatusLoading("Consultando…"); if (speechSynthesis?.speaking) speechSynthesis.cancel();
@@ -213,7 +225,7 @@ async function ask(){
       method:"POST",
       headers:{ "Content-Type":"application/json","Accept":"application/json" },
       body: JSON.stringify({ q: text })
-    });
+    }, CLIENT_TIMEOUT_MS);
     inFlightAbort = abort;
 
     let r;
@@ -221,16 +233,14 @@ async function ask(){
       r = await promise;
     }catch(e){
       lastErr = e;
-      // 404/405 -> fallback GET
-      if (String(e.name)==="AbortError"){ continue; }
     }
 
-    // si /api/gpt no existe, fallback
+    // /api/gpt no existe -> fallback
     if (r && (r.status===404 || r.status===405)){
       try{
-        const { promise: p2, abort: a2 } = fetchWithTimeout(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`);
-        inFlightAbort = a2;
-        r = await p2;
+        const f = fetchWithTimeout(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {}, CLIENT_TIMEOUT_MS);
+        inFlightAbort = f.abort;
+        r = await f.promise;
       }catch(e){ lastErr = e; }
     }
 
@@ -246,34 +256,24 @@ async function ask(){
     }catch(e){ lastErr = e; }
   }
 
-  // agotados reintentos
   const msg = `No se pudo conectar con el servicio.
-Verifica la URL del API, CORS/OPTIONS y tu conexión.
+Verifica la URL del API o tu conexión.
 Detalle: ${lastErr?.name || "Error"}: ${lastErr?.message || String(lastErr)}`;
   out.innerHTML = `<pre class="err">${esc(msg)}</pre>`;
   clearStatus(); btnSend.disabled=false; btnSend.textContent=old; inFlightAbort=null;
 }
 
-/* ====== Eventos ====== */
+/* Eventos */
 btnSend.addEventListener("click", ask);
 btnDict.addEventListener("click", toggleDict);
 btnToggleAV.addEventListener("click", toggleAV);
 btnReplay.addEventListener("click", replay);
 btnHist.addEventListener("click", openHistory);
-
-btnClear.addEventListener("click", ()=>{
-  q.value=""; out.innerHTML=""; clearStatus();
-  if (speechSynthesis?.speaking) speechSynthesis.cancel();
-  if (inFlightAbort){ inFlightAbort(); inFlightAbort=null; }
-});
-btnNew.addEventListener("click", ()=>{
-  q.value=""; out.innerHTML=""; clearStatus();
-  if (speechSynthesis?.speaking) speechSynthesis.cancel();
-  if (inFlightAbort){ inFlightAbort(); inFlightAbort=null; }
-});
+btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); speechSynthesis?.speaking && speechSynthesis.cancel(); inFlightAbort?.(); inFlightAbort=null; });
+btnNew.addEventListener("click",   ()=>{ q.value=""; out.innerHTML=""; clearStatus(); speechSynthesis?.speaking && speechSynthesis.cancel(); inFlightAbort?.(); inFlightAbort=null; });
 q.addEventListener("keydown", e=>{ if (e.key==="Enter") ask(); });
 
-/* ====== Exportar ====== */
+/* Exportar */
 selExport.addEventListener("change", ()=>{
   const v = selExport.value; selExport.value="";
   if (!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
