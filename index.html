@@ -81,8 +81,8 @@ let API_BASE = localStorage.getItem("lexium_api_base") || DEFAULT_CANDIDATES[0];
 
 const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
-const HEALTH_TIMEOUT_MS = 4000;
-const CLIENT_TIMEOUT_MS = 15000;
+const HEALTH_TIMEOUT_MS = 7000;
+const CLIENT_TIMEOUT_MS = 45000;
 const MAX_TRIES = 2;
 
 /* ====== UI refs ====== */
@@ -326,3 +326,4 @@ selExport.addEventListener("change", ()=>{
 </script>
 </body>
 </html>
+
