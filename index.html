@@ -3,48 +3,42 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Asistente Lexium 1326</title>
+  <title>Asistente 1333</title>
   <style>
-    :root{
-      --azul:#0c2a57; --borde:#d9dee6; --bg:#f5f7fb; --btn:#0d47a1; --btnh:#0a3a84;
-    }
+    :root{ --azul:#0c2a57; --borde:#d9dee6; --bg:#f5f7fb; --bubble:#ffffff; }
     html,body{height:100%}
-    body{margin:0;font-family:Segoe UI,system-ui,-apple-system,Arial;display:flex;flex-direction:column;background:var(--bg)}
-    /* --------- HEADER (igual a tu layout) --------- */
+    body{margin:0;font-family:Segoe UI,system-ui,-apple-system,Arial;background:var(--bg);display:flex;flex-direction:column}
+    /* --------- HEADER (tu diseño) --------- */
     header{background:var(--azul);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:10px 16px}
-    .brand{display:flex;align-items:center;gap:12px}
     header img.logo{height:42px}
     #heroVideo{height:64px;border-radius:8px;object-fit:cover}
     /* --------- CONTENIDO --------- */
     #content{flex:1;overflow:auto;padding:16px}
     #chat{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
-    .bubble{border:1px solid var(--borde);background:#fff;border-radius:10px;padding:12px 14px;line-height:1.45;font-size:15px;white-space:pre-wrap}
+    .bubble{border:1px solid var(--borde);background:var(--bubble);border-radius:10px;padding:12px 14px;line-height:1.45;font-size:15px;white-space:pre-wrap}
     .user{align-self:flex-start;background:#e7f0ff;border-color:#cbdaf8}
     .bot{align-self:flex-start}
     #loader{display:none;max-width:960px;margin:8px auto 0;color:#0d47a1;font-weight:600}
-    /* --------- INPUT BAR (igual a tu layout) --------- */
+    /* --------- INPUT BAR (tus botones) --------- */
     #inputBar{background:#eef3f9;border-top:1px solid var(--borde);padding:10px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
     #q{flex:1;min-width:420px;max-width:800px;border:1px solid var(--borde);border-radius:8px;padding:10px 12px;font-size:14px}
-    .btn{border:1px solid transparent;background:var(--btn);color:#fff;font-weight:600;border-radius:8px;padding:10px 12px;cursor:pointer}
-    .btn.secondary{background:#fff;color:#183153;border:1px solid var(--borde)}
-    .btn:hover{background:var(--btnh)}
-    .btn.secondary:hover{background:#f7f9ff}
-    /* --------- TABLAS GENERADAS --------- */
+    .btn{border:1px solid #cfd6e2;background:#ffffff;color:#183153;font-weight:600;border-radius:8px;padding:10px 12px;cursor:pointer}
+    .btn.primary{background:#0d47a1;color:#fff;border-color:#0d47a1}
+    .btn:hover{background:#f6f9ff}
+    .btn.primary:hover{background:#0b3b86}
+    /* --------- TABLAS --------- */
     .table{border:1px solid var(--borde);border-radius:10px;overflow:auto}
     table{border-collapse:collapse;width:100%}
     th,td{border-bottom:1px solid var(--borde);padding:8px 10px;text-align:left;font-size:14px;white-space:nowrap}
     th{background:#f4f7ff}
     .listBlock{margin:6px 0 0 0}
     .listBlock li{margin:2px 0}
-    /* --------- PDF IFRAME OCULTO --------- */
     iframe#preview{display:none}
   </style>
 </head>
 <body>
   <header>
-    <div class="brand">
-      <img class="logo" src="left.png" alt="SANTILLANA" />
-    </div>
+    <img class="logo" src="left.png" alt="SANTILLANA" />
     <video id="heroVideo" src="hero.mp4" autoplay muted loop></video>
     <img class="logo" src="right.png" alt="COMPARTIR" />
   </header>
@@ -56,173 +50,149 @@
 
   <div id="inputBar">
     <input id="q" type="text" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…" />
-    <button id="send" class="btn">Enviar</button>
-    <button id="mic" class="btn secondary">Dictar</button>
-    <button id="tts" class="btn secondary">Activar voz</button>
-    <button id="replay" class="btn secondary">Reproducir</button>
-    <button id="new" class="btn secondary">+ Nueva sesión</button>
-    <button id="clear" class="btn secondary">Limpiar</button>
-    <button id="export" class="btn secondary">Exportar…</button>
+    <button id="send" class="btn primary">Enviar</button>
+    <button id="mic" class="btn">Dictar</button>
+    <button id="tts" class="btn">Activar voz</button>
+    <button id="replay" class="btn">Reproducir</button>
+    <button id="new" class="btn">+ Nueva sesión</button>
+    <button id="clear" class="btn">Limpiar</button>
+    <button id="export" class="btn">Exportar…</button>
   </div>
 
   <iframe id="preview"></iframe>
 
   <script>
-    // 🔧 Reemplaza por tu URL activa de Cloud Run:
+    // URL ACTIVA de tu Cloud Run (baja latencia con /api/answer)
     const API_BASE = "https://lexium-api-nqh4ai2hnq-tl.a.run.app";
 
-    // ---- helpers UI ----
+    // ---------- helpers ----------
     const $ = s => document.querySelector(s);
-    const chat   = $("#chat");
-    const input  = $("#q");
-    const loader = $("#loader");
-    const hero   = $("#heroVideo");
+    const chat=$("#chat"), input=$("#q"), loader=$("#loader"), hero=$("#heroVideo");
 
     function append(role, htmlText){
-      const div = document.createElement("div");
-      div.className = "bubble " + role;
-      div.innerHTML = htmlText;
+      const div=document.createElement("div");
+      div.className="bubble "+role;
+      div.innerHTML=htmlText;
       chat.appendChild(div);
-      chat.scrollTop = chat.scrollHeight;
+      chat.scrollTop=chat.scrollHeight;
       saveHistory();
     }
     function lastBotText(){
-      const nodes = [...chat.querySelectorAll(".bot")];
+      const nodes=[...chat.querySelectorAll(".bot")];
       return nodes.length ? nodes[nodes.length-1].innerText : "";
     }
+    function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
+    function stripHtml(s){ const t=document.createElement("div"); t.innerHTML=s; return t.textContent||""; }
 
-    // ---- Envío (hedged: /api/gpt -> /api/answer) ----
+    // ---------- envío SOLO /api/answer (rápido) ----------
     $("#send").onclick = send;
-    input.addEventListener("keydown", e => { if(e.key==="Enter") send(); });
+    input.addEventListener("keydown", e=>{ if(e.key==="Enter") send(); });
 
     async function send(){
-      const q = input.value.trim();
+      const q=input.value.trim();
       if(!q) return;
       append("user", escapeHtml(q));
-      input.value = "";
+      input.value="";
       stopSpeech();
-      loader.style.display = "block";
-
-      const controller = new AbortController();
-      const to = setTimeout(()=>controller.abort(), 45000);
+      loader.style.display="block";
 
       try{
-        const r1 = fetch(`${API_BASE}/api/gpt`, {
-          method:"POST", headers:{ "Content-Type":"application/json" },
-          body: JSON.stringify({ q }), signal: controller.signal
-        }).then(r => r.ok ? r.text() : Promise.reject());
-
-        const r2 = fetch(`${API_BASE}/api/answer?q=${encodeURIComponent(q)}`, {
-          signal: controller.signal
-        }).then(r => r.ok ? r.text() : Promise.reject());
-
-        const raw = await Promise.any([r1, r2]);
-        const html = renderAnswer(raw);
+        const r = await fetch(`${API_BASE}/api/answer?q=${encodeURIComponent(q)}`, { method:"GET" });
+        if(!r.ok) throw new Error("bad");
+        const raw = await r.text();
+        const html = renderAnswer(raw);   // soporta texto o JSON {general,lists,tables}
         append("bot", html);
         if(ttsEnabled) speak(stripHtml(html));
-      } catch(e){
-        append("bot", "⚠️ No hay respuesta del servidor.");
-      } finally {
-        loader.style.display = "none";
-        clearTimeout(to);
+      }catch(e){
+        append("bot","⚠️ No hay respuesta del servidor.");
+      }finally{
+        loader.style.display="none";
       }
     }
 
-    // ---- Normaliza JSON de backend o texto plano ----
+    // ---------- normalizador del backend ----------
     function renderAnswer(raw){
       try{
         const j = JSON.parse(raw);
-        let parts = [];
+        let parts=[];
         if(j.general) parts.push(escapeHtml(j.general));
 
         if(Array.isArray(j.lists) && j.lists.length){
-          j.lists.forEach((lst,idx)=>{
-            if(!Array.isArray(lst) || !lst.length) return;
-            const items = lst.map((x,i)=>`<li>${escapeHtml(String(x))}</li>`).join("");
+          j.lists.forEach((lst)=>{
+            if(!Array.isArray(lst)||!lst.length) return;
+            const items = lst.map(x=>`<li>${escapeHtml(String(x))}</li>`).join("");
             parts.push(`<ol class="listBlock">${items}</ol>`);
           });
         }
         if(Array.isArray(j.tables) && j.tables.length){
           j.tables.forEach(t=>{
             if(!t || !Array.isArray(t.rows) || !t.rows.length) return;
-            const head = Array.isArray(t.header)? t.header : Object.keys(t.rows[0]);
+            const head = Array.isArray(t.header) ? t.header : Object.keys(t.rows[0]);
             const th = head.map(h=>`<th>${escapeHtml(String(h))}</th>`).join("");
-            const tr = t.rows.map(r=>{
-              const cells = head.map(h=>`<td>${escapeHtml(String(r[h] ?? ""))}</td>`).join("");
-              return `<tr>${cells}</tr>`;
+            const trs = t.rows.map(r=>{
+              const tds = head.map(h=>`<td>${escapeHtml(String(r[h] ?? ""))}</td>`).join("");
+              return `<tr>${tds}</tr>`;
             }).join("");
-            parts.push(`<div class="table"><table><thead><tr>${th}</tr></thead><tbody>${tr}</tbody></table></div>`);
+            parts.push(`<div class="table"><table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table></div>`);
           });
         }
-        // Si vino vacío, devuelve el JSON crudo como texto
         return parts.length ? parts.join("<br/>") : `<code>${escapeHtml(raw)}</code>`;
       }catch{
         return escapeHtml(raw);
       }
     }
 
-    function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
-    function stripHtml(s){ const tmp=document.createElement("div"); tmp.innerHTML=s; return tmp.textContent||""; }
-
-    // ---- TTS ----
-    let ttsEnabled = false, speaking=false, currentUtter=null;
-    $("#tts").onclick = ()=>{ ttsEnabled = !ttsEnabled; $("#tts").textContent = ttsEnabled ? "Desactivar voz" : "Activar voz"; if(ttsEnabled) { const t = lastBotText(); if(t) speak(t); } };
-    $("#replay").onclick = ()=>{ if(!ttsEnabled) ttsEnabled = true, $("#tts").textContent="Desactivar voz"; const t=lastBotText(); if(t) speak(t); };
+    // ---------- TTS ----------
+    let ttsEnabled=false, speaking=false, currentUtter=null;
+    $("#tts").onclick=()=>{ ttsEnabled=!ttsEnabled; $("#tts").textContent = ttsEnabled? "Desactivar voz":"Activar voz"; if(ttsEnabled){const t=lastBotText(); if(t) speak(t);} };
+    $("#replay").onclick = ()=>{ if(!ttsEnabled) ttsEnabled=true, $("#tts").textContent="Desactivar voz"; const t=lastBotText(); if(t) speak(t); };
 
     function speak(text){
       stopSpeech();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = "es-ES";
-      u.rate = 1.0;
-      u.voice = speechSynthesis.getVoices().find(v=>v.lang.startsWith("es")) || null;
-      u.onstart = ()=>{ speaking=true; try{hero && hero.play()}catch{} };
-      u.onend   = ()=>{ speaking=false; try{hero && hero.pause()}catch{} };
+      const u=new SpeechSynthesisUtterance(text);
+      u.lang="es-ES"; u.rate=1.0;
+      u.voice=speechSynthesis.getVoices().find(v=>v.lang.startsWith("es"))||null;
+      u.onstart=()=>{ speaking=true; try{hero&&hero.play()}catch{} };
+      u.onend  =()=>{ speaking=false; try{hero&&hero.pause()}catch{} };
       speechSynthesis.speak(u);
-      currentUtter = u;
+      currentUtter=u;
     }
-    function stopSpeech(){ if(speaking) speechSynthesis.cancel(); speaking=false; try{hero && hero.pause()}catch{} }
-    window.speechSynthesis.onvoiceschanged = ()=>{}; // carga voces
+    function stopSpeech(){ if(speaking) speechSynthesis.cancel(); speaking=false; try{hero&&hero.pause()}catch{} }
+    window.speechSynthesis.onvoiceschanged=()=>{};
 
-    // ---- Dictado ----
+    // ---------- Dictado ----------
     let recognition=null, recognizing=false;
     if("webkitSpeechRecognition" in window){
-      recognition = new webkitSpeechRecognition();
-      recognition.lang = "es-ES";
-      recognition.interimResults = false;
-      recognition.onresult = (e)=>{ input.value = e.results[0][0].transcript; send(); };
+      recognition=new webkitSpeechRecognition();
+      recognition.lang="es-ES"; recognition.interimResults=false;
+      recognition.onresult=e=>{ input.value=e.results[0][0].transcript; send(); };
     }
-    $("#mic").onclick = ()=>{
+    $("#mic").onclick=()=>{
       if(!recognition) return;
       if(recognizing){ recognition.stop(); recognizing=false; $("#mic").textContent="Dictar"; }
       else{ recognition.start(); recognizing=true; $("#mic").textContent="Parar"; }
     };
 
-    // ---- Sesión / limpiar / exportar ----
-    $("#new").onclick = ()=>{ chat.innerHTML=""; stopSpeech(); saveHistory(); };
-    $("#clear").onclick = ()=>{ localStorage.removeItem("lexium_sessions_v2"); chat.innerHTML=""; };
-    $("#export").onclick = exportTxt;
+    // ---------- Sesión / limpiar / exportar ----------
+    $("#new").onclick=()=>{ chat.innerHTML=""; stopSpeech(); saveHistory(); };
+    $("#clear").onclick=()=>{ localStorage.removeItem("lexium_sessions_v2"); chat.innerHTML=""; };
+    $("#export").onclick=()=>{
+      const text=[...chat.children].map(n=>n.classList.contains("user")?`Usuario: ${n.innerText}`:`Asistente: ${n.innerText}`).join("\n\n");
+      const blob=new Blob([text],{type:"text/plain"}); const a=document.createElement("a");
+      a.href=URL.createObjectURL(blob); a.download="conversacion.txt"; a.click();
+    };
 
-    function exportTxt(){
-      const text = [...chat.children].map(n=>n.classList.contains("user")?`Usuario: ${n.innerText}`:`Asistente: ${n.innerText}`).join("\n\n");
-      const blob = new Blob([text], {type:"text/plain"}); const a=document.createElement("a");
-      a.href = URL.createObjectURL(blob); a.download = "conversacion.txt"; a.click();
-    }
-
-    // ---- Historial (mínimo y robusto) ----
+    // ---------- Historial ----------
     function saveHistory(){
-      const data = [...chat.children].map(n=>({role:n.classList.contains("user")?"user":"bot", html:n.innerHTML}));
+      const data=[...chat.children].map(n=>({role:n.classList.contains("user")?"user":"bot", html:n.innerHTML}));
       localStorage.setItem("lexium_sessions_v2", JSON.stringify(data));
     }
     (function restore(){
       try{
-        const raw = localStorage.getItem("lexium_sessions_v2");
-        if(!raw) return;
-        const data = JSON.parse(raw);
-        data.forEach(m=>append(m.role, m.html));
+        const raw=localStorage.getItem("lexium_sessions_v2"); if(!raw) return;
+        const data=JSON.parse(raw); data.forEach(m=>append(m.role,m.html));
       }catch{}
     })();
   </script>
 </body>
 </html>
-
-
