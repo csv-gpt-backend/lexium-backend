@@ -3,67 +3,44 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Asistente YY Lexium1344</title>
+<title>Asistente Lexium 1400</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
-    --ok:#16a34a; --err:#b91c1c;
-    --heroH: 65vh;
-    --wrapW: 1180px;
+    --heroH: 65vh; --wrapW: 1180px;
   }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
-
   /* ===== Bloque superior fijo ===== */
-  .mediaBar{
-    position:fixed; top:0; left:0; width:100vw; z-index:50;
-    background:#fff; border-bottom:none; padding:0; margin:0;
-    pointer-events:none;
-  }
-  .mediaBar *{ pointer-events:none; }
+  .mediaBar{position:fixed; top:0; left:0; width:100vw; z-index:50; background:#fff; pointer-events:none}
+  .mediaBar *{pointer-events:none}
   .mediaInner{max-width:var(--wrapW); margin:0 auto; padding:12px;}
   .heroGrid{display:grid; grid-template-columns:1fr 3fr 1.16fr; align-items:center; gap:8px;}
   .sideImg{display:flex; justify-content:center; height:var(--heroH); margin:0;}
   .sideImg img{max-width:100%; height:100%; object-fit:contain; opacity:.95}
   .videoBox{height:var(--heroH); margin:0;}
-  .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
-
+  .videoBox video{width:100%; height:100%; object-fit:cover; display:block; border-radius:10px}
   /* ===== Contenido (scroll) ===== */
   .contentWrap{max-width:var(--wrapW); margin:0 auto; padding:12px; padding-top:calc(var(--heroH) + 8px);}
   .toolbar{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:8px 0}
-  .toolbar button, .toolbar select{padding:9px 14px; border:1px solid var(--bd); border-radius:10px; background:#fff; cursor:pointer;}
+  .toolbar button, .toolbar select{padding:9px 14px; border:1px solid var(--bd); border-radius:10px; background:#fff; cursor:pointer}
   .toolbar button:hover{background:#f5f7fb}
   .toolbar button[disabled]{opacity:.6; cursor:not-allowed}
-
   .hist{position:fixed; right:14px; top:10px; z-index:60}
   .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
-
-  /* Caja de texto: UNA sola línea */
-  .query{
-    width:100%;
-    height:42px;
-    border:1px solid var(--bd);
-    border-radius:10px;
-    padding:10px 12px;
-    font-size:16px;
-    line-height:20px;
-    box-sizing:border-box;
-  }
-
-  .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
+  .query{width:100%; height:42px; border:1px solid var(--bd); border-radius:10px; padding:10px 12px; font-size:16px; line-height:20px; box-sizing:border-box}
+  .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh}
   .muted{color:var(--muted); font-size:.9rem}
   table{width:100%; border-collapse:collapse; margin:10px 0}
   th,td{border:1px solid var(--bd); padding:8px}
   th{background:#f8fafc; text-align:left}
-
   .loader{display:inline-flex; align-items:center; gap:8px; font-size:.95rem; color:var(--muted)}
   .dot{width:8px; height:8px; border-radius:50%; background:var(--pri); opacity:.7; animation:bounce 1s infinite}
   .dot:nth-child(2){animation-delay:.15s}
   .dot:nth-child(3){animation-delay:.3s}
   @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
-
-  /* ===== Modal Historial (sin pop-up) ===== */
-  .modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:1000;}
-  .modal.show{display:flex;}
+  /* ===== Modal Historial ===== */
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:1000}
+  .modal.show{display:flex}
   .panel{background:#fff; border-radius:14px; width:min(900px,92vw); max-height:86vh; overflow:auto; box-shadow:0 10px 30px rgba(0,0,0,.2)}
   .panel header{display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--bd)}
   .panel header h3{margin:0; font-size:18px}
@@ -133,10 +110,10 @@
 
 <script>
 /* ====== CONFIG ====== */
-/* ✅ URL correcta de tu Cloud Run */
-const API_BASE = "https://lexium-api-nqh4ai2hnq-tl.a.run.app";
-const GPT_PATH = "/api/gpt";
-const FALLBACK_PATH = "/api/answer";
+const API_BASE = "https://lexium-api-nqh4ai2hnq-tl.a.run.app".replace("https://lexium-api-nqh4ai2hnq-tl.a.run.app","https://lexium-api-nqh4ai2hnq-tl.a.run.app"); // tu Cloud Run
+const PATH_ANSWER = "/api/answer";
+const PATH_GPT_TOOLS = "/api/gpt?mode=tools";
+const PATH_GPT_FREE  = "/api/gpt?mode=free";
 
 /* ====== UI refs ====== */
 const q = document.getElementById("q");
@@ -151,8 +128,6 @@ const btnNew = document.getElementById("btnNew");
 const btnClear = document.getElementById("btnClear");
 const selExport = document.getElementById("selExport");
 const btnHist = document.getElementById("btnHist");
-
-/* ====== Modal Historial refs ====== */
 const histModal = document.getElementById("histModal");
 const histBody = document.getElementById("histBody");
 const btnHistClose = document.getElementById("btnHistClose");
@@ -160,308 +135,131 @@ const btnHistClear = document.getElementById("btnHistClear");
 const btnHistDownload = document.getElementById("btnHistDownload");
 
 /* ====== Utilidades ====== */
-function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
-function setStatusLoading(msg="Generando…"){
-  statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
-}
+function esc(x){ return String(x).replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[m])); }
+function setStatusLoading(msg="Consultando…"){ statusEl.innerHTML = `<span class="loader"><span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`; }
 function clearStatus(){ statusEl.textContent = ""; }
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
-/* ====== Historial ====== */
-const HIST_KEY = "lexium_sessions_v2";
-let memSessions = [];
-function getSessions(){
-  try{ const s = localStorage.getItem(HIST_KEY); if(s) return JSON.parse(s); }catch(e){}
-  try{ const s = sessionStorage.getItem(HIST_KEY); if(s) return JSON.parse(s); }catch(e){}
-  return memSessions.slice();
-}
-function setSessions(arr){
-  try{ localStorage.setItem(HIST_KEY, JSON.stringify(arr)); return; }catch(e){}
-  try{ sessionStorage.setItem(HIST_KEY, JSON.stringify(arr)); return; }catch(e){}
-  memSessions = arr.slice();
-}
-function saveSession(question, data){
-  const visible = (out.textContent || "").trim();
-  const summary = (data?.general || data?.answer || data?.text || data?.html || visible || "").slice(0, 1500);
-  if (!summary && !question) return;
-  const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
-  const rec = { id, when: Date.now(), question: question || "(sin pregunta)", summary };
-  const all = getSessions(); all.unshift(rec); setSessions(all.slice(0,100));
-}
-function openHistoryModal(){
-  const all = getSessions();
-  histBody.innerHTML = all.length
-    ? all.map(s=>`
-      <details>
-        <summary><b>${new Date(s.when).toLocaleString()}</b> — ${esc(s.question)}</summary>
-        <pre>${esc(s.summary || "(sin resumen)")}</pre>
-      </details>
-    `).join("")
-    : "<p class='muted'>Sin historial todavía. Realiza una consulta y se guardará automáticamente.</p>";
-  histModal.classList.add("show");
-  histModal.setAttribute("aria-hidden","false");
-}
-function closeHistoryModal(){
-  histModal.classList.remove("show");
-  histModal.setAttribute("aria-hidden","true");
-}
-
-/* ====== Dictado ====== */
-let recognizer=null;
-function toggleDict(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){ alert("Dictado no soportado en este navegador."); return; }
-  if(!recognizer){
-    recognizer=new SR(); recognizer.lang="es-ES"; recognizer.continuous=false; recognizer.interimResults=false;
-    recognizer.onresult=e=>{
-      const t=Array.from(e.results).map(r=>r[0].transcript).join(" ");
-      q.value=(q.value? q.value+" " : "") + t;
-    };
+/* ====== Normalizador: acepta JSON o TEXTO ====== */
+async function parseResp(resp){
+  const ct = (resp.headers.get("content-type")||"").toLowerCase();
+  if (ct.includes("application/json")) {
+    try { return await resp.json(); } catch { return {}; }
   }
-  if(recognizer.listening){ recognizer.stop(); recognizer.listening=false; btnDict.textContent="🎤 Dictar";}
-  else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado";}
+  const t = await resp.text().catch(()=> "");
+  return t ? { general: t } : {};
 }
 
-/* ====== Voz femenina + TTS ====== */
-const PREFERRED_NAMES=[
-  "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
-  "Google español","Google español de Estados","Google US Español",
-  "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"
-];
-const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
-let selectedVoice=null;
-function scoreVoice(v){
-  const name=(v.name||"").toLowerCase(), lang=(v.lang||"").toLowerCase();
-  let s=0; if (SP_LANGS.some(l=>lang.startsWith(l.toLowerCase()))) s+=5;
-  if (PREFERRED_NAMES.some(n=>name.includes(n.toLowerCase()))) s+=6;
-  if (name.includes("female")||name.includes("femenina")||name.includes("mujer")) s+=4;
-  if (name.includes("google")) s+=2; if (name.includes("microsoft")) s+=2;
-  return s;
-}
-function chooseFemaleES(){
-  if(typeof speechSynthesis==="undefined") return null;
-  const vs=speechSynthesis.getVoices(); if(!vs.length) return null;
-  for(const n of PREFERRED_NAMES){ const m=vs.find(v=>v.name.toLowerCase().includes(n.toLowerCase())); if(m) return m; }
-  return vs.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a))[0]||null;
-}
-function initVoice(){ selectedVoice=chooseFemaleES(); }
-if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
-
-/* === Regex bullets === */
-const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
-
-/* === Numeración si el texto parece listado === */
-function generalToOrderedListHTML(g){
-  if (!g) return "";
+/* ====== Render ====== */
+function generalToHTML(g){
+  if(!g) return "";
   const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-  const bulletLike = lines.filter(s=>BULLET_RE.test(s)).length;
-  const manyPlainLines = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length;
-  const shouldNumber = (lines.length>=3) && (bulletLike>0 || manyPlainLines >= Math.ceil(lines.length*0.6));
-  if (shouldNumber) {
-    const items = lines.map(s=>s.replace(BULLET_RE,"")).filter(Boolean);
-    return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
+  const bullet = /^(?:[•\-–*]|\d+\.)\s+/.test(lines[0]||"") || lines.length>=3;
+  if(bullet){
+    return `<ol>${lines.map(s=>`<li>${esc(s.replace(/^(?:[•\-–*]|\d+\.)\s+/, ""))}</li>`).join("")}</ol>`;
   }
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* === TTS build === */
-function buildTTSTextFromOut(){
-  const c=document.createElement("div"); c.innerHTML=out.innerHTML;
-  const parts=[];
-  c.querySelectorAll("p").forEach(p=>{const t=p.textContent.trim(); if(t) parts.push(t);});
-  c.querySelectorAll("ol,ul").forEach(list=>{
-    const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
-    if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); }
-  });
-  c.querySelectorAll("table").forEach(tbl=>{
-    const rows=[...tbl.querySelectorAll("tbody tr")]; if(!rows.length) return;
-    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim().toUpperCase());
-    let col=0; const iN=headers.findIndex(h=>/NOMBRE/.test(h)); if(iN>=0) col=iN;
-    const items=rows.map((tr,i)=>{
-      const t=(tr.querySelectorAll("td")[col]?.textContent||tr.querySelector("td")?.textContent||"").trim();
-      return `${i+1}. ${t}.`;
-    }).filter(Boolean).join("\n");
-    if(items) parts.push(items);
-  });
-  const fallback=(out.textContent||"").trim();
-  return parts.join("\n\n") || fallback;
-}
-
-/* === TTS control === */
-const TTS={
-  enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
-  makeChunks(text,maxLen=360){
-    const res=[]; const parts=String(text).split(/(\.|\?|!|\n)/);
-    let buf=""; for(let i=0;i<parts.length;i+=2){ const seg=(parts[i]||"")+(parts[i+1]||"");
-      if((buf+seg).length<=maxLen) buf+=seg; else{ if(buf.trim()) res.push(buf.trim()); buf=seg; } }
-    if(buf.trim()) res.push(buf.trim()); return res;
-  },
-  loadFromOut(){ this.textCache=buildTTSTextFromOut(); this.chunks=this.makeChunks(this.textCache); this.i=0; },
-  speakNext(){
-    if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
-    const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
-    if(selectedVoice) u.voice=selectedVoice;
-    u.lang=(selectedVoice?.lang)||"es-ES"; u.rate=0.98; u.pitch=1.08; u.volume=1;
-    u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.play().catch(()=>{});} };
-    u.onend =()=>{ this.speakNext(); };
-    u.onerror=()=>{ this.speakNext(); };
-    this.utter=u; speechSynthesis.speak(u);
-  },
-  start(fromIndex=0){
-    if(typeof speechSynthesis==="undefined" || !this.chunks.length) return;
-    this.enabled=true; if(fromIndex>=0) this.i=fromIndex;
-    speechSynthesis.cancel(); this.speakNext();
-  },
-  pause(){ if(this.speaking && !this.paused){ speechSynthesis.pause(); this.paused=true; if(vid) vid.pause(); } },
-  resume(){ if(this.paused){ speechSynthesis.resume(); this.paused=false; if(vid) vid.play().catch(()=>{}); }
-           else if(!this.speaking && this.enabled){ this.speakNext(); } },
-  restartFromStart(){ this.enabled=true; this.loadFromOut(); this.start(0); },
-  finish(){ this.speaking=false; this.paused=false; this.utter=null; if(vid){ vid.loop=false; vid.pause(); } },
-  stopAll(){ this.enabled=false; this.paused=false; this.speaking=false; this.utter=null;
-             if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel();
-             if(vid){ vid.loop=false; vid.pause(); } }
-};
-
-/* ====== Render ====== */
 function renderAnswer(data){
-  let html="";
+  let html = "";
   const generalTxt = data.general || data.answer || data.text || "";
-  if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
+  if(generalTxt) html += generalToHTML(generalTxt);
 
   const lists = Array.isArray(data.lists) ? data.lists : [];
-  const normLists = lists.map((entry,i)=>{
-    if(Array.isArray(entry)){
-      const flat=entry.every(x=>typeof x==="string"||typeof x==="number");
-      return {title:`Lista ${i+1}`, items: flat? entry : entry.map(x=>Array.isArray(x)? x.join(" ") : String(x))};
-    }else if(entry && typeof entry==="object"){
-      return {title: entry.title||`Lista ${i+1}`, items: Array.isArray(entry.items)? entry.items: []};
-    }else return {title:`Lista ${i+1}`, items:[String(entry)]};
-  });
-  normLists.forEach(l=>{
-    html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
+  lists.forEach((entry,i)=>{
+    let items = [];
+    let title = entry?.title || `Lista ${i+1}`;
+    if(Array.isArray(entry)) { items = entry.map(x=>String(x)); }
+    else if(entry && typeof entry==="object"){ items = Array.isArray(entry.items)? entry.items.map(String):[]; }
+    if(items.length){
+      html += `<h3>${esc(title)}</h3><ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
+    }
   });
 
   (data.tables||[]).forEach(t=>{
-    const cols=t.columns||[]; const rows=t.rows||[];
-    html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
-    html += cols.map(c=>`<th>${esc(c)}</th>`).join("");
-    html += `</tr></thead><tbody>`;
-    rows.forEach(r=>{ html += `<tr>` + r.map(x=>`<td>${esc(x)}</td>`).join("") + `</tr>`; });
-    html += `</tbody></table>`;
+    const cols=t.columns|| (t.rows && t.rows[0] ? Object.keys(t.rows[0]) : []);
+    const rows=t.rows||[];
+    if(!cols.length || !rows.length) return;
+    const th = cols.map(c=>`<th>${esc(c)}</th>`).join("");
+    const trs = rows.map(r=>`<tr>${cols.map(c=>`<td>${esc(r[c] ?? r[cols.indexOf(c)] ?? "")}</td>`).join("")}</tr>`).join("");
+    html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table>`;
   });
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
-
-  // Narración + guardar historial
+  // Narración opcional
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
+  // Guardar historial
   setTimeout(()=> saveSession(q.value.trim(), data), 30);
 }
 
-/* ====== Red: timeout, abort, hedged, retry ====== */
-const DEFAULT_TIMEOUT = 45000;
-let inFlight = null;
-let sending = false;
+/* ====== Escalado inteligente ====== */
+const ERR_PATTERNS = [
+  /consulta no reconocida/i,
+  /datos insuficientes/i,
+  /no hay datos/i
+];
 
-function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
-
-function fetchWithTimeout(url, opts={}, ms=DEFAULT_TIMEOUT){
-  const ctrl = new AbortController();
-  const id = setTimeout(()=>ctrl.abort(), ms);
-  const p = fetch(url, {...opts, signal: ctrl.signal}).finally(()=>clearTimeout(id));
-  return {promise: p, ctrl};
-}
-
-/* ✅ Acepta JSON o TEXTO (si es texto, lo envuelve como {general:text}) */
-async function normalizeResponse(promise){
-  const resp = await promise;
-  const ct = (resp.headers.get("content-type") || "").toLowerCase();
-  let data = {};
-  if (ct.includes("application/json")) {
-    data = await resp.json().catch(()=>({}));
-  } else {
-    const text = await resp.text().catch(()=> "");
-    data = text ? { general: text } : {};
-  }
-  return {resp, data};
-}
-
-// primera respuesta útil gana (POST /api/gpt con 1.2s de ventaja a GET /api/answer)
-async function hedgedRequest(text){
-  const post = fetchWithTimeout(`${API_BASE}${GPT_PATH}`, {
-    method:"POST",
-    headers:{ "Content-Type":"application/json", "Accept":"application/json,text/plain" },
-    body: JSON.stringify({ q: text })
-  }, DEFAULT_TIMEOUT);
-
-  const getStarter = delay(1200).then(()=> 
-    fetchWithTimeout(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
-      headers:{ "Accept":"application/json,text/plain" }
-    }, DEFAULT_TIMEOUT)
-  );
-
-  const postP = normalizeResponse(post.promise);
-  const getP  = getStarter.then(x=>normalizeResponse(x.promise));
-
-  return new Promise((resolve, reject)=>{
-    let settled=false, fails=0;
-
-    function consider({resp,data}){
-      if (settled) return;
-      const meaningful = resp.ok && (data.general || data.lists || data.tables || data.answer || data.text || data.ok === true);
-      if (meaningful){ settled=true; resolve({resp,data}); }
-      else { fails++; if(fails===2) reject(new Error(`HTTP ${resp.status}`)); }
-    }
-    postP.then(consider).catch(()=>{ fails++; if(fails===2) reject(new Error("Fallo en ambas rutas.")); });
-    getP.then(consider).catch(()=>{ fails++; if(fails===2) reject(new Error("Fallo en ambas rutas.")); });
+// llamada simple
+async function call(method, path, body){
+  const url = `${API_BASE}${path}${method==="GET" && body?.q ? `?q=${encodeURIComponent(body.q)}` : ""}`;
+  const resp = await fetch(url, {
+    method,
+    headers: { "Content-Type":"application/json", "Accept":"application/json,text/plain" },
+    body: method==="POST" ? JSON.stringify(body) : undefined
   });
+  const data = await parseResp(resp);
+  return { ok: resp.ok, data };
 }
 
-async function ask(){
-  const text = q.value.trim(); if (!text || sending) return;
-  sending = true;
+// orquesta: answer → gpt tools → gpt free
+async function queryScaled(text){
+  // 1) rápido
+  let r = await call("GET", PATH_ANSWER, { q: text });
+  if (r.ok && r.data && !ERR_PATTERNS.some(rx=>rx.test(JSON.stringify(r.data)))) return r.data;
 
-  if (inFlight && inFlight.abort) inFlight.abort();
+  // 2) herramientas
+  r = await call("POST", PATH_GPT_TOOLS, { q: text });
+  if (r.ok && r.data && (r.data.general || r.data.lists || r.data.tables)) return r.data;
 
-  btnSend.disabled = true; const old = btnSend.textContent; btnSend.textContent = "Enviando…";
-  setStatusLoading("Consultando… (optimizando latencia)");
-
-  try{
-    const {data} = await hedgedRequest(text);
-    renderAnswer(data);
-  }catch(e1){
-    // Reintento único directo a /api/answer (baja latencia)
-    try{
-      statusEl.innerHTML = `<span class="loader"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Reintentando…</span>`;
-      const {resp, data} = await normalizeResponse(fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
-        headers:{ "Accept":"application/json,text/plain" }
-      }));
-      if(!resp.ok) throw new Error();
-      renderAnswer(data);
-    }catch(e2){
-      out.innerHTML = `<pre style="color:#b91c1c">
-No se pudo conectar con el servicio.
-Verifica la URL del API, CORS/OPTIONS y tu conexión.
-Detalle: ${(e2 && (e2.name||"Error"))}: ${String(e2).slice(0,300)}
-</pre>`;
-      setTimeout(()=> saveSession(q.value.trim(), {}), 30);
-    }
-  }finally{
-    clearStatus();
-    btnSend.disabled = false; btnSend.textContent = old;
-    inFlight = null;
-    sending = false;
-  }
+  // 3) libre
+  r = await call("POST", PATH_GPT_FREE, { q: text });
+  return r.data || { general: "Sin respuesta." };
 }
 
-/* ====== Exportar ====== */
+/* ====== TTS ====== */
+let selectedVoice=null;
+function chooseVoice(){
+  const vs = (typeof speechSynthesis!=="undefined") ? speechSynthesis.getVoices() : [];
+  return vs.find(v=>/^es(-|$)/i.test(v.lang)) || vs[0] || null;
+}
+if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=()=>{selectedVoice=chooseVoice()}; setTimeout(()=>{selectedVoice=chooseVoice()},150); }
+
+const TTS={
+  enabled:false, chunks:[], i:0, speaking:false,
+  cut(txt,max=360){ const parts=[]; let b=""; (txt||"").split(/(\.|\?|!|\n)/).forEach((seg,idx)=>{ const s=(idx%2?seg:"") + (idx%2? "":seg); if((b+s).length<=max) b+=s; else{ if(b.trim()) parts.push(b.trim()); b=s; } }); if(b.trim()) parts.push(b.trim()); return parts; },
+  loadFromOut(){ const div=document.createElement("div"); div.innerHTML=out.innerHTML; const t=div.textContent||""; this.chunks=this.cut(t); this.i=0; },
+  start(){ if(!this.enabled||!this.chunks.length||typeof speechSynthesis==="undefined") return; speechSynthesis.cancel(); this.next(); },
+  next(){ if(this.i>=this.chunks.length){ this.finish(); return; } const u=new SpeechSynthesisUtterance(this.chunks[this.i++]); if(selectedVoice) u.voice=selectedVoice; u.lang=(selectedVoice?.lang)||"es-ES"; u.onstart=()=>{this.speaking=true; try{vid&&vid.play()}catch{} }; u.onend=()=>this.next(); speechSynthesis.speak(u); },
+  finish(){ this.speaking=false; try{vid&&vid.pause()}catch{} },
+  toggle(){ this.enabled=!this.enabled; if(this.enabled){ this.loadFromOut(); this.start(); } else { if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel(); this.finish(); } },
+  replay(){ this.enabled=true; this.loadFromOut(); this.start(); }
+};
+
+/* ====== Historial básico ====== */
+const HIST_KEY="lexium_sessions_v2";
+function getSessions(){ try{const s=localStorage.getItem(HIST_KEY); if(s) return JSON.parse(s);}catch{} return []; }
+function setSessions(a){ try{localStorage.setItem(HIST_KEY, JSON.stringify(a));}catch{} }
+function saveSession(question,data){ const all=getSessions(); all.unshift({when:Date.now(),question,summary:(data.general||"").slice(0,1500)}); setSessions(all.slice(0,100)); }
+function openHistoryModal(){ const all=getSessions(); histBody.innerHTML = all.length? all.map(s=>`<details><summary><b>${new Date(s.when).toLocaleString()}</b> — ${esc(s.question)}</summary><pre>${esc(s.summary)}</pre></details>`).join("") : "<p class='muted'>Sin historial.</p>"; histModal.classList.add("show"); }
+function closeHistoryModal(){ histModal.classList.remove("show"); }
+
+/* ====== Export ====== */
 function printHTML(html){
-  const iframe = document.createElement('iframe');
-  iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
-  iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0';
+  const iframe=document.createElement('iframe'); iframe.style.position='fixed'; iframe.style.right=0; iframe.style.bottom=0; iframe.style.width=0; iframe.style.height=0; iframe.style.border=0;
   document.body.appendChild(iframe);
-  const doc = iframe.contentWindow || iframe.contentDocument;
-  const idoc = doc.document || doc;
-  idoc.open(); idoc.write(html); idoc.close();
-  setTimeout(()=>{ try{ (iframe.contentWindow || iframe).focus(); (iframe.contentWindow || iframe).print(); }catch{} }, 60);
+  const idoc=(iframe.contentWindow||iframe).document; idoc.open(); idoc.write(html); idoc.close();
+  setTimeout(()=>{ try{ (iframe.contentWindow||iframe).focus(); (iframe.contentWindow||iframe).print(); }catch{} }, 60);
   setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
 }
 selExport.addEventListener("change", ()=>{
@@ -472,65 +270,62 @@ selExport.addEventListener("change", ()=>{
       <style>body{font:16px/1.5 system-ui;margin:28px;color:#111}
              table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
       </head><body>${out.innerHTML}</body></html>`;
-    try{ printHTML(html); }
-    catch(_){
-      const blob=new Blob([html],{type:"text/html"});
-      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="lexium_export.html"; a.click();
-      setTimeout(()=>URL.revokeObjectURL(a.href),500);
-    }
-    return;
+    try{ printHTML(html); }catch{ const blob=new Blob([html],{type:"text/html"}); const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="lexium_export.html"; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); }
   }
   if(v==="xls"||v==="doc"){
     const mime = v==="xls" ? "application/vnd.ms-excel" : "application/msword";
     const blob=new Blob([`<html><body>${out.innerHTML}</body></html>`],{type:mime});
-    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`export.${v}`; a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),500);
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`export.${v}`; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500);
   }
 });
 
-/* ====== Botones ====== */
+/* ====== Eventos ====== */
 btnSend.addEventListener("click", ask);
+q.addEventListener("keydown", e=>{ if(e.key==="Enter"){ e.preventDefault(); ask(); } });
 btnDict.addEventListener("click", toggleDict);
-btnToggleAV.addEventListener("click", ()=>{
-  if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
-  if(TTS.paused){ TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
-  else if(TTS.speaking){ TTS.pause(); btnToggleAV.textContent="▶ Reanudar voz"; }
-  else { TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
-});
-btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
-btnClear.addEventListener("click", ()=>{
-  if (out.textContent.trim() || q.value.trim()) saveSession(q.value.trim(), {});
-  q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll();
-});
-btnNew.addEventListener("click", ()=>{
-  if (out.textContent.trim() || q.value.trim()) saveSession(q.value.trim(), {});
-  TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus();
-});
-
-/* ====== Historial ====== */
+btnToggleAV.addEventListener("click", ()=> TTS.toggle());
+btnReplay.addEventListener("click", ()=> TTS.replay());
+btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel(); });
+btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim(), {general: (out.textContent||"").trim()}); q.value=""; out.innerHTML=""; clearStatus(); });
 btnHist.addEventListener("click", openHistoryModal);
-btnHistClose.addEventListener("click", closeHistoryModal);
-histModal.addEventListener("click", e=>{ if(e.target===histModal) closeHistoryModal(); });
-btnHistClear.addEventListener("click", ()=>{ if (confirm("¿Borrar todo el historial?")) setSessions([]), openHistoryModal(); });
-btnHistDownload.addEventListener("click", ()=>{
-  const data = JSON.stringify(getSessions(), null, 2);
-  const blob = new Blob([data], {type:"application/json"});
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "historial_lexium.json";
-  a.click();
-  setTimeout(()=>URL.revokeObjectURL(a.href), 500);
-});
+document.getElementById("btnHistClose").addEventListener("click", closeHistoryModal);
+document.getElementById("histModal").addEventListener("click", e=>{ if(e.target.id==="histModal") closeHistoryModal(); });
+document.getElementById("btnHistClear").addEventListener("click", ()=>{ if(confirm("¿Borrar historial?")) localStorage.removeItem(HIST_KEY), openHistoryModal(); });
+document.getElementById("btnHistDownload").addEventListener("click", ()=>{ const data=localStorage.getItem(HIST_KEY)||"[]"; const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([data],{type:"application/json"})); a.download="historial_lexium.json"; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),500); });
 
-/* ====== UX ====== */
-q.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); ask(); } });
+/* ====== Lógica principal ====== */
+async function ask(){
+  const text = q.value.trim();
+  if(!text) return;
+  setStatusLoading("Consultando…");
+  try{
+    const data = await queryScaled(text);
+    renderAnswer(data);
+  }catch(e){
+    out.innerHTML = `<pre style="color:#b91c1c">No se pudo obtener respuesta.\n${esc(String(e))}</pre>`;
+  }finally{
+    clearStatus();
+  }
+}
+
+/* ====== Dictado ====== */
+let recognizer=null;
+function toggleDict(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ alert("Dictado no soportado en este navegador."); return; }
+  if(!recognizer){
+    recognizer=new SR(); recognizer.lang="es-ES"; recognizer.continuous=false; recognizer.interimResults=false;
+    recognizer.onresult=e=>{ const t=Array.from(e.results).map(r=>r[0].transcript).join(" "); q.value=(q.value? q.value+" " : "") + t; };
+  }
+  if(recognizer.listening){ recognizer.stop(); recognizer.listening=false; btnDict.textContent="🎤 Dictar"; }
+  else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
+}
 
 /* Mostrar errores JS en pantalla */
 window.addEventListener("error", (e)=>{
   const msg = (e?.error?.stack || e?.message || String(e)).slice(0, 600);
-  const box = document.getElementById("status");
-  if (box) box.innerHTML = '<pre style="color:#b91c1c;background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:8px;white-space:pre-wrap">JS error: '
-    + msg + '</pre>';
+  statusEl.innerHTML = '<pre style="color:#b91c1c;background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:8px;white-space:pre-wrap">JS error: '
+    + esc(msg) + '</pre>';
 });
 </script>
 </body>
