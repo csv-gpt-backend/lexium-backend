@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Asistente Lexium 1156</title>
+<title>Asistente Lexium 1226</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -51,8 +51,6 @@
   table{width:100%; border-collapse:collapse; margin:10px 0}
   th,td{border:1px solid var(--bd); padding:8px}
   th{background:#f8fafc; text-align:left}
-
-  .loader{display:none} /* se desactiva el loader antiguo */
 
   /* Modal historial */
   .modal{position:fixed; inset:0; background:rgba(0,0,0,.4); display:none; place-items:center; z-index:80}
@@ -107,8 +105,8 @@
       </select>
     </div>
 
-    <div id="out" class="out" aria-live="polite"></div>
-    <div id="status" class="muted"></div>
+  <div id="out" class="out" aria-live="polite"></div>
+  <div id="status" class="muted"></div>
   </div>
 
   <!-- Modal Historial -->
@@ -129,8 +127,8 @@
 <script>
 /* ====== CONFIG ====== */
 const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
-const GPT_PATH = "/api/gpt";
-const FALLBACK_PATH = "/api/answer";
+const GPT_PATH = "/api/gpt";      // Solo GPT (sin respuestas predefinidas)
+const FALLBACK_PATH = null;       // Fallback desactivado
 
 /* ====== UI refs ====== */
 const q = document.getElementById("q");
@@ -153,24 +151,18 @@ const btnHistClose = document.getElementById("btnHistClose");
 const btnHistClear = document.getElementById("btnHistClear");
 const btnHistDownload = document.getElementById("btnHistDownload");
 
-/* ====== Utilidades ====== */
+/* ====== Util ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
 function showProcessing(show){ processingBadge.style.display = show? "block":"none"; }
-function isUnrecognized(data){
-  const t = (data?.general || "").toLowerCase();
-  return t.includes("consulta no reconocida");
-}
 
 /* ====== Historial ====== */
 const SKEY="lexium_sessions_v2";
+function getSessions(){ try{ return JSON.parse(localStorage.getItem(SKEY)||"[]"); }catch{ return []; } }
 function persistSession(question, data, renderedHTML){
   const all = getSessions();
   const item = { id: new Date().toISOString(), question, data, html: renderedHTML };
   all.unshift(item);
-  try{ localStorage.setItem(SKEY, JSON.stringify(all.slice(0,120))); }catch(_){}
-}
-function getSessions(){
-  try{ return JSON.parse(localStorage.getItem(SKEY)||"[]"); }catch(_){ return []; }
+  try{ localStorage.setItem(SKEY, JSON.stringify(all.slice(0,120))); }catch{}
 }
 function openHistory(){
   const all = getSessions();
@@ -187,10 +179,7 @@ function openHistory(){
   histModal.style.display="grid"; histModal.setAttribute("aria-hidden","false");
 }
 function closeHistory(){ histModal.style.display="none"; histModal.setAttribute("aria-hidden","true"); }
-function clearHistory(){
-  localStorage.removeItem(SKEY);
-  histBody.innerHTML="<em>Historial borrado.</em>";
-}
+function clearHistory(){ localStorage.removeItem(SKEY); histBody.innerHTML="<em>Historial borrado.</em>"; }
 function downloadHistory(){
   const blob = new Blob([localStorage.getItem(SKEY)||"[]"],{type:"application/json"});
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="historial_lexium.json"; a.click();
@@ -243,7 +232,7 @@ if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVo
 /* === Regex bullets === */
 const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
 
-/* === Numeración uniforme de texto general === */
+/* === Texto general → lista numerada si aplica === */
 function generalToOrderedListHTML(g){
   if (!g) return "";
   const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -257,7 +246,7 @@ function generalToOrderedListHTML(g){
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* === Construir TTS con TODO el contenido === */
+/* === TTS: construir desde TODO el HTML (titulares, listas, tablas) === */
 function textForTTSFromHTML(html){
   const c=document.createElement("div"); c.innerHTML=html;
   const parts=[];
@@ -280,7 +269,7 @@ function textForTTSFromHTML(html){
   return parts.join("\n\n");
 }
 
-/* ====== Verificación de enlaces ====== */
+/* ====== Verificación básica de enlaces ====== */
 async function verifyLinksIn(outEl){
   const anchors = outEl.querySelectorAll("a[href]");
   for(const a of anchors){
@@ -295,7 +284,7 @@ async function verifyLinksIn(outEl){
   }
 }
 
-/* ====== Memoria de sesión ====== */
+/* ====== Memoria de sesión sencilla ====== */
 let sessionCtx = { lastStudent: null };
 function updateSessionContextFromQuestion(text){
   const m = text.match(/estudiante\s+([A-Za-zÁÉÍÓÚÑáéíóú'´` ]+)/i);
@@ -308,7 +297,7 @@ function enrichQueryWithContext(text){
   return text;
 }
 
-/* ====== Normalizar listas/tables ====== */
+/* ====== Normalizar listas/tablas ====== */
 function normalizeLists(lists){
   if(!Array.isArray(lists)) return [];
   return lists.map((entry,i)=>{
@@ -337,7 +326,7 @@ function renderAnswer(data){
   (data.tables||[]).forEach(t=>{
     const cols = t.columns||[];
     const rows = t.rows||[];
-    const withNum = rows.map((r,idx)=>[String(idx+1), ...r]);
+    const withNum = rows.map((r,idx)=>[String(idx+1), ...r]); // numerar filas
     html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
     html += ["#", ...cols].map(c=>`<th>${esc(c)}</th>`).join("");
     html += `</tr></thead><tbody>`;
@@ -349,7 +338,7 @@ function renderAnswer(data){
 
   verifyLinksIn(out);
 
-  // TTS: leer TODO desde el HTML final
+  // Voz automática: leer TODO el contenido final
   TTS.enabled = true;
   const txt = textForTTSFromHTML(out.innerHTML);
   TTS.stopAll();
@@ -393,81 +382,59 @@ const TTS={
              if(vid){ vid.loop=false; vid.pause(); } }
 };
 
-/* ====== Helpers de red ====== */
-function withTimeout(promise, ms, controller){
-  let t; const timeout = new Promise((_,rej)=> t=setTimeout(()=>{ try{controller?.abort()}catch{}; rej(new Error("timeout")) }, ms));
-  return Promise.race([promise.finally(()=>clearTimeout(t)), timeout]);
-}
-async function fetchJSON(url, opts={}, ms=12000){
-  const ctrl = new AbortController();
-  const res = await withTimeout(fetch(url, {...opts, signal: ctrl.signal}), ms, ctrl);
-  const data = await res.json().catch(()=> ({}));
-  if(!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
-  return data;
-}
-
-/* ====== Secuencia preferente: GPT → fallback answer → (si no reconocido) GPT ====== */
+/* ====== SOLO GPT: llamada única con timeout corto ====== */
 async function ask(){
-  const text=q.value.trim(); if(!text) return;
-  if (btnSend.disabled) return; // anti reentrada
-  btnSend.disabled=true;
-  const old=btnSend.textContent; btnSend.textContent="Enviando…";
-  showProcessing(true); statusEl.textContent=""; // sin loader inferior
+  const text = q.value.trim();
+  if (!text) return;
+  if (btnSend.disabled) return; // anti doble click
+
+  btnSend.disabled = true;
+  const old = btnSend.textContent;
+  btnSend.textContent = "Enviando…";
+
+  showProcessing(true);
+  statusEl.textContent = ""; // no loader inferior
+  out.innerHTML = "";        // limpia salida
 
   try{
     const enriched = enrichQueryWithContext(text);
+    const ctrl = new AbortController();
+    const t = setTimeout(() => { try{ ctrl.abort(); }catch{} }, 14000); // timeout corto
 
-    // 1) Intento principal: GPT (lenguaje natural)
-    let data = null, gptError=null;
-    try{
-      data = await fetchJSON(`${API_BASE}${GPT_PATH}`, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-        body: JSON.stringify({ q: enriched })
-      }, 12000);
-    }catch(e){ gptError=e; }
+    const r = await fetch(`${API_BASE}${GPT_PATH}`, {
+      method:"POST",
+      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({ q: enriched }),
+      signal: ctrl.signal
+    }).catch(()=>{ throw new Error("No hay respuesta del servidor"); });
 
-    // 2) Si GPT falla o viene vacío, usar /api/answer
-    if(!data || data.ok===false || !data.general){
-      try{
-        data = await fetchJSON(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(enriched)}`, {
-          headers:{ "Accept":"application/json" }
-        }, 12000);
-      }catch(e2){
-        // Si también falla, reintento final a GPT
-        if(gptError) throw gptError;
-        else throw e2;
-      }
+    clearTimeout(t);
+
+    let data = {};
+    try{ data = await r.json(); }catch{ data = {}; }
+
+    if(!r.ok || data.ok === false){
+      throw new Error(data.error || data.general || `HTTP ${r.status}`);
+    }
+    if(!data || (!data.general && !data.lists && !data.tables)){
+      throw new Error("Respuesta vacía del modelo");
     }
 
-    // 3) Si la respuesta del fallback es “consulta no reconocida…”, forzar segundo intento con GPT
-    if(isUnrecognized(data)){
-      try{
-        const retry = await fetchJSON(`${API_BASE}${GPT_PATH}`, {
-          method:"POST",
-          headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-          body: JSON.stringify({ q: enriched })
-        }, 14000);
-        if(retry && retry.ok!==false && retry.general){
-          data = retry; // reemplazar por la buena
-        }
-      }catch(_){ /* si no se puede, dejamos la respuesta actual */ }
-    }
-
-    if(!data || data.ok===false) throw new Error(data?.error || data?.general || "Sin respuesta");
     renderAnswer(data);
     persistSession(text, data, out.innerHTML);
     updateSessionContextFromQuestion(text);
 
   }catch(e){
-    out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
+    out.innerHTML = `<pre style="color:${'var(--err)'}">${(e && e.message) ? e.message : String(e)}</pre>`;
     persistSession(text, {}, out.innerHTML);
   }finally{
-    btnSend.disabled=false; btnSend.textContent=old; showProcessing(false);
+    btnSend.disabled = false;
+    btnSend.textContent = old;
+    showProcessing(false);
   }
 }
 
-/* ====== Exportar con preguntas + respuestas ====== */
+/* ====== Exportar preguntas + respuestas ====== */
 function getExportHTML(){
   const all = getSessions();
   if(!all.length) return "<em>Sin contenido</em>";
@@ -528,10 +495,7 @@ btnToggleAV.addEventListener("click", ()=>{
 });
 btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
 btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; TTS.stopAll(); });
-btnNew.addEventListener("click", ()=>{ 
-  sessionCtx = { lastStudent:null }; // romper contexto
-  q.value=""; out.innerHTML=""; TTS.stopAll(); 
-});
+btnNew.addEventListener("click", ()=>{ sessionCtx = { lastStudent:null }; q.value=""; out.innerHTML=""; TTS.stopAll(); });
 btnHist.addEventListener("click", openHistory);
 btnHistClose.addEventListener("click", closeHistory);
 btnHistClear.addEventListener("click", clearHistory);
@@ -540,8 +504,13 @@ btnHistDownload.addEventListener("click", downloadHistory);
 /* ====== UX ====== */
 q.addEventListener("keydown",(e)=>{ if(e.key==="Enter" && (e.ctrlKey||e.metaKey)) ask(); });
 
-/* Ocultar cualquier rastro del loader antiguo */
-statusEl.textContent="";
+/* Mostrar errores JS en pantalla (no bloquea) */
+window.addEventListener("error", (e)=>{
+  const msg = (e?.error?.stack || e?.message || String(e)).slice(0, 600);
+  const box = document.getElementById("status");
+  if (box) box.innerHTML = '<pre style="color:#b91c1c;background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:8px;white-space:pre-wrap">JS error: '
+    + msg + '</pre>';
+}, {once:false});
 </script>
 </body>
 </html>
