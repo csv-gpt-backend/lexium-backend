@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Asistente Lexium OK</title>
+<title>Asistente Lexium1139</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -97,7 +97,7 @@
     </div>
 
     <div class="toolbar">
-      <!-- Se quita onclick para evitar doble disparo -->
+      <!-- Sin onclick para evitar dobles -->
       <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
       <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
       <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
@@ -134,8 +134,7 @@
 <script>
 /* ====== CONFIG ====== */
 const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
-/* Opción estable: usar solo /api/answer (GET) */
-const GPT_PATH = "/api/answer";
+const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
 
 /* ====== UI refs ====== */
@@ -169,12 +168,12 @@ function clearStatus(){ statusEl.textContent = ""; }
 function showProcessing(show){ processingBadge.style.display = show? "block":"none"; }
 
 /* ====== Historial ====== */
-const SKEY="lexium_sessions_v2"; // nuevo schema: guarda Q+A enteras
+const SKEY="lexium_sessions_v2"; // guarda Q+A enteras para export
 function persistSession(question, data, renderedHTML){
   const all = getSessions();
   const item = { id: new Date().toISOString(), question, data, html: renderedHTML };
   all.unshift(item);
-  try{ localStorage.setItem(SKEY, JSON.stringify(all.slice(0,80))); }catch(_){}
+  try{ localStorage.setItem(SKEY, JSON.stringify(all.slice(0,120))); }catch(_){}
 }
 function getSessions(){
   try{ return JSON.parse(localStorage.getItem(SKEY)||"[]"); }catch(_){ return []; }
@@ -268,25 +267,19 @@ function generalToOrderedListHTML(g){
 function textForTTSFromHTML(html){
   const c=document.createElement("div"); c.innerHTML=html;
   const parts=[];
-  // títulos
   c.querySelectorAll("h3,h4").forEach(h=>{ const t=h.textContent.trim(); if(t) parts.push(t+"."); });
-  // párrafos
   c.querySelectorAll("p").forEach(p=>{const t=p.textContent.trim(); if(t) parts.push(t);});
-  // listas
   c.querySelectorAll("ol,ul").forEach(list=>{
     const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
     if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); }
   });
-  // tablas
   c.querySelectorAll("table").forEach(tbl=>{
     const title=tbl.previousElementSibling && /H3|H4/.test(tbl.previousElementSibling.tagName)? tbl.previousElementSibling.textContent.trim() : "Tabla";
     parts.push(title+".");
     const rows=[...tbl.querySelectorAll("tbody tr")];
-    const colNames=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
-    const idxName = colNames[0] || "#";
     rows.forEach((tr,i)=>{
       const tds=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
-      const label=tds.slice(1,2)[0]||tds[0]||""; // segunda col suele ser “Nombre” si existe
+      const label=tds.slice(1,2)[0]||tds[0]||"";
       parts.push(`${i+1}. ${label}.`);
     });
   });
@@ -299,9 +292,8 @@ async function verifyLinksIn(outEl){
   for(const a of anchors){
     const url=a.getAttribute("href");
     try{
-      const r = await fetch(url, { method:"HEAD", mode:"no-cors" });
-      // con no-cors no podemos leer status; marcamos activos por defecto,
-      // y si falla el fetch lanzará catch → se marcará ⚠️
+      // best-effort: si falla el fetch, marcamos ⚠️
+      await fetch(url, { method:"HEAD", mode:"no-cors" });
     }catch{
       a.style.color="#6b7280"; a.style.textDecoration="underline dotted";
       a.setAttribute("title","⚠️ Enlace no disponible");
@@ -311,9 +303,8 @@ async function verifyLinksIn(outEl){
 }
 
 /* ====== Memoria de sesión ====== */
-let sessionCtx = { lastStudent: null }; // se borra con “Nueva sesión”
+let sessionCtx = { lastStudent: null };
 function updateSessionContextFromQuestion(text){
-  // naive: “estudiante <nombre…>”
   const m = text.match(/estudiante\s+([A-Za-zÁÉÍÓÚÑáéíóú'´` ]+)/i);
   if(m){ sessionCtx.lastStudent = m[1].trim(); }
 }
@@ -353,7 +344,6 @@ function renderAnswer(data){
   (data.tables||[]).forEach(t=>{
     const cols = t.columns||[];
     const rows = t.rows||[];
-    // inserta numeración uniforme como primera columna
     const withNum = rows.map((r,idx)=>[String(idx+1), ...r]);
     html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
     html += ["#", ...cols].map(c=>`<th>${esc(c)}</th>`).join("");
@@ -364,7 +354,6 @@ function renderAnswer(data){
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
-  // Verificar enlaces (YouTube u otros)
   verifyLinksIn(out);
 
   // TTS: leer TODO desde el HTML final
@@ -411,7 +400,57 @@ const TTS={
              if(vid){ vid.loop=false; vid.pause(); } }
 };
 
-/* ====== Backend ====== */
+/* ====== Hedged request (latencia mínima) ====== */
+function withTimeout(promise, ms, controller){
+  let t; const timeout = new Promise((_,rej)=> t=setTimeout(()=>{ try{controller?.abort()}catch{}; rej(new Error("timeout")) }, ms));
+  return Promise.race([promise.finally(()=>clearTimeout(t)), timeout]);
+}
+
+async function hedgedQuery(text){
+  // Construimos dos solicitudes en paralelo:
+  const ctrlGPT = new AbortController();
+  const ctrlANS = new AbortController();
+  const body = JSON.stringify({ q: text });
+
+  const reqGPT = withTimeout(fetch(`${API_BASE}${GPT_PATH}`, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+    body, signal: ctrlGPT.signal
+  }), 12000, ctrlGPT); // timeout corto por intento
+
+  const reqANS = withTimeout(fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
+    headers:{ "Accept":"application/json" }, signal: ctrlANS.signal
+  }), 12000, ctrlANS);
+
+  // Ganador por OK primero; si uno falla, esperamos al otro.
+  return new Promise(async (resolve, reject)=>{
+    let settled=false;
+    function win(resp, who){
+      if(settled) return;
+      settled=true;
+      try{ ctrlGPT.abort(); }catch{}
+      try{ ctrlANS.abort(); }catch{}
+      resolve(resp);
+    }
+    function lose(err){ /* no resolvemos; dejamos que el otro intente ganar */ }
+
+    reqGPT.then(r=>r.ok?r.json().then(j=>win(j,"gpt")):lose(new Error("gpt not ok"))).catch(lose);
+    reqANS.then(r=>r.ok?r.json().then(j=>win(j,"ans")):lose(new Error("ans not ok"))).catch(lose);
+
+    // Salvaguarda: si en 12s ninguno da OK, intentamos una última vez /api/answer sin abort
+    setTimeout(async ()=>{
+      if(settled) return;
+      try{
+        const r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, { headers:{ "Accept":"application/json" }});
+        const j = await r.json().catch(()=>({}));
+        if(r.ok) return win(j,"ans2");
+      }catch(_){}
+      reject(new Error("Sin respuesta disponible"));
+    }, 12050);
+  });
+}
+
+/* ====== Backend (usar hedge) ====== */
 async function ask(){
   const text=q.value.trim(); if(!text) return;
   if (btnSend.disabled) return; // anti reentrada
@@ -420,22 +459,12 @@ async function ask(){
   setStatusLoading("Consultando…");
   showProcessing(true);
   try{
-    // Añadir contexto de sesión si existe
     const enriched = enrichQueryWithContext(text);
+    const data = await hedgedQuery(enriched);
 
-    // Solo /api/answer para máxima estabilidad
-    let r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(enriched)}`, {
-      headers:{ "Accept":"application/json" }
-    });
-
-    const data = await r.json().catch(()=>({}));
-    if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
-
-    // Render y TTS
+    if(!data || data.ok===false) throw new Error(data?.error || data?.general || `Respuesta inválida`);
     renderAnswer(data);
-    // Persistir Q+A completas (para exportar luego)
     persistSession(text, data, out.innerHTML);
-    // Actualizar contexto desde la pregunta
     updateSessionContextFromQuestion(text);
   }catch(e){
     out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
@@ -507,8 +536,7 @@ btnToggleAV.addEventListener("click", ()=>{
 btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
 btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
 btnNew.addEventListener("click", ()=>{ 
-  // romper contexto y limpiar
-  sessionCtx = { lastStudent:null };
+  sessionCtx = { lastStudent:null }; // romper contexto
   q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); 
 });
 btnHist.addEventListener("click", openHistory);
