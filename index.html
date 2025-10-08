@@ -1,198 +1,537 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Asistente 1333</title>
-  <style>
-    :root{ --azul:#0c2a57; --borde:#d9dee6; --bg:#f5f7fb; --bubble:#ffffff; }
-    html,body{height:100%}
-    body{margin:0;font-family:Segoe UI,system-ui,-apple-system,Arial;background:var(--bg);display:flex;flex-direction:column}
-    /* --------- HEADER (tu diseño) --------- */
-    header{background:var(--azul);color:#fff;display:flex;align-items:center;justify-content:space-between;padding:10px 16px}
-    header img.logo{height:42px}
-    #heroVideo{height:64px;border-radius:8px;object-fit:cover}
-    /* --------- CONTENIDO --------- */
-    #content{flex:1;overflow:auto;padding:16px}
-    #chat{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:10px}
-    .bubble{border:1px solid var(--borde);background:var(--bubble);border-radius:10px;padding:12px 14px;line-height:1.45;font-size:15px;white-space:pre-wrap}
-    .user{align-self:flex-start;background:#e7f0ff;border-color:#cbdaf8}
-    .bot{align-self:flex-start}
-    #loader{display:none;max-width:960px;margin:8px auto 0;color:#0d47a1;font-weight:600}
-    /* --------- INPUT BAR (tus botones) --------- */
-    #inputBar{background:#eef3f9;border-top:1px solid var(--borde);padding:10px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
-    #q{flex:1;min-width:420px;max-width:800px;border:1px solid var(--borde);border-radius:8px;padding:10px 12px;font-size:14px}
-    .btn{border:1px solid #cfd6e2;background:#ffffff;color:#183153;font-weight:600;border-radius:8px;padding:10px 12px;cursor:pointer}
-    .btn.primary{background:#0d47a1;color:#fff;border-color:#0d47a1}
-    .btn:hover{background:#f6f9ff}
-    .btn.primary:hover{background:#0b3b86}
-    /* --------- TABLAS --------- */
-    .table{border:1px solid var(--borde);border-radius:10px;overflow:auto}
-    table{border-collapse:collapse;width:100%}
-    th,td{border-bottom:1px solid var(--borde);padding:8px 10px;text-align:left;font-size:14px;white-space:nowrap}
-    th{background:#f4f7ff}
-    .listBlock{margin:6px 0 0 0}
-    .listBlock li{margin:2px 0}
-    iframe#preview{display:none}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Asistente YY Lexium1344</title>
+<style>
+  :root{
+    --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
+    --ok:#16a34a; --err:#b91c1c;
+    --heroH: 65vh;
+    --wrapW: 1180px;
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
+
+  /* ===== Bloque superior fijo ===== */
+  .mediaBar{
+    position:fixed; top:0; left:0; width:100vw; z-index:50;
+    background:#fff; border-bottom:none; padding:0; margin:0;
+    pointer-events:none;
+  }
+  .mediaBar *{ pointer-events:none; }
+  .mediaInner{max-width:var(--wrapW); margin:0 auto; padding:12px;}
+  .heroGrid{display:grid; grid-template-columns:1fr 3fr 1.16fr; align-items:center; gap:8px;}
+  .sideImg{display:flex; justify-content:center; height:var(--heroH); margin:0;}
+  .sideImg img{max-width:100%; height:100%; object-fit:contain; opacity:.95}
+  .videoBox{height:var(--heroH); margin:0;}
+  .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
+
+  /* ===== Contenido (scroll) ===== */
+  .contentWrap{max-width:var(--wrapW); margin:0 auto; padding:12px; padding-top:calc(var(--heroH) + 8px);}
+  .toolbar{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:8px 0}
+  .toolbar button, .toolbar select{padding:9px 14px; border:1px solid var(--bd); border-radius:10px; background:#fff; cursor:pointer;}
+  .toolbar button:hover{background:#f5f7fb}
+  .toolbar button[disabled]{opacity:.6; cursor:not-allowed}
+
+  .hist{position:fixed; right:14px; top:10px; z-index:60}
+  .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
+
+  /* Caja de texto: UNA sola línea */
+  .query{
+    width:100%;
+    height:42px;
+    border:1px solid var(--bd);
+    border-radius:10px;
+    padding:10px 12px;
+    font-size:16px;
+    line-height:20px;
+    box-sizing:border-box;
+  }
+
+  .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
+  .muted{color:var(--muted); font-size:.9rem}
+  table{width:100%; border-collapse:collapse; margin:10px 0}
+  th,td{border:1px solid var(--bd); padding:8px}
+  th{background:#f8fafc; text-align:left}
+
+  .loader{display:inline-flex; align-items:center; gap:8px; font-size:.95rem; color:var(--muted)}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--pri); opacity:.7; animation:bounce 1s infinite}
+  .dot:nth-child(2){animation-delay:.15s}
+  .dot:nth-child(3){animation-delay:.3s}
+  @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
+
+  /* ===== Modal Historial (sin pop-up) ===== */
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:1000;}
+  .modal.show{display:flex;}
+  .panel{background:#fff; border-radius:14px; width:min(900px,92vw); max-height:86vh; overflow:auto; box-shadow:0 10px 30px rgba(0,0,0,.2)}
+  .panel header{display:flex; justify-content:space-between; align-items:center; padding:12px 16px; border-bottom:1px solid var(--bd)}
+  .panel header h3{margin:0; font-size:18px}
+  .panel .body{padding:12px 16px}
+  .panel .actions{display:flex; gap:8px; align-items:center}
+  .panel .actions button{padding:8px 10px; border:1px solid var(--bd); border-radius:10px; background:#fff; cursor:pointer}
+  details{border:1px solid var(--bd); border-radius:10px; padding:8px 10px; margin:8px 0}
+</style>
 </head>
 <body>
-  <header>
-    <img class="logo" src="left.png" alt="SANTILLANA" />
-    <video id="heroVideo" src="hero.mp4" autoplay muted loop></video>
-    <img class="logo" src="right.png" alt="COMPARTIR" />
-  </header>
 
-  <div id="content">
-    <div id="chat"></div>
-    <div id="loader">Consultando…</div>
+  <!-- Botón Historial -->
+  <div class="hist">
+    <button id="btnHist" title="Ver sesiones guardadas">Historial</button>
   </div>
 
-  <div id="inputBar">
-    <input id="q" type="text" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…" />
-    <button id="send" class="btn primary">Enviar</button>
-    <button id="mic" class="btn">Dictar</button>
-    <button id="tts" class="btn">Activar voz</button>
-    <button id="replay" class="btn">Reproducir</button>
-    <button id="new" class="btn">+ Nueva sesión</button>
-    <button id="clear" class="btn">Limpiar</button>
-    <button id="export" class="btn">Exportar…</button>
+  <!-- Bloque fijo -->
+  <div class="mediaBar" aria-label="cabecera">
+    <div class="mediaInner">
+      <div class="heroGrid">
+        <div class="sideImg left"><img src="left.png" alt="Logo izquierdo"/></div>
+        <div class="videoBox"><video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video></div>
+        <div class="sideImg right"><img src="right.png" alt="Logo derecho"/></div>
+      </div>
+    </div>
   </div>
 
-  <iframe id="preview"></iframe>
+  <!-- Contenido con scroll -->
+  <div class="contentWrap">
+    <div style="margin:10px 0 6px">
+      <input id="q" class="query" type="text" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…" autocomplete="off" />
+    </div>
 
-  <script>
-    // URL ACTIVA de tu Cloud Run (baja latencia con /api/answer)
-    const API_BASE = "https://lexium-api-nqh4ai2hnq-tl.a.run.app";
+    <div class="toolbar">
+      <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
+      <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
+      <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
+      <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
+      <button id="btnNew" title="Nueva sesión (limpia y guarda la actual)">＋ Nueva sesión</button>
+      <button id="btnClear" title="Limpiar pregunta y respuesta">🧹 Limpiar</button>
+      <select id="selExport" title="Exportar lo generado (PDF muestra vista previa)">
+        <option value="">Exportar…</option>
+        <option value="pdf">PDF (vista previa)</option>
+        <option value="xls">XLS</option>
+        <option value="doc">DOC</option>
+      </select>
+    </div>
 
-    // ---------- helpers ----------
-    const $ = s => document.querySelector(s);
-    const chat=$("#chat"), input=$("#q"), loader=$("#loader"), hero=$("#heroVideo");
+    <div id="out" class="out" aria-live="polite"></div>
+    <div id="status" class="muted"></div>
+  </div>
 
-    function append(role, htmlText){
-      const div=document.createElement("div");
-      div.className="bubble "+role;
-      div.innerHTML=htmlText;
-      chat.appendChild(div);
-      chat.scrollTop=chat.scrollHeight;
-      saveHistory();
-    }
-    function lastBotText(){
-      const nodes=[...chat.querySelectorAll(".bot")];
-      return nodes.length ? nodes[nodes.length-1].innerText : "";
-    }
-    function escapeHtml(s){ return s.replace(/[&<>"']/g, m=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[m])); }
-    function stripHtml(s){ const t=document.createElement("div"); t.innerHTML=s; return t.textContent||""; }
+  <!-- Modal Historial -->
+  <div id="histModal" class="modal" aria-hidden="true">
+    <div class="panel" role="dialog" aria-modal="true" aria-label="Historial">
+      <header>
+        <h3>Historial</h3>
+        <div class="actions">
+          <button id="btnHistDownload" title="Descargar historial JSON">⬇️ Descargar</button>
+          <button id="btnHistClear" title="Borrar historial">🗑️ Borrar</button>
+          <button id="btnHistClose" title="Cerrar">Cerrar ✖</button>
+        </div>
+      </header>
+      <div id="histBody" class="body"></div>
+    </div>
+  </div>
 
-    // ---------- envío SOLO /api/answer (rápido) ----------
-    $("#send").onclick = send;
-    input.addEventListener("keydown", e=>{ if(e.key==="Enter") send(); });
+<script>
+/* ====== CONFIG ====== */
+/* ✅ URL correcta de tu Cloud Run */
+const API_BASE = "https://lexium-api-nqh4ai2hnq-tl.a.run.app";
+const GPT_PATH = "/api/gpt";
+const FALLBACK_PATH = "/api/answer";
 
-    async function send(){
-      const q=input.value.trim();
-      if(!q) return;
-      append("user", escapeHtml(q));
-      input.value="";
-      stopSpeech();
-      loader.style.display="block";
+/* ====== UI refs ====== */
+const q = document.getElementById("q");
+const out = document.getElementById("out");
+const statusEl = document.getElementById("status");
+const vid = document.getElementById("vid");
+const btnSend = document.getElementById("btnSend");
+const btnDict = document.getElementById("btnDict");
+const btnToggleAV = document.getElementById("btnToggleAV");
+const btnReplay = document.getElementById("btnReplay");
+const btnNew = document.getElementById("btnNew");
+const btnClear = document.getElementById("btnClear");
+const selExport = document.getElementById("selExport");
+const btnHist = document.getElementById("btnHist");
 
-      try{
-        const r = await fetch(`${API_BASE}/api/answer?q=${encodeURIComponent(q)}`, { method:"GET" });
-        if(!r.ok) throw new Error("bad");
-        const raw = await r.text();
-        const html = renderAnswer(raw);   // soporta texto o JSON {general,lists,tables}
-        append("bot", html);
-        if(ttsEnabled) speak(stripHtml(html));
-      }catch(e){
-        append("bot","⚠️ No hay respuesta del servidor.");
-      }finally{
-        loader.style.display="none";
-      }
-    }
+/* ====== Modal Historial refs ====== */
+const histModal = document.getElementById("histModal");
+const histBody = document.getElementById("histBody");
+const btnHistClose = document.getElementById("btnHistClose");
+const btnHistClear = document.getElementById("btnHistClear");
+const btnHistDownload = document.getElementById("btnHistDownload");
 
-    // ---------- normalizador del backend ----------
-    function renderAnswer(raw){
-      try{
-        const j = JSON.parse(raw);
-        let parts=[];
-        if(j.general) parts.push(escapeHtml(j.general));
+/* ====== Utilidades ====== */
+function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+function setStatusLoading(msg="Generando…"){
+  statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
+}
+function clearStatus(){ statusEl.textContent = ""; }
 
-        if(Array.isArray(j.lists) && j.lists.length){
-          j.lists.forEach((lst)=>{
-            if(!Array.isArray(lst)||!lst.length) return;
-            const items = lst.map(x=>`<li>${escapeHtml(String(x))}</li>`).join("");
-            parts.push(`<ol class="listBlock">${items}</ol>`);
-          });
-        }
-        if(Array.isArray(j.tables) && j.tables.length){
-          j.tables.forEach(t=>{
-            if(!t || !Array.isArray(t.rows) || !t.rows.length) return;
-            const head = Array.isArray(t.header) ? t.header : Object.keys(t.rows[0]);
-            const th = head.map(h=>`<th>${escapeHtml(String(h))}</th>`).join("");
-            const trs = t.rows.map(r=>{
-              const tds = head.map(h=>`<td>${escapeHtml(String(r[h] ?? ""))}</td>`).join("");
-              return `<tr>${tds}</tr>`;
-            }).join("");
-            parts.push(`<div class="table"><table><thead><tr>${th}</tr></thead><tbody>${trs}</tbody></table></div>`);
-          });
-        }
-        return parts.length ? parts.join("<br/>") : `<code>${escapeHtml(raw)}</code>`;
-      }catch{
-        return escapeHtml(raw);
-      }
-    }
+/* ====== Historial ====== */
+const HIST_KEY = "lexium_sessions_v2";
+let memSessions = [];
+function getSessions(){
+  try{ const s = localStorage.getItem(HIST_KEY); if(s) return JSON.parse(s); }catch(e){}
+  try{ const s = sessionStorage.getItem(HIST_KEY); if(s) return JSON.parse(s); }catch(e){}
+  return memSessions.slice();
+}
+function setSessions(arr){
+  try{ localStorage.setItem(HIST_KEY, JSON.stringify(arr)); return; }catch(e){}
+  try{ sessionStorage.setItem(HIST_KEY, JSON.stringify(arr)); return; }catch(e){}
+  memSessions = arr.slice();
+}
+function saveSession(question, data){
+  const visible = (out.textContent || "").trim();
+  const summary = (data?.general || data?.answer || data?.text || data?.html || visible || "").slice(0, 1500);
+  if (!summary && !question) return;
+  const id = (crypto && crypto.randomUUID) ? crypto.randomUUID() : String(Date.now());
+  const rec = { id, when: Date.now(), question: question || "(sin pregunta)", summary };
+  const all = getSessions(); all.unshift(rec); setSessions(all.slice(0,100));
+}
+function openHistoryModal(){
+  const all = getSessions();
+  histBody.innerHTML = all.length
+    ? all.map(s=>`
+      <details>
+        <summary><b>${new Date(s.when).toLocaleString()}</b> — ${esc(s.question)}</summary>
+        <pre>${esc(s.summary || "(sin resumen)")}</pre>
+      </details>
+    `).join("")
+    : "<p class='muted'>Sin historial todavía. Realiza una consulta y se guardará automáticamente.</p>";
+  histModal.classList.add("show");
+  histModal.setAttribute("aria-hidden","false");
+}
+function closeHistoryModal(){
+  histModal.classList.remove("show");
+  histModal.setAttribute("aria-hidden","true");
+}
 
-    // ---------- TTS ----------
-    let ttsEnabled=false, speaking=false, currentUtter=null;
-    $("#tts").onclick=()=>{ ttsEnabled=!ttsEnabled; $("#tts").textContent = ttsEnabled? "Desactivar voz":"Activar voz"; if(ttsEnabled){const t=lastBotText(); if(t) speak(t);} };
-    $("#replay").onclick = ()=>{ if(!ttsEnabled) ttsEnabled=true, $("#tts").textContent="Desactivar voz"; const t=lastBotText(); if(t) speak(t); };
-
-    function speak(text){
-      stopSpeech();
-      const u=new SpeechSynthesisUtterance(text);
-      u.lang="es-ES"; u.rate=1.0;
-      u.voice=speechSynthesis.getVoices().find(v=>v.lang.startsWith("es"))||null;
-      u.onstart=()=>{ speaking=true; try{hero&&hero.play()}catch{} };
-      u.onend  =()=>{ speaking=false; try{hero&&hero.pause()}catch{} };
-      speechSynthesis.speak(u);
-      currentUtter=u;
-    }
-    function stopSpeech(){ if(speaking) speechSynthesis.cancel(); speaking=false; try{hero&&hero.pause()}catch{} }
-    window.speechSynthesis.onvoiceschanged=()=>{};
-
-    // ---------- Dictado ----------
-    let recognition=null, recognizing=false;
-    if("webkitSpeechRecognition" in window){
-      recognition=new webkitSpeechRecognition();
-      recognition.lang="es-ES"; recognition.interimResults=false;
-      recognition.onresult=e=>{ input.value=e.results[0][0].transcript; send(); };
-    }
-    $("#mic").onclick=()=>{
-      if(!recognition) return;
-      if(recognizing){ recognition.stop(); recognizing=false; $("#mic").textContent="Dictar"; }
-      else{ recognition.start(); recognizing=true; $("#mic").textContent="Parar"; }
+/* ====== Dictado ====== */
+let recognizer=null;
+function toggleDict(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ alert("Dictado no soportado en este navegador."); return; }
+  if(!recognizer){
+    recognizer=new SR(); recognizer.lang="es-ES"; recognizer.continuous=false; recognizer.interimResults=false;
+    recognizer.onresult=e=>{
+      const t=Array.from(e.results).map(r=>r[0].transcript).join(" ");
+      q.value=(q.value? q.value+" " : "") + t;
     };
+  }
+  if(recognizer.listening){ recognizer.stop(); recognizer.listening=false; btnDict.textContent="🎤 Dictar";}
+  else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado";}
+}
 
-    // ---------- Sesión / limpiar / exportar ----------
-    $("#new").onclick=()=>{ chat.innerHTML=""; stopSpeech(); saveHistory(); };
-    $("#clear").onclick=()=>{ localStorage.removeItem("lexium_sessions_v2"); chat.innerHTML=""; };
-    $("#export").onclick=()=>{
-      const text=[...chat.children].map(n=>n.classList.contains("user")?`Usuario: ${n.innerText}`:`Asistente: ${n.innerText}`).join("\n\n");
-      const blob=new Blob([text],{type:"text/plain"}); const a=document.createElement("a");
-      a.href=URL.createObjectURL(blob); a.download="conversacion.txt"; a.click();
-    };
+/* ====== Voz femenina + TTS ====== */
+const PREFERRED_NAMES=[
+  "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
+  "Google español","Google español de Estados","Google US Español",
+  "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"
+];
+const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
+let selectedVoice=null;
+function scoreVoice(v){
+  const name=(v.name||"").toLowerCase(), lang=(v.lang||"").toLowerCase();
+  let s=0; if (SP_LANGS.some(l=>lang.startsWith(l.toLowerCase()))) s+=5;
+  if (PREFERRED_NAMES.some(n=>name.includes(n.toLowerCase()))) s+=6;
+  if (name.includes("female")||name.includes("femenina")||name.includes("mujer")) s+=4;
+  if (name.includes("google")) s+=2; if (name.includes("microsoft")) s+=2;
+  return s;
+}
+function chooseFemaleES(){
+  if(typeof speechSynthesis==="undefined") return null;
+  const vs=speechSynthesis.getVoices(); if(!vs.length) return null;
+  for(const n of PREFERRED_NAMES){ const m=vs.find(v=>v.name.toLowerCase().includes(n.toLowerCase())); if(m) return m; }
+  return vs.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a))[0]||null;
+}
+function initVoice(){ selectedVoice=chooseFemaleES(); }
+if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
 
-    // ---------- Historial ----------
-    function saveHistory(){
-      const data=[...chat.children].map(n=>({role:n.classList.contains("user")?"user":"bot", html:n.innerHTML}));
-      localStorage.setItem("lexium_sessions_v2", JSON.stringify(data));
+/* === Regex bullets === */
+const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
+
+/* === Numeración si el texto parece listado === */
+function generalToOrderedListHTML(g){
+  if (!g) return "";
+  const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const bulletLike = lines.filter(s=>BULLET_RE.test(s)).length;
+  const manyPlainLines = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length;
+  const shouldNumber = (lines.length>=3) && (bulletLike>0 || manyPlainLines >= Math.ceil(lines.length*0.6));
+  if (shouldNumber) {
+    const items = lines.map(s=>s.replace(BULLET_RE,"")).filter(Boolean);
+    return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
+  }
+  return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
+}
+
+/* === TTS build === */
+function buildTTSTextFromOut(){
+  const c=document.createElement("div"); c.innerHTML=out.innerHTML;
+  const parts=[];
+  c.querySelectorAll("p").forEach(p=>{const t=p.textContent.trim(); if(t) parts.push(t);});
+  c.querySelectorAll("ol,ul").forEach(list=>{
+    const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
+    if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); }
+  });
+  c.querySelectorAll("table").forEach(tbl=>{
+    const rows=[...tbl.querySelectorAll("tbody tr")]; if(!rows.length) return;
+    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim().toUpperCase());
+    let col=0; const iN=headers.findIndex(h=>/NOMBRE/.test(h)); if(iN>=0) col=iN;
+    const items=rows.map((tr,i)=>{
+      const t=(tr.querySelectorAll("td")[col]?.textContent||tr.querySelector("td")?.textContent||"").trim();
+      return `${i+1}. ${t}.`;
+    }).filter(Boolean).join("\n");
+    if(items) parts.push(items);
+  });
+  const fallback=(out.textContent||"").trim();
+  return parts.join("\n\n") || fallback;
+}
+
+/* === TTS control === */
+const TTS={
+  enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
+  makeChunks(text,maxLen=360){
+    const res=[]; const parts=String(text).split(/(\.|\?|!|\n)/);
+    let buf=""; for(let i=0;i<parts.length;i+=2){ const seg=(parts[i]||"")+(parts[i+1]||"");
+      if((buf+seg).length<=maxLen) buf+=seg; else{ if(buf.trim()) res.push(buf.trim()); buf=seg; } }
+    if(buf.trim()) res.push(buf.trim()); return res;
+  },
+  loadFromOut(){ this.textCache=buildTTSTextFromOut(); this.chunks=this.makeChunks(this.textCache); this.i=0; },
+  speakNext(){
+    if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
+    const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
+    if(selectedVoice) u.voice=selectedVoice;
+    u.lang=(selectedVoice?.lang)||"es-ES"; u.rate=0.98; u.pitch=1.08; u.volume=1;
+    u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.play().catch(()=>{});} };
+    u.onend =()=>{ this.speakNext(); };
+    u.onerror=()=>{ this.speakNext(); };
+    this.utter=u; speechSynthesis.speak(u);
+  },
+  start(fromIndex=0){
+    if(typeof speechSynthesis==="undefined" || !this.chunks.length) return;
+    this.enabled=true; if(fromIndex>=0) this.i=fromIndex;
+    speechSynthesis.cancel(); this.speakNext();
+  },
+  pause(){ if(this.speaking && !this.paused){ speechSynthesis.pause(); this.paused=true; if(vid) vid.pause(); } },
+  resume(){ if(this.paused){ speechSynthesis.resume(); this.paused=false; if(vid) vid.play().catch(()=>{}); }
+           else if(!this.speaking && this.enabled){ this.speakNext(); } },
+  restartFromStart(){ this.enabled=true; this.loadFromOut(); this.start(0); },
+  finish(){ this.speaking=false; this.paused=false; this.utter=null; if(vid){ vid.loop=false; vid.pause(); } },
+  stopAll(){ this.enabled=false; this.paused=false; this.speaking=false; this.utter=null;
+             if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel();
+             if(vid){ vid.loop=false; vid.pause(); } }
+};
+
+/* ====== Render ====== */
+function renderAnswer(data){
+  let html="";
+  const generalTxt = data.general || data.answer || data.text || "";
+  if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
+
+  const lists = Array.isArray(data.lists) ? data.lists : [];
+  const normLists = lists.map((entry,i)=>{
+    if(Array.isArray(entry)){
+      const flat=entry.every(x=>typeof x==="string"||typeof x==="number");
+      return {title:`Lista ${i+1}`, items: flat? entry : entry.map(x=>Array.isArray(x)? x.join(" ") : String(x))};
+    }else if(entry && typeof entry==="object"){
+      return {title: entry.title||`Lista ${i+1}`, items: Array.isArray(entry.items)? entry.items: []};
+    }else return {title:`Lista ${i+1}`, items:[String(entry)]};
+  });
+  normLists.forEach(l=>{
+    html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
+  });
+
+  (data.tables||[]).forEach(t=>{
+    const cols=t.columns||[]; const rows=t.rows||[];
+    html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
+    html += cols.map(c=>`<th>${esc(c)}</th>`).join("");
+    html += `</tr></thead><tbody>`;
+    rows.forEach(r=>{ html += `<tr>` + r.map(x=>`<td>${esc(x)}</td>`).join("") + `</tr>`; });
+    html += `</tbody></table>`;
+  });
+
+  out.innerHTML = html || "<em>Sin contenido.</em>";
+
+  // Narración + guardar historial
+  TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
+  setTimeout(()=> saveSession(q.value.trim(), data), 30);
+}
+
+/* ====== Red: timeout, abort, hedged, retry ====== */
+const DEFAULT_TIMEOUT = 45000;
+let inFlight = null;
+let sending = false;
+
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+
+function fetchWithTimeout(url, opts={}, ms=DEFAULT_TIMEOUT){
+  const ctrl = new AbortController();
+  const id = setTimeout(()=>ctrl.abort(), ms);
+  const p = fetch(url, {...opts, signal: ctrl.signal}).finally(()=>clearTimeout(id));
+  return {promise: p, ctrl};
+}
+
+/* ✅ Acepta JSON o TEXTO (si es texto, lo envuelve como {general:text}) */
+async function normalizeResponse(promise){
+  const resp = await promise;
+  const ct = (resp.headers.get("content-type") || "").toLowerCase();
+  let data = {};
+  if (ct.includes("application/json")) {
+    data = await resp.json().catch(()=>({}));
+  } else {
+    const text = await resp.text().catch(()=> "");
+    data = text ? { general: text } : {};
+  }
+  return {resp, data};
+}
+
+// primera respuesta útil gana (POST /api/gpt con 1.2s de ventaja a GET /api/answer)
+async function hedgedRequest(text){
+  const post = fetchWithTimeout(`${API_BASE}${GPT_PATH}`, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json", "Accept":"application/json,text/plain" },
+    body: JSON.stringify({ q: text })
+  }, DEFAULT_TIMEOUT);
+
+  const getStarter = delay(1200).then(()=> 
+    fetchWithTimeout(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
+      headers:{ "Accept":"application/json,text/plain" }
+    }, DEFAULT_TIMEOUT)
+  );
+
+  const postP = normalizeResponse(post.promise);
+  const getP  = getStarter.then(x=>normalizeResponse(x.promise));
+
+  return new Promise((resolve, reject)=>{
+    let settled=false, fails=0;
+
+    function consider({resp,data}){
+      if (settled) return;
+      const meaningful = resp.ok && (data.general || data.lists || data.tables || data.answer || data.text || data.ok === true);
+      if (meaningful){ settled=true; resolve({resp,data}); }
+      else { fails++; if(fails===2) reject(new Error(`HTTP ${resp.status}`)); }
     }
-    (function restore(){
-      try{
-        const raw=localStorage.getItem("lexium_sessions_v2"); if(!raw) return;
-        const data=JSON.parse(raw); data.forEach(m=>append(m.role,m.html));
-      }catch{}
-    })();
-  </script>
+    postP.then(consider).catch(()=>{ fails++; if(fails===2) reject(new Error("Fallo en ambas rutas.")); });
+    getP.then(consider).catch(()=>{ fails++; if(fails===2) reject(new Error("Fallo en ambas rutas.")); });
+  });
+}
+
+async function ask(){
+  const text = q.value.trim(); if (!text || sending) return;
+  sending = true;
+
+  if (inFlight && inFlight.abort) inFlight.abort();
+
+  btnSend.disabled = true; const old = btnSend.textContent; btnSend.textContent = "Enviando…";
+  setStatusLoading("Consultando… (optimizando latencia)");
+
+  try{
+    const {data} = await hedgedRequest(text);
+    renderAnswer(data);
+  }catch(e1){
+    // Reintento único directo a /api/answer (baja latencia)
+    try{
+      statusEl.innerHTML = `<span class="loader"><span class="dot"></span><span class="dot"></span><span class="dot"></span> Reintentando…</span>`;
+      const {resp, data} = await normalizeResponse(fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
+        headers:{ "Accept":"application/json,text/plain" }
+      }));
+      if(!resp.ok) throw new Error();
+      renderAnswer(data);
+    }catch(e2){
+      out.innerHTML = `<pre style="color:#b91c1c">
+No se pudo conectar con el servicio.
+Verifica la URL del API, CORS/OPTIONS y tu conexión.
+Detalle: ${(e2 && (e2.name||"Error"))}: ${String(e2).slice(0,300)}
+</pre>`;
+      setTimeout(()=> saveSession(q.value.trim(), {}), 30);
+    }
+  }finally{
+    clearStatus();
+    btnSend.disabled = false; btnSend.textContent = old;
+    inFlight = null;
+    sending = false;
+  }
+}
+
+/* ====== Exportar ====== */
+function printHTML(html){
+  const iframe = document.createElement('iframe');
+  iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
+  iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentWindow || iframe.contentDocument;
+  const idoc = doc.document || doc;
+  idoc.open(); idoc.write(html); idoc.close();
+  setTimeout(()=>{ try{ (iframe.contentWindow || iframe).focus(); (iframe.contentWindow || iframe).print(); }catch{} }, 60);
+  setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
+}
+selExport.addEventListener("change", ()=>{
+  const v=selExport.value; selExport.value="";
+  if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
+  if(v==="pdf"){
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
+      <style>body{font:16px/1.5 system-ui;margin:28px;color:#111}
+             table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
+      </head><body>${out.innerHTML}</body></html>`;
+    try{ printHTML(html); }
+    catch(_){
+      const blob=new Blob([html],{type:"text/html"});
+      const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="lexium_export.html"; a.click();
+      setTimeout(()=>URL.revokeObjectURL(a.href),500);
+    }
+    return;
+  }
+  if(v==="xls"||v==="doc"){
+    const mime = v==="xls" ? "application/vnd.ms-excel" : "application/msword";
+    const blob=new Blob([`<html><body>${out.innerHTML}</body></html>`],{type:mime});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`export.${v}`; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),500);
+  }
+});
+
+/* ====== Botones ====== */
+btnSend.addEventListener("click", ask);
+btnDict.addEventListener("click", toggleDict);
+btnToggleAV.addEventListener("click", ()=>{
+  if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
+  if(TTS.paused){ TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
+  else if(TTS.speaking){ TTS.pause(); btnToggleAV.textContent="▶ Reanudar voz"; }
+  else { TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
+});
+btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
+btnClear.addEventListener("click", ()=>{
+  if (out.textContent.trim() || q.value.trim()) saveSession(q.value.trim(), {});
+  q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll();
+});
+btnNew.addEventListener("click", ()=>{
+  if (out.textContent.trim() || q.value.trim()) saveSession(q.value.trim(), {});
+  TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus();
+});
+
+/* ====== Historial ====== */
+btnHist.addEventListener("click", openHistoryModal);
+btnHistClose.addEventListener("click", closeHistoryModal);
+histModal.addEventListener("click", e=>{ if(e.target===histModal) closeHistoryModal(); });
+btnHistClear.addEventListener("click", ()=>{ if (confirm("¿Borrar todo el historial?")) setSessions([]), openHistoryModal(); });
+btnHistDownload.addEventListener("click", ()=>{
+  const data = JSON.stringify(getSessions(), null, 2);
+  const blob = new Blob([data], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "historial_lexium.json";
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 500);
+});
+
+/* ====== UX ====== */
+q.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); ask(); } });
+
+/* Mostrar errores JS en pantalla */
+window.addEventListener("error", (e)=>{
+  const msg = (e?.error?.stack || e?.message || String(e)).slice(0, 600);
+  const box = document.getElementById("status");
+  if (box) box.innerHTML = '<pre style="color:#b91c1c;background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:8px;white-space:pre-wrap">JS error: '
+    + msg + '</pre>';
+});
+</script>
 </body>
 </html>
