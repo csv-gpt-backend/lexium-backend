@@ -152,7 +152,7 @@ const FALLBACK_PATH = "/api/answer";
 /* === Timeouts configurables ===
    Pon TIMEOUT_GPT_MS = 0 para esperar sin límite (como el lunes). */
 const TIMEOUT_GPT_MS = 0;      // 60s
-const TIMEOUT_FALLBACK_MS = 30000; // 30s
+const TIMEOUT_FALLBACK_MS = 0; // 30s
 
 /* ====== Warm-up del backend (no cambia UX) ====== */
 (async () => {
@@ -580,3 +580,4 @@ window.addEventListener("error", (e)=>{
 </script>
 </body>
 </html>
+
