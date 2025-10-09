@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>1432  Asistente Lexium</title>
+<title>1511 Asistente Lexium</title>
 
 <!-- Latencia: preconnect / dns-prefetch -->
 <link rel="preconnect" href="https://lexium-gpt5-383217514425.southamerica-west1.run.app" crossorigin>
@@ -159,9 +159,9 @@ const FALLBACK_PATH = "/api/answer";
 
 /* Timeouts + reintento (evita “Failed to fetch” del navegador) */
 const TIMEOUT_GPT_MS = 115000;      // 115s
-const TIMEOUT_FALLBACK_MS = 90000;   // 90s
-const JOB_POLL_MAX_MS = 10*60*1000;  // 10 min
-const JOB_POLL_INTERVAL_MS = 2500;   // 2.5s
+const TIMEOUT_FALLBACK_MS = 90000;  // 90s
+const JOB_POLL_MAX_MS = 10*60*1000; // 10 min
+const JOB_POLL_INTERVAL_MS = 2500;  // 2.5s
 
 /* Warm-up */
 (async () => { try { await fetch(`${API_BASE}${FALLBACK_PATH}?q=ping`, { method: "GET" }); } catch(_){} })();
@@ -197,7 +197,7 @@ function setStatusLoading(msg="Generando…"){
 function clearStatus(){ statusEl.textContent = ""; }
 function setStatusText(msg=""){ statusEl.textContent = msg ? String(msg) : ""; }
 
-/* Detectar idioma (ES/EN) agresivo */
+/* Detectar idioma (ES/EN) agresivo para la entrada */
 function detectLang(text){
   const t=(text||"").trim().toLowerCase();
   if(!t) return (navigator.language||"es").startsWith("en") ? "en":"es";
@@ -209,7 +209,7 @@ function detectLang(text){
   return nonASCII>0 ? "es":"en";
 }
 
-/* Heurística de idioma para texto de salida */
+/* Heurística de idioma para el texto de salida */
 function detectTextLang(s){
   const t = (s||"").toLowerCase();
   if (!t.trim()) return "unknown";
@@ -253,7 +253,14 @@ const SESS_KEY="lexium_sessions_v4";
 function saveSession(question, data){
   const html=(document.getElementById('out')?.innerHTML||"").trim();
   const text=(document.getElementById('out')?.textContent||"").trim();
-  const entry={id:new Date().toISOString(),question:question||"(sin pregunta)",html,text,when:Date.now()};
+  const entry={
+    id:new Date().toISOString(),
+    question:question||"(sin pregunta)",
+    html,
+    text,
+    payload: data || null,   // guardamos el payload
+    when:Date.now()
+  };
   try{
     const all=JSON.parse(localStorage.getItem(SESS_KEY)||"[]");
     all.unshift(entry); localStorage.setItem(SESS_KEY, JSON.stringify(all.slice(0,50)));
@@ -282,7 +289,7 @@ btnHist.addEventListener("click", openHistory);
 closeHist.addEventListener("click", closeHistoryOverlay);
 histOverlay.addEventListener("click",(e)=>{ if(e.target===histOverlay) closeHistoryOverlay(); });
 
-/* “Ver” → mostrar sin tocar audio/video */
+/* “Ver” → mostrar sin tocar audio/video; si no hay HTML, reconstruye desde payload */
 histBody.addEventListener("click",(e)=>{
   const btn = e.target.closest(".viewBtn");
   if(!btn) return;
@@ -290,14 +297,44 @@ histBody.addEventListener("click",(e)=>{
   e.stopPropagation();
   const id = btn.getAttribute("data-id");
   const match = readSessions().find(x=>x.id===id);
-  if(match){
-    out.innerHTML = match.html || "<em>Vacío</em>";
+  if(!match){ return; }
+
+  if (match.html && match.html.trim()){
+    out.innerHTML = match.html;
     out.scrollTop = 0;
     clearStatus();
-    // NO iniciar/pausar voz ni video aquí
-    // (el control queda en los botones ⏯ y ⟳)
     closeHistoryOverlay();
+    return;
   }
+
+  // reconstrucción básica desde payload
+  let html="";
+  if (match.payload){
+    try{
+      const data = match.payload;
+      const qst = match.question || "";
+      if (qst) html += `<h3>Pregunta</h3><p>${esc(qst)}</p>`;
+      const generalTxt = data.general || data.answer || data.text || match.text || "";
+      if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
+      const lists = normalizeLists(data.lists||[]);
+      lists.forEach(l=>{
+        html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
+      });
+      (data.tables||[]).forEach(t=>{
+        const cols=t.columns||[]; const rows=t.rows||[];
+        html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
+        html += cols.map(c=>`<th>${esc(c)}</th>`).join("");
+        html += `</tr></thead><tbody>`;
+        rows.forEach(r=>{ html += `<tr>` + r.map(x=>`<td>${esc(x)}</td>`).join("") + `</tr>`; });
+        html += `</tbody></table>`;
+      });
+    }catch(_){}
+  }
+  if (!html && match.text){ html = `<pre>${esc(match.text)}</pre>`; }
+  out.innerHTML = html || "<em>Vacío</em>";
+  out.scrollTop = 0;
+  clearStatus();
+  closeHistoryOverlay();
 });
 
 /* ====== Dictado ====== */
@@ -531,6 +568,43 @@ async function forceTranslateText(text, target, headers, abortSignal){
   return data;
 }
 
+/* ====== Expansión si la respuesta quedó corta ====== */
+async function expandIfTooShort(originalText, userQuestion, langHint, headers, abortSignal){
+  const minWords = 180; // umbral de detalle
+  const words = String(originalText||"").trim().split(/\s+/).filter(Boolean);
+  if (words.length >= minWords) return null; // suficiente
+
+  const sys = (langHint==="en")
+    ? "Expand and elaborate substantially. Keep the same language (English). Provide thorough explanations, examples, and—when natural—concise bullet points and a short concluding summary. Avoid filler."
+    : "Amplía y elabora de forma sustancial. Mantén el mismo idioma (español). Proporciona explicaciones completas, ejemplos y—cuando sea natural—viñetas concisas y un breve cierre. Evita paja.";
+  const prompt = (langHint==="en")
+    ? `User question:\n${userQuestion}\n\nShort answer to expand:\n${originalText}\n\nPlease deliver a detailed, thorough answer in English.`
+    : `Pregunta del usuario:\n${userQuestion}\n\nRespuesta corta a ampliar:\n${originalText}\n\nPor favor entrega una respuesta detallada y completa en español.`;
+
+  const { r, data } = await fetchJSON(`${API_BASE}${GPT_PATH}`, {
+    method:"POST",
+    headers: {
+      ...headers,
+      "Accept-Language": langHint==="en" ? "en-US,en;q=0.9" : "es-ES,es;q=0.9",
+      "X-Force-Language": langHint,
+      "Prefer": `respond-language=${langHint}`
+    },
+    body: JSON.stringify({
+      q: prompt,
+      lang: langHint,
+      force_lang: true,
+      system_hint: sys,
+      detail_level: "high",
+      response_size: "full",
+      min_words: 300,
+      max_words: 1200
+    }),
+    signal: abortSignal
+  });
+  if (!r.ok) return null;
+  return data;
+}
+
 /* ====== Polling de job (cancelable) ====== */
 async function pollJob(jobId, startedAt, langHint){
   const deadline = startedAt + JOB_POLL_MAX_MS;
@@ -557,7 +631,7 @@ async function pollJob(jobId, startedAt, langHint){
   throw new Error("Tiempo de espera de job excedido");
 }
 
-/* ====== ASK (Cancelar + idioma fuerte + corrección/ traducción + reintento + fallback + job) ====== */
+/* ====== ASK (Cancelar + idioma fuerte + corrección/ traducción + expansión + reintentos) ====== */
 async function ask(){
   if (isBusy) return;
   const text=q.value.trim(); if(!text) return;
@@ -577,8 +651,8 @@ async function ask(){
     "Content-Type":"application/json",
     "Accept":"application/json",
     "Accept-Language": langHint === "en" ? "en-US,en;q=0.9" : "es-ES,es;q=0.9",
-    "X-Force-Language": langHint,                 // señal custom fuerte
-    "Prefer": `respond-language=${langHint}`      // pista semántica adicional
+    "X-Force-Language": langHint,
+    "Prefer": `respond-language=${langHint}`
   };
 
   const doGpt = (signal) => fetchJSON(`${API_BASE}${GPT_PATH}`, {
@@ -590,7 +664,15 @@ async function ask(){
       force_lang: true,
       system_hint: langHint === "en"
         ? "Answer strictly in English. Do not include Spanish."
-        : "Responde estrictamente en español. No incluyas inglés."
+        : "Responde estrictamente en español. No incluyas inglés.",
+      // Señales de detalle
+      detail_level: "high",
+      response_size: "full",
+      min_words: 250,
+      max_words: 1200,
+      style_hint: langHint === "en"
+        ? "Thorough, structured, with examples and clear takeaways."
+        : "Detallado, estructurado, con ejemplos y conclusiones claras."
     }),
     signal
   });
@@ -634,21 +716,15 @@ async function ask(){
       const rawText = (data.general || data.answer || data.text || "");
       const outLang = detectTextLang(rawText);
       if (langHint === "en" && outLang !== "en") {
-        // Reintento duro a EN
         const retryBody = {
-          q: text,
-          lang: "en",
-          force_lang: true,
-          system_hint: "Answer strictly in English. No Spanish. If your prior answer was Spanish, regenerate in English only."
+          q: text, lang: "en", force_lang: true,
+          system_hint: "Answer strictly in English. No Spanish. If your prior answer was Spanish, regenerate in English only.",
+          detail_level: "high", response_size: "full", min_words: 250, max_words: 1200,
+          style_hint: "Thorough, structured, with examples and clear takeaways."
         };
         const { r: rRetry, data: dRetry } = await fetchJSON(`${API_BASE}${GPT_PATH}`, {
           method: "POST",
-          headers: {
-            ...commonHeaders,
-            "Accept-Language": "en-US,en;q=0.9",
-            "X-Force-Language": "en",
-            "Prefer": "respond-language=en"
-          },
+          headers: { ...commonHeaders, "Accept-Language": "en-US,en;q=0.9", "X-Force-Language": "en", "Prefer": "respond-language=en" },
           body: JSON.stringify(retryBody),
           signal: currentAbortCtrl?.signal
         });
@@ -658,21 +734,15 @@ async function ask(){
           finalData = await forceTranslateText(rawText || " ", "en", commonHeaders, currentAbortCtrl?.signal);
         }
       } else if (langHint === "es" && outLang !== "es") {
-        // Reintento duro a ES
         const retryBody = {
-          q: text,
-          lang: "es",
-          force_lang: true,
-          system_hint: "Responde estrictamente en español. No inglés. Si tu respuesta previa fue en inglés, regénérala solo en español."
+          q: text, lang: "es", force_lang: true,
+          system_hint: "Responde estrictamente en español. No inglés. Si tu respuesta previa fue en inglés, regénérala solo en español.",
+          detail_level: "high", response_size: "full", min_words: 250, max_words: 1200,
+          style_hint: "Detallado, estructurado, con ejemplos y conclusiones claras."
         };
         const { r: rRetry, data: dRetry } = await fetchJSON(`${API_BASE}${GPT_PATH}`, {
           method: "POST",
-          headers: {
-            ...commonHeaders,
-            "Accept-Language": "es-ES,es;q=0.9",
-            "X-Force-Language": "es",
-            "Prefer": "respond-language=es"
-          },
+          headers: { ...commonHeaders, "Accept-Language": "es-ES,es;q=0.9", "X-Force-Language": "es", "Prefer": "respond-language=es" },
           body: JSON.stringify(retryBody),
           signal: currentAbortCtrl?.signal
         });
@@ -683,9 +753,17 @@ async function ask(){
         }
       }
     } catch(_e) {
-      // Si algo falla aquí, seguimos con data original (mejor UX que cortar)
+      /* si falla la corrección, seguimos con data original */
     }
-    /* --- FIN ajuste de idioma --- */
+
+    /* --- Expansión si quedó corto --- */
+    try {
+      const rawFinal = (finalData.general || finalData.answer || finalData.text || "");
+      const expanded = await expandIfTooShort(rawFinal, text, langHint, commonHeaders, currentAbortCtrl?.signal);
+      if (expanded && (expanded.general || expanded.answer || expanded.text)) {
+        finalData = expanded;
+      }
+    } catch(_e){}
 
     renderAnswer(finalData, text, langHint);
     saveSession(text, finalData);
@@ -718,6 +796,11 @@ async function ask(){
             finalData2 = await forceTranslateText(rawText || " ", "en", commonHeaders, currentAbortCtrl?.signal);
           } else if (langHint === "es" && outLang !== "es") {
             finalData2 = await forceTranslateText(rawText || " ", "es", commonHeaders, currentAbortCtrl?.signal);
+          }
+          // expansión post-reintento
+          const expanded2 = await expandIfTooShort((finalData2.general||finalData2.answer||finalData2.text||""), text, langHint, commonHeaders, currentAbortCtrl?.signal);
+          if (expanded2 && (expanded2.general || expanded2.answer || expanded2.text)) {
+            finalData2 = expanded2;
           }
         } catch(_e){}
 
