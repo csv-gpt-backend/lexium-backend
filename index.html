@@ -1,296 +1,477 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MMMMLexium GPT-5</title>
-  <style>
-    body {
-      font-family: "Segoe UI", Arial, sans-serif;
-      margin: 0;
-      background-color: #f4f4f9;
-      color: #222;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>HHAsistente Lexium</title>
+<style>
+  :root{
+    --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
+    --ok:#16a34a; --err:#b91c1c;
+    --heroH: 65vh;
+    --wrapW: 1180px;
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
 
-    header {
-      width: 100%;
-      background: #2d2d8a;
-      color: white;
-      text-align: center;
-      padding: 12px 0;
-      font-size: 1.3em;
-      font-weight: 500;
-    }
+  .mediaBar{
+    position:fixed; top:0; left:0; width:100vw; z-index:50;
+    background:#fff; border-bottom:none; padding:0; margin:0;
+    pointer-events:none; /* MARCELO: bloque fijo sin interacción */
+  }
+  .mediaBar *{ pointer-events:none; }
+  .mediaInner{max-width:var(--wrapW); margin:0 auto; padding:12px;}
+  .heroGrid{display:grid; grid-template-columns:1fr 3fr 1.16fr; align-items:center; gap:8px;}
+  .sideImg{display:flex; justify-content:center; height:var(--heroH); margin:0;}
+  .sideImg img{max-width:100%; height:100%; object-fit:contain; opacity:.95}
+  .videoBox{height:var(--heroH); margin:0;}
+  .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
 
-    /* === Contenedor principal fijo para video y avatar === */
-    #mediaContainer {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      background: #000;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 220px;
-      overflow: hidden;
-      z-index: 10;
-    }
+  .contentWrap{max-width:var(--wrapW); margin:0 auto; padding:12px; padding-top:calc(var(--heroH) + 8px);}
 
-    #avatarVideo {
-      width: auto;
-      height: 100%;
-      object-fit: cover;
-    }
+  .toolbar{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:8px 0}
+  .toolbar button, .toolbar select{padding:9px 14px; border:1px solid var(--bd); border-radius:10px; background:#fff; cursor:pointer;}
+  .toolbar button:hover{background:#f5f7fb}
+  .toolbar button[disabled]{opacity:.6; cursor:not-allowed}
 
-    /* === Contenedor de chat === */
-    #chatContainer {
-      margin-top: 230px; /* deja espacio al video */
-      width: 95%;
-      max-width: 850px;
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.15);
-      padding: 18px;
-    }
+  .hist{position:fixed; right:14px; top:10px; z-index:60}
+  .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
-    #out {
-      min-height: 280px;
-      white-space: pre-wrap;
-    }
+  /* MARCELO: caja de una línea (48px), ya estaba fijo; lo conservamos */
+  .query{width:100%; height:48px; min-height:48px; max-height:48px; resize:none; border:1px solid var(--bd); border-radius:10px; padding:10px; font-size:16px; line-height:1.4; overflow:hidden;}
+  .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
+  .muted{color:var(--muted); font-size:.9rem}
 
-    table {
-      border-collapse: collapse;
-      margin: 12px 0;
-      width: 100%;
-    }
+  table{width:100%; border-collapse:collapse; margin:10px 0}
+  th,td{border:1px solid var(--bd); padding:8px}
+  th{background:#f8fafc; text-align:left}
 
-    th, td {
-      border: 1px solid #ccc;
-      padding: 6px 8px;
-      text-align: left;
-    }
+  .loader{display:inline-flex; align-items:center; gap:8px; font-size:.95rem; color:var(--muted)}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--pri); opacity:.7; animation:bounce 1s infinite}
+  .dot:nth-child(2){animation-delay:.15s}
+  .dot:nth-child(3){animation-delay:.3s}
+  @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
 
-    th {
-      background: #efefef;
-    }
-
-    /* === Input === */
-    #inputRow {
-      display: flex;
-      margin-top: 10px;
-      gap: 6px;
-    }
-
-    #q {
-      flex: 1;
-      padding: 10px;
-      border: 1px solid #bbb;
-      border-radius: 6px;
-      font-size: 1em;
-      height: 38px;
-      max-height: 38px;
-      resize: none;
-      overflow: hidden;
-    }
-
-    button {
-      background: #2d2d8a;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      padding: 10px 16px;
-      cursor: pointer;
-      font-size: 0.95em;
-    }
-
-    button:hover { background: #4242a5; }
-
-    /* === Estado procesando === */
-    #status {
-      position: fixed;
-      top: 8px;
-      left: 12px;
-      z-index: 999;
-      font-size: 0.9em;
-      background: rgba(255,255,255,0.7);
-      padding: 4px 8px;
-      border-radius: 4px;
-      color: #333;
-      transition: opacity 0.3s;
-    }
-
-    /* === Historial modal === */
-    #historyBox {
-      display: none;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: white;
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      padding: 14px;
-      box-shadow: 0 0 10px rgba(0,0,0,0.3);
-      width: 80%;
-      max-width: 600px;
-      z-index: 2000;
-    }
-
-    #historyBox h3 {
-      margin-top: 0;
-      color: #2d2d8a;
-    }
-
-    #historyList {
-      max-height: 300px;
-      overflow-y: auto;
-      font-size: 0.9em;
-    }
-
-    a.link-ok { color: #0066cc; text-decoration: none; }
-    a.link-ok:hover { text-decoration: underline; }
-    a.link-bad { color: #888; text-decoration: line-through; }
-  </style>
+  /* MARCELO: mismo estilo, pero fijamos el status en la esquina superior izquierda */
+  #status{position:fixed; top:10px; left:12px; z-index:70;}
+</style>
 </head>
 <body>
-  <header>LEXIUM GPT-5</header>
 
-  <div id="mediaContainer">
-    <video id="avatarVideo" autoplay loop muted>
-      <source src="descarga.mp4" type="video/mp4">
-    </video>
+  <div class="hist">
+    <button id="btnHist" title="Ver sesiones guardadas">Historial</button>
   </div>
 
-  <div id="status" style="opacity:0;">Procesando…</div>
-
-  <div id="chatContainer">
-    <div id="out"><em>Bienvenido, puede iniciar su consulta.</em></div>
-
-    <div id="inputRow">
-      <input id="q" placeholder="Escriba su pregunta…" />
-      <button id="btnSend">Enviar</button>
-      <button id="btnHist">Historial</button>
-      <button id="btnClear">Nueva sesión</button>
+  <div class="mediaBar" aria-label="cabecera">
+    <div class="mediaInner">
+      <div class="heroGrid">
+        <div class="sideImg left">
+          <img src="left.png" alt="Logo izquierdo"/>
+        </div>
+        <div class="videoBox">
+          <video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
+        </div>
+        <div class="sideImg right">
+          <img src="right.png" alt="Logo derecho"/>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Modal historial -->
-  <div id="historyBox">
-    <h3>Historial de preguntas</h3>
-    <div id="historyList"></div>
-    <div style="text-align:right;margin-top:8px;">
-      <button onclick="closeHistory()">Cerrar</button>
+  <div class="contentWrap">
+    <div style="margin:10px 0 6px">
+      <textarea id="q" class="query" rows="1" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
     </div>
+
+    <div class="toolbar">
+      <!-- MARCELO: quitamos onclick para evitar doble disparo -->
+      <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
+      <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
+      <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
+      <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
+      <button id="btnNew" title="Nueva sesión (limpia y guarda la actual)">＋ Nueva sesión</button>
+      <button id="btnClear" title="Limpiar pregunta y respuesta">🧹 Limpiar</button>
+      <select id="selExport" title="Exportar lo generado (PDF muestra vista previa)">
+        <option value="">Exportar…</option>
+        <option value="pdf">PDF (vista previa)</option>
+        <option value="xls">XLS</option>
+        <option value="doc">DOC</option>
+      </select>
+    </div>
+
+    <div id="out" class="out" aria-live="polite"></div>
+    <div id="status" class="muted"></div>
   </div>
 
 <script>
-const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app";
-const out = document.getElementById("out");
+/* ====== CONFIG ====== */
+const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app"; // MARCELO: URL correcta
+const GPT_PATH = "/api/gpt";
+const FALLBACK_PATH = "/api/answer";
+
+/* ====== UI refs ====== */
 const q = document.getElementById("q");
+const out = document.getElementById("out");
+const statusEl = document.getElementById("status");
+const vid = document.getElementById("vid");
 const btnSend = document.getElementById("btnSend");
-const statusBox = document.getElementById("status");
-const historyList = document.getElementById("historyList");
-let history = [];
+const btnDict = document.getElementById("btnDict");
+const btnToggleAV = document.getElementById("btnToggleAV");
+const btnReplay = document.getElementById("btnReplay");
+const btnNew = document.getElementById("btnNew");
+const btnClear = document.getElementById("btnClear");
+const selExport = document.getElementById("selExport");
+const btnHist = document.getElementById("btnHist");
 
-function setStatus(msg){ statusBox.style.opacity=1; statusBox.textContent=msg; }
-function clearStatus(){ statusBox.style.opacity=0; }
-
-function addToHistory(question, answerHTML){
-  history.push({q:question,a:answerHTML});
+/* ====== Utilidades ====== */
+function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+function setStatusLoading(msg="Generando…"){
+  statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
 }
+function clearStatus(){ statusEl.textContent = ""; }
 
-function openHistory(){
-  if(!history.length){
-    historyList.innerHTML="<em>No hay historial disponible.</em>";
-  } else {
-    historyList.innerHTML = history.map(
-      (h,i)=>`<div><b>${i+1}. ${h.q}</b><br>${h.a}</div><hr>`
-    ).join("");
-  }
-  document.getElementById("historyBox").style.display="block";
-}
-
-function closeHistory(){ document.getElementById("historyBox").style.display="none"; }
-
-btnSend.addEventListener("click", ask);
-document.getElementById("btnClear").addEventListener("click", ()=>{out.innerHTML="";history=[];});
-document.getElementById("btnHist").addEventListener("click", openHistory);
-
-async function ask(){
-  if (btnSend._busy) return;
-  btnSend._busy = true;
-  const text=q.value.trim(); if(!text){ btnSend._busy=false; return; }
-
-  btnSend.disabled=true;
-  const old=btnSend.textContent; btnSend.textContent="Enviando…";
-  setStatus("Procesando…");
-
+/* ====== Historial ====== */
+function saveSession(question, data){
+  const visible = (document.getElementById('out')?.textContent || "").trim();
+  const summary = (data?.general || data?.answer || data?.text || data?.html || visible || "").slice(0, 1000);
+  const minimal = { id: new Date().toISOString(), question: question || "(sin pregunta)", summary, when: Date.now() };
   try{
-    const resp = await fetch(`${API_BASE}/api/answer?q=${encodeURIComponent(text)}`);
-    const data = await resp.json();
-    renderAnswer(data);
-    addToHistory(text, out.innerHTML);
+    const key="lexium_sessions"; const all=JSON.parse(localStorage.getItem(key)||"[]");
+    all.unshift(minimal); localStorage.setItem(key, JSON.stringify(all.slice(0,50)));
   }catch(e){
-    out.innerHTML=`<span style="color:red;">Error: ${e}</span>`;
-  }finally{
-    btnSend.disabled=false; btnSend.textContent=old; clearStatus();
-    btnSend._busy=false;
+    try{
+      const key="lexium_sessions_fallback"; const all=JSON.parse(sessionStorage.getItem(key)||"[]");
+      all.unshift(minimal); sessionStorage.setItem(key, JSON.stringify(all.slice(0,50)));
+    }catch(_){}
   }
 }
-
-async function checkLink(url){
+function readSessions(){
   try{
-    const r = await fetch(url, { method:"HEAD" });
-    return r.ok;
-  }catch{ return false; }
+    const a=JSON.parse(localStorage.getItem("lexium_sessions")||"[]");
+    const b=JSON.parse(sessionStorage.getItem("lexium_sessions_fallback")||"[]");
+    return [...a,...b];
+  }catch(e){ return []; }
+}
+function openHistory(){
+  const all=readSessions();
+  if(!all.length){ alert("Sin historial."); return; }
+  const w=window.open("", "_blank","noopener,noreferrer");
+  const html=`<html><head><title>Historial</title>
+  <style>body{font:14px system-ui} pre{white-space:pre-wrap}</style></head><body>
+  <h2>Sesiones</h2>
+  ${all.map(s=>`
+    <details>
+      <summary><b>${new Date(s.when).toLocaleString()}</b> — ${esc(s.question)}</summary>
+      <pre>${esc(s.summary||"(sin resumen)")}</pre>
+    </details>
+  `).join("")}
+  </body></html>`;
+  if (w){ w.document.open(); w.document.write(html); w.document.close(); }
+  else { alert("No se pudo abrir la ventana del historial (bloqueada por el navegador)."); }
 }
 
-async function renderAnswer(data){
-  if(!data || !data.ok){ out.innerHTML="<em>Error en respuesta.</em>"; return; }
+/* ====== Dictado ====== */
+let recognizer=null;
+function toggleDict(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ alert("Dictado no soportado en este navegador."); return; }
+  if(!recognizer){
+    recognizer=new SR(); recognizer.lang="es-ES"; recognizer.continuous=false; recognizer.interimResults=false;
+    recognizer.onresult=e=>{
+      const t=Array.from(e.results).map(r=>r[0].transcript).join(" ");
+      q.value=(q.value? q.value+" " : "") + t;
+    };
+  }
+  if(recognizer.listening){ recognizer.stop(); recognizer.listening=false; btnDict.textContent="🎤 Dictar";}
+  else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado";}
+}
 
-  let html = "";
-  if(data.general) html += `<p>${data.general}</p>`;
+/* ====== Voz femenina + TTS ====== */
+const PREFERRED_NAMES=[
+  "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
+  "Google español","Google español de Estados","Google US Español",
+  "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"
+];
+const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
 
-  // Listas
-  if(Array.isArray(data.lists) && data.lists.length){
-    for(const list of data.lists){
-      const items = Array.isArray(list)?list:(list.items||[]);
-      if(items.length){
-        html += `<ul>` + items.map((x,i)=>`<li>${i+1}. ${x}</li>`).join("") + `</ul>`;
-      }
+let selectedVoice=null;
+function scoreVoice(v){
+  const name=(v.name||"").toLowerCase(), lang=(v.lang||"").toLowerCase();
+  let s=0;
+  if (SP_LANGS.some(l=>lang.startsWith(l.toLowerCase()))) s+=5;
+  if (PREFERRED_NAMES.some(n=>name.includes(n.toLowerCase()))) s+=6;
+  if (name.includes("female")||name.includes("femenina")||name.includes("mujer")) s+=4;
+  if (name.includes("google")) s+=2; if (name.includes("microsoft")) s+=2;
+  return s;
+}
+function chooseFemaleES(){
+  if(typeof speechSynthesis==="undefined") return null;
+  const vs=speechSynthesis.getVoices(); if(!vs.length) return null;
+  for(const n of PREFERRED_NAMES){ const m=vs.find(v=>v.name.toLowerCase().includes(n.toLowerCase())); if(m) return m; }
+  return vs.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a))[0]||null;
+}
+function initVoice(){ selectedVoice=chooseFemaleES(); }
+if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
+
+/* === Regex corregida (sin escapes inválidos con 'u') === */
+const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
+
+/* === Convertir texto general a lista numerada (visual) === */
+function generalToOrderedListHTML(g){
+  if (!g) return "";
+  const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const bulletLike = lines.filter(s=>BULLET_RE.test(s)).length;
+
+  const manyPlainLines = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length;
+  const shouldNumber = (lines.length>=3) && (bulletLike>0 || manyPlainLines >= Math.ceil(lines.length*0.6));
+
+  if (shouldNumber) {
+    const items = lines.map(s=>s.replace(BULLET_RE,"")).filter(Boolean);
+    return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
+  }
+  return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
+}
+
+/* === TTS helpers === */
+function buildTTSTextFromOut(){
+  const c=document.createElement("div"); c.innerHTML=out.innerHTML;
+  const parts=[];
+  c.querySelectorAll("p").forEach(p=>{const t=p.textContent.trim(); if(t) parts.push(t);});
+  c.querySelectorAll("ol,ul").forEach(list=>{
+    const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
+    if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); }
+  });
+  c.querySelectorAll("table").forEach(tbl=>{
+    const rows=[...tbl.querySelectorAll("tbody tr")]; if(!rows.length) return;
+    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim().toUpperCase());
+    let col=0; const iN=headers.findIndex(h=>/NOMBRE/.test(h)); if(iN>=0) col=iN;
+    const items=rows.map((tr,i)=>{
+      const t=(tr.querySelectorAll("td")[col]?.textContent||tr.querySelector("td")?.textContent||"").trim();
+      return `${i+1}. ${t}.`;
+    }).filter(Boolean).join("\n");
+    if(items) parts.push(items);
+  });
+  const fallback=(out.textContent||"").trim();
+  return parts.join("\n\n") || fallback;
+}
+
+const TTS={
+  enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
+  makeChunks(text,maxLen=360){
+    const res=[]; const parts=String(text).split(/(\.|\?|!|\n)/);
+    let buf=""; for(let i=0;i<parts.length;i+=2){ const seg=(parts[i]||"")+(parts[i+1]||"");
+      if((buf+seg).length<=maxLen) buf+=seg; else{ if(buf.trim()) res.push(buf.trim()); buf=seg; } }
+    if(buf.trim()) res.push(buf.trim()); return res;
+  },
+  loadFromOut(){ this.textCache=buildTTSTextFromOut(); this.chunks=this.makeChunks(this.textCache); this.i=0; },
+  speakNext(){
+    if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
+    const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
+    if(selectedVoice) u.voice=selectedVoice;
+    u.lang=(selectedVoice?.lang)||"es-ES"; u.rate=0.98; u.pitch=1.08; u.volume=1;
+    u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.play().catch(()=>{});} };
+    u.onend =()=>{ this.speakNext(); };
+    u.onerror=()=>{ this.speakNext(); };
+    this.utter=u; speechSynthesis.speak(u);
+  },
+  start(fromIndex=0){
+    if(typeof speechSynthesis==="undefined" || !this.chunks.length) return;
+    this.enabled=true; if(fromIndex>=0) this.i=fromIndex;
+    speechSynthesis.cancel(); this.speakNext();
+  },
+  pause(){ if(this.speaking && !this.paused){ speechSynthesis.pause(); this.paused=true; if(vid) vid.pause(); } },
+  resume(){ if(this.paused){ speechSynthesis.resume(); this.paused=false; if(vid) vid.play().catch(()=>{}); }
+           else if(!this.speaking && this.enabled){ this.speakNext(); } },
+  restartFromStart(){ this.enabled=true; this.loadFromOut(); this.start(0); },
+  finish(){ this.speaking=false; this.paused=false; this.utter=null; if(vid){ vid.loop=false; vid.pause(); } },
+  stopAll(){ this.enabled=false; this.paused=false; this.speaking=false; this.utter=null;
+             if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel();
+             if(vid){ vid.loop=false; vid.pause(); } }
+};
+
+/* ====== Normalizar listas/tablas del backend ====== */
+function normalizeLists(lists){
+  if(!Array.isArray(lists)) return [];
+  return lists.map((entry,i)=>{
+    if(Array.isArray(entry)){
+      const flat=entry.every(x=>typeof x==="string"||typeof x==="number");
+      return {title:`Lista ${i+1}`, items: flat? entry : entry.map(x=>Array.isArray(x)? x.join(" ") : String(x))};
+    }else if(entry && typeof entry==="object"){
+      return {title: entry.title||`Lista ${i+1}`, items: Array.isArray(entry.items)? entry.items: []};
+    }else{
+      return {title:`Lista ${i+1}`, items:[String(entry)]};
+    }
+  });
+}
+
+/* ====== Linkify + Verificación ====== */
+function findUrls(str){
+  const re = /\bhttps?:\/\/[^\s<>"']+/g; const m = str.match(re); return m||[];
+}
+async function validateLinksInOut(){
+  const html = out.innerHTML;
+  const urls = findUrls(html);
+  if(!urls.length) return;
+
+  // linkify
+  let linked = html;
+  for(const u of urls){
+    const safe = esc(u);
+    const a = `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
+    linked = linked.replaceAll(safe, a);
+  }
+  out.innerHTML = linked;
+
+  // validate (HEAD). Si falla CORS, se ignora y queda clicable.
+  for(const u of urls){
+    try{
+      const r = await fetch(u, { method:"HEAD", mode:"no-cors" }); // no-cors para no romper
+      // Si no hay error, lo damos por OK visualmente
+    }catch{
+      // marcar visual ⚠️
+      const links = out.querySelectorAll(`a[href="${u}"]`);
+      links.forEach(a=>{ a.textContent = a.textContent + " ⚠️"; a.style.opacity = "0.85"; });
     }
   }
+}
 
-  // Tablas
-  if(Array.isArray(data.tables) && data.tables.length){
-    for(const t of data.tables){
-      html += `<h4>${t.title||""}</h4><table><thead><tr>`;
-      html += t.columns.map(c=>`<th>${c}</th>`).join("");
-      html += `</tr></thead><tbody>`;
-      t.rows.forEach((r,i)=>{
-        html += `<tr>` + r.map((c,j)=>
-          `<td>${j===0 && !isNaN(parseInt(c))? (i+1) : c}</td>`).join("") + `</tr>`;
+/* ====== Render ====== */
+function isIndexHeader(h){
+  const x = (h||"").toString().trim().toUpperCase();
+  return ["#","N","NO","Nº","N°"].includes(x);
+}
+
+function renderAnswer(data){
+  let html="";
+  const generalTxt = data.general || data.answer || data.text || "";
+  if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
+
+  const lists=normalizeLists(data.lists||[]);
+  lists.forEach(l=>{
+    html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map((it,i)=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
+  });
+
+  (data.tables||[]).forEach(t=>{
+    const cols=t.columns||[]; const rows=t.rows||[];
+    const firstIsIndex = cols.length && isIndexHeader(cols[0]);
+    html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
+    html += cols.map(c=>`<th>${esc(c)}</th>`).join("");
+    html += `</tr></thead><tbody>`;
+    rows.forEach((r,i)=>{
+      const cells = r.map((x,j)=>{
+        if(firstIsIndex && j===0) return `${i+1}`; // MARCELO: numeración estable
+        return esc(x);
       });
-      html += `</tbody></table>`;
-    }
-  }
-
-  // Convertir URLs en enlaces clicables y verificar estado
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const matches = html.match(urlRegex) || [];
-  for(const url of matches){
-    const ok = await checkLink(url);
-    const cls = ok ? "link-ok" : "link-bad";
-    const label = ok ? url : `${url} ⚠️`;
-    html = html.replace(url, `<a class="${cls}" href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`);
-  }
+      html += `<tr>` + cells.map(x=>`<td>${x}</td>`).join("") + `</tr>`;
+    });
+    html += `</tbody></table>`;
+  });
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
+
+  // MARCELO: evitamos que se pise el TTS
+  TTS.stopAll();
+  TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
+
+  // MARCELO: convertir URLs a enlaces y validar disponibilidad
+  validateLinksInOut();
 }
+
+/* ====== Backend ====== */
+async function ask(){
+  // MARCELO: candado anti doble-disparo
+  if (btnSend._busy) return;
+  btnSend._busy = true;
+
+  const text=q.value.trim(); if(!text){ btnSend._busy=false; return; }
+  btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
+  setStatusLoading("Consultando…");
+  try{
+    let r = await fetch(`${API_BASE}${GPT_PATH}`, {
+      method:"POST", headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({ q: text })
+    });
+    if(r.status===404 || r.status===405){
+      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, { headers:{ "Accept":"application/json" } });
+    }
+    const data = await r.json().catch(()=>({}));
+    if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
+    renderAnswer(data);
+    saveSession(text, data);
+  }catch(e){
+    out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
+    saveSession(text, {});
+  }finally{
+    btnSend.disabled=false; btnSend.textContent=old; clearStatus();
+    btnSend._busy = false; // MARCELO: liberamos candado
+  }
+}
+
+/* ====== Exportar: PDF con vista previa sin pop-up ====== */
+function printHTML(html){
+  const iframe = document.createElement('iframe');
+  iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
+  iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentWindow || iframe.contentDocument;
+  const idoc = doc.document || doc;
+  idoc.open(); idoc.write(html); idoc.close();
+  setTimeout(()=>{ try{ (iframe.contentWindow || iframe).focus(); (iframe.contentWindow || iframe).print(); }catch{} }, 60);
+  setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
+}
+selExport.addEventListener("change", ()=>{
+  const v=selExport.value; selExport.value="";
+  if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
+  if(v==="pdf"){
+    // MARCELO: por ahora exporta solo la respuesta (como pediste, luego agregamos preguntas también)
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
+      <style>body{font:16px/1.5 system-ui;margin:28px;color:#111}
+             table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
+      </head><body>${out.innerHTML}</body></html>`;
+    try{ printHTML(html); }
+    catch(_){
+      const w=window.open("", "_blank", "noopener,noreferrer");
+      if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
+      else{
+        const blob=new Blob([html],{type:"text/html"});
+        const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="lexium_export.html"; a.click();
+        setTimeout(()=>URL.revokeObjectURL(a.href),500);
+      }
+    }
+    return;
+  }
+  if(v==="xls"||v==="doc"){
+    const mime = v==="xls" ? "application/vnd.ms-excel" : "application/msword";
+    const blob=new Blob([`<html><body>${out.innerHTML}</body></html>`],{type:mime});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`export.${v}`; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),500);
+  }
+});
+
+/* ====== Botones ====== */
+try { btnSend.addEventListener("click", ask); btnSend._wired = true; } catch {}
+btnDict.addEventListener("click", toggleDict);
+btnToggleAV.addEventListener("click", ()=>{
+  if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
+  if(TTS.paused){ TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
+  else if(TTS.speaking){ TTS.pause(); btnToggleAV.textContent="▶ Reanudar voz"; }
+  else { TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
+});
+btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
+btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
+btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunta)", {}); TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus(); });
+btnHist.addEventListener("click", openHistory);
+
+/* ====== UX ====== */
+q.addEventListener("keydown",(e)=>{ if(e.key==="Enter" && (e.ctrlKey||e.metaKey)) ask(); });
+
+/* Mostrar errores JS en pantalla */
+window.addEventListener("error", (e)=>{
+  const msg = (e?.error?.stack || e?.message || String(e)).slice(0, 600);
+  const box = document.getElementById("status");
+  if (box) box.innerHTML = '<pre style="color:#b91c1c;background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:8px;white-space:pre-wrap">JS error: '
+    + msg + '</pre>';
+}, {once:false});
 </script>
 </body>
 </html>
