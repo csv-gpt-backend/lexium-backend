@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>1323 Asistente Lexium</title>
+<title>1345 Asistente Lexium</title>
 
 <!-- Latencia: preconnect / dns-prefetch -->
 <link rel="preconnect" href="https://lexium-gpt5-383217514425.southamerica-west1.run.app" crossorigin>
@@ -121,6 +121,7 @@
 
     <div class="toolbar">
       <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
+      <button id="btnCancel" title="Cancelar consulta en curso">✖ Cancelar</button>
       <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
       <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
       <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
@@ -153,17 +154,17 @@
 /* ====== CONFIG ====== */
 const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app";
 const GPT_PATH = "/api/gpt";
-const STATUS_PATH = "/api/gpt/status";     // ← soporta modo “job async” si existe en tu server
+const STATUS_PATH = "/api/gpt/status";   // si tu server lo soporta
 const FALLBACK_PATH = "/api/answer";
 
-/* ====== Timeouts + reintento ====== */
-const TIMEOUT_GPT_MS = 115000;      // 115s (antes de que el navegador corte ~120s)
+/* Timeouts + reintento (evita “Failed to fetch” del navegador) */
+const TIMEOUT_GPT_MS = 115000;      // 115s
 const TIMEOUT_FALLBACK_MS = 90000;   // 90s
-const JOB_POLL_MAX_MS = 10*60*1000;  // 10 min de polling máximo
-const JOB_POLL_INTERVAL_MS = 2500;   // 2.5s entre consultas
+const JOB_POLL_MAX_MS = 10*60*1000;  // 10 min
+const JOB_POLL_INTERVAL_MS = 2500;   // 2.5s
 
-/* ====== Warm-up ====== */
-(async () => { try { await fetch(`${API_BASE}${FALLBACK_PATH}?q=ping`, { method: "GET" }); } catch (_) {} })();
+/* Warm-up */
+(async () => { try { await fetch(`${API_BASE}${FALLBACK_PATH}?q=ping`, { method: "GET" }); } catch(_){} })();
 
 /* ====== UI refs ====== */
 const q = document.getElementById("q");
@@ -171,6 +172,7 @@ const out = document.getElementById("out");
 const statusEl = document.getElementById("status");
 const vid = document.getElementById("vid");
 const btnSend = document.getElementById("btnSend");
+const btnCancel = document.getElementById("btnCancel");
 const btnDict = document.getElementById("btnDict");
 const btnToggleAV = document.getElementById("btnToggleAV");
 const btnReplay = document.getElementById("btnReplay");
@@ -183,9 +185,11 @@ const histBody = document.getElementById("histBody");
 const closeHist = document.getElementById("closeHist");
 
 let isBusy = false;
+let currentAbortCtrl = null;       // ← para Cancelar
+let jobPollAbort = false;          // ← corta el polling
 
 /* ====== Utils ====== */
-function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;","—":"&mdash;","»":"&raquo;","«":"&laquo;","’":"&rsquo;","“":"&ldquo;","”":"&rdquo;",">":"&gt;"}[m]||m)); }
 function setStatusLoading(msg="Generando…"){
   statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
     <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
@@ -193,17 +197,16 @@ function setStatusLoading(msg="Generando…"){
 function clearStatus(){ statusEl.textContent = ""; }
 function setStatusText(msg=""){ statusEl.textContent = msg ? String(msg) : ""; }
 
-/* Detectar idioma (inglés o español, heurística simple) */
+/* Detectar idioma (ES/EN) */
 function detectLang(text){
-  const t = (text||"").trim().toLowerCase();
-  if(!t) return (navigator.language||"es").startsWith("en") ? "en" : "es";
-  const enHits = (t.match(/\b(the|and|you|for|with|from|to|of|in|on|are|is|please)\b/g)||[]).length;
-  const esHits = (t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por favor)\b/g)||[]).length;
+  const t=(text||"").trim().toLowerCase();
+  if(!t) return (navigator.language||"es").startsWith("en") ? "en":"es";
+  const enHits=(t.match(/\b(the|and|you|for|with|from|to|of|in|on|are|is|please|could|would)\b/g)||[]).length;
+  const esHits=(t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por favor|podría|sería)\b/g)||[]).length;
   if(enHits>esHits) return "en";
   if(esHits>enHits) return "es";
-  // fallback por caracteres: si casi todo es ASCII -> puede ser inglés
-  const nonASCII = (t.match(/[^\x00-\x7F]/g)||[]).length;
-  return nonASCII>0 ? "es" : "en";
+  const nonASCII=(t.match(/[^\x00-\x7F]/g)||[]).length;
+  return nonASCII>0 ? "es":"en";
 }
 
 /* Linkify + verificación en idle */
@@ -222,8 +225,9 @@ async function verifyLinks(){
       let ok=false;
       try { const r=await fetch(url,{method:"HEAD"}); ok=r.ok; }
       catch { const r2=await fetch(url,{method:"GET",mode:"cors"}); ok=r2.ok; }
-      if(ok){ b.textContent="✅"; b.classList.add("okBadge"); b.title="Verificado"; }
-      else { b.textContent="⚠️"; b.classList.add("warnBadge"); b.title="No se pudo verificar (status)"; }
+      b.textContent = ok ? "✅" : "⚠️";
+      b.classList.add(ok ? "okBadge" : "warnBadge");
+      b.title = ok ? "Verificado" : "No se pudo verificar";
     }catch(_){
       b.textContent="⚠️"; b.classList.add("warnBadge"); b.title="No se pudo verificar (CORS o red)";
     }
@@ -231,25 +235,23 @@ async function verifyLinks(){
 }
 const idle = window.requestIdleCallback || ((fn)=>setTimeout(fn,120));
 
-/* ====== Historial (guarda TODO y permite “Ver” sin auto-audio) ====== */
-const SESS_KEY = "lexium_sessions_v3";
+/* ====== Historial (guardar y Ver sin auto-voz) ====== */
+const SESS_KEY="lexium_sessions_v4";
 function saveSession(question, data){
-  const html = (document.getElementById('out')?.innerHTML || "").trim();
-  const text = (document.getElementById('out')?.textContent || "").trim();
-  const entry = { id: new Date().toISOString(), question: question || "(sin pregunta)", html, text, when: Date.now() };
+  const html=(document.getElementById('out')?.innerHTML||"").trim();
+  const text=(document.getElementById('out')?.textContent||"").trim();
+  const entry={id:new Date().toISOString(),question:question||"(sin pregunta)",html,text,when:Date.now()};
   try{
-    const all = JSON.parse(localStorage.getItem(SESS_KEY) || "[]");
-    all.unshift(entry);
-    localStorage.setItem(SESS_KEY, JSON.stringify(all.slice(0,50)));
+    const all=JSON.parse(localStorage.getItem(SESS_KEY)||"[]");
+    all.unshift(entry); localStorage.setItem(SESS_KEY, JSON.stringify(all.slice(0,50)));
   }catch(_){}
 }
 function readSessions(){
-  try{ return JSON.parse(localStorage.getItem(SESS_KEY) || "[]"); }
-  catch(_){ return []; }
+  try{ return JSON.parse(localStorage.getItem(SESS_KEY)||"[]"); }catch(_){ return []; }
 }
 function renderHistory(){
-  const all = readSessions();
-  if(!all.length){ histBody.innerHTML = "<p class='muted'>Sin historial.</p>"; return; }
+  const all=readSessions();
+  if(!all.length){ histBody.innerHTML="<p class='muted'>Sin historial.</p>"; return; }
   histBody.innerHTML = all.map(s=>`
     <div class="session">
       <div class="meta">
@@ -260,27 +262,28 @@ function renderHistory(){
       <button class="viewBtn" data-id="${esc(s.id)}">Ver</button>
     </div>
   `).join("");
-
-  histBody.querySelectorAll(".viewBtn").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
-      const id = btn.getAttribute("data-id");
-      const match = readSessions().find(x=>x.id===id);
-      if(match){
-        out.innerHTML = match.html || "<em>Vacío</em>";
-        clearStatus();
-        // Al reabrir NO arrancamos narración automáticamente
-        try{ TTS.stopAll(); }catch(_){}
-        TTS.enabled = false; TTS.loadFromOut(); // queda listo, pero no habla
-        histOverlay.classList.remove("show");
-      }
-    });
-  });
 }
 function openHistory(){ renderHistory(); histOverlay.classList.add("show"); }
 function closeHistoryOverlay(){ histOverlay.classList.remove("show"); }
 btnHist.addEventListener("click", openHistory);
 closeHist.addEventListener("click", closeHistoryOverlay);
 histOverlay.addEventListener("click",(e)=>{ if(e.target===histOverlay) closeHistoryOverlay(); });
+
+// Delegación robusta: “Ver”
+histBody.addEventListener("click",(e)=>{
+  const btn = e.target.closest(".viewBtn");
+  if(!btn) return;
+  const id = btn.getAttribute("data-id");
+  const match = readSessions().find(x=>x.id===id);
+  if(match){
+    out.innerHTML = match.html || "<em>Vacío</em>";
+    clearStatus();
+    // No iniciar narración automáticamente
+    try{ TTS.stopAll(); }catch(_){}
+    TTS.enabled=false; TTS.loadFromOut();
+    closeHistoryOverlay();
+  }
+});
 
 /* ====== Dictado ====== */
 let recognizer=null;
@@ -303,26 +306,19 @@ const PREFERRED_NAMES_ES=["Microsoft Sabina","Microsoft Helena","Microsoft Laura
 const PREFERRED_NAMES_EN=["Microsoft Jenny","Microsoft Aria","Microsoft Zira","Microsoft Sara","Google US English","Google UK English"];
 const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
 const EN_LANGS=["en","en-US","en-GB","en-CA","en-AU","en-IN"];
-let selectedVoice=null;
 
 function pickVoice(langHint){
   if(typeof speechSynthesis==="undefined") return null;
   const vs=speechSynthesis.getVoices()||[];
   const prefList = langHint==="en" ? PREFERRED_NAMES_EN : PREFERRED_NAMES_ES;
   const langList = langHint==="en" ? EN_LANGS : SP_LANGS;
-  // 1) intentamos nombre preferido
   for(const name of prefList){
     const m=vs.find(v=>v.name && v.name.toLowerCase().includes(name.toLowerCase()));
     if(m) return m;
   }
-  // 2) intentamos por lang
-  const byLang = vs.find(v=>langList.some(l=> (v.lang||"").toLowerCase().startsWith(l.toLowerCase())));
-  if(byLang) return byLang;
-  // 3) fallback cualquiera
-  return vs[0]||null;
+  const byLang = vs.find(v=>langList.some(l=>(v.lang||"").toLowerCase().startsWith(l.toLowerCase())));
+  return byLang || vs[0] || null;
 }
-function initVoice(){ selectedVoice = pickVoice("es"); }
-if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
 
 /* === bullets === */
 const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
@@ -362,7 +358,7 @@ function buildTTSTextFromOut(){
   return (parts.join("\n\n") || fallback).trim();
 }
 
-/* ====== TTS + Video (no auto al abrir; se activa con narración) ====== */
+/* ====== TTS + Video ====== */
 const TTS={
   enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"", lang:"es",
   makeChunks(text,maxLen=360){
@@ -375,7 +371,7 @@ const TTS={
   speakNext(){
     if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
     const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
-    const v = pickVoice(this.lang||"es"); if(v) u.voice=v;
+    const v=pickVoice(this.lang||"es"); if(v) u.voice=v;
     u.lang=(v?.lang)|| (this.lang==="en"?"en-US":"es-ES");
     u.rate=0.98; u.pitch=1.08; u.volume=1;
     u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.muted=true; vid.play().catch(()=>{});} };
@@ -400,7 +396,7 @@ const TTS={
              if(vid){ vid.loop=false; vid.pause(); } }
 };
 
-/* ====== Normalizar listas/tablas del backend ====== */
+/* ====== Normalizar listas/tablas ====== */
 function normalizeLists(lists){
   if(!Array.isArray(lists)) return [];
   return lists.map((entry,i)=>{
@@ -440,31 +436,43 @@ function renderAnswer(data, userQuestion, langHint){
   out.innerHTML = linkifyHTML(html || "<em>Sin contenido.</em>");
   idle(()=>verifyLinks());
 
-  // Narración: solo al generar (historial Ver NO la dispara)
+  // Narración: solo cuando se genera (no en “Ver”)
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0, langHint||"es");
 }
 
-/* ====== Helpers: fetch + timeout opcional ====== */
+/* ====== fetch helpers (con cancel y timeout) ====== */
 async function fetchJSON(url, opts = {}){
   const r = await fetch(url, opts);
   const data = await r.json().catch(()=>({}));
   return { r, data };
 }
-function runWithMaybeTimeout(factory, ms){
-  if (!ms || ms <= 0) return factory(); // sin timeout
+function runWithMaybeTimeout(factory, ms, externalSignal){
+  if (!ms || ms <= 0){
+    return factory(externalSignal);
+  }
   const ctrl = new AbortController();
+  const linkAbort = () => { try{ ctrl.abort(); }catch(_){} };
+  if (externalSignal){
+    if (externalSignal.aborted) ctrl.abort();
+    else externalSignal.addEventListener("abort", linkAbort, { once:true });
+  }
   const t = setTimeout(()=>ctrl.abort(), ms);
-  return factory(ctrl.signal).finally(()=>clearTimeout(t));
+  return factory(ctrl.signal).finally(()=>{
+    clearTimeout(t);
+    if (externalSignal) externalSignal.removeEventListener?.("abort", linkAbort);
+  });
 }
 
-/* ====== Poll de trabajo asíncrono (si el backend lo soporta) ====== */
+/* ====== Polling de job (cancelable) ====== */
 async function pollJob(jobId, startedAt, langHint){
   const deadline = startedAt + JOB_POLL_MAX_MS;
   let lastMsg = "Procesando…";
+  jobPollAbort = false;
   while (Date.now() < deadline){
+    if (jobPollAbort) throw new Error("Cancelado por el usuario");
     await new Promise(r=>setTimeout(r, JOB_POLL_INTERVAL_MS));
     try{
-      const { r, data } = await fetchJSON(`${API_BASE}${STATUS_PATH}?id=${encodeURIComponent(jobId)}`, { method:"GET" });
+      const { r, data } = await fetchJSON(`${API_BASE}${STATUS_PATH}?id=${encodeURIComponent(jobId)}`, { method:"GET", signal: currentAbortCtrl?.signal });
       if(r.ok && data && (data.done || data.status==="done" || data.result)){
         const payload = data.result || data;
         renderAnswer(payload, payload.question || "", langHint);
@@ -472,38 +480,49 @@ async function pollJob(jobId, startedAt, langHint){
         setStatusText(`✔ Respuesta por job ${jobId}`);
         return true;
       }
-      // feedback mínimo
       const msg = (data?.statusText || data?.status || "Procesando…");
       if (msg !== lastMsg){ setStatusText(`⏳ ${msg}`); lastMsg = msg; }
-    }catch(_){}
+    }catch(e){
+      if (e?.name==="AbortError") throw e;
+    }
   }
   throw new Error("Tiempo de espera de job excedido");
 }
 
-/* ====== Backend: timeout controlado + 1 reintento + modo job async opcional ====== */
+/* ====== ASK (con Cancelar + idioma + reintento + fallback + job) ====== */
 async function ask(){
   if (isBusy) return;
   const text=q.value.trim(); if(!text) return;
 
-  const langHint = detectLang(text);  // ← ES/EN automático
+  const langHint = detectLang(text);  // ES/EN
   isBusy = true;
-  btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
+  currentAbortCtrl = new AbortController();
+  jobPollAbort = false;
+
+  btnSend.disabled=true; btnCancel.disabled=false;
+  const old=btnSend.textContent; btnSend.textContent="Enviando…";
   setStatusLoading(langHint==="en" ? "Consulting…" : "Consultando…");
   const t0 = performance.now();
   let mode = "gpt";
 
+  const commonHeaders = {
+    "Content-Type":"application/json",
+    "Accept":"application/json",
+    "Accept-Language": langHint === "en" ? "en,en-US;q=0.9" : "es,es-ES;q=0.9"
+  };
+
   const doGpt = (signal) => fetchJSON(`${API_BASE}${GPT_PATH}`, {
     method:"POST",
-    headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-    body: JSON.stringify({ q: text, lang: langHint }),
+    headers: commonHeaders,
+    body: JSON.stringify({ q: text, lang: langHint, force_lang: true }),
     signal
   });
 
   try{
-    // Intento 1 a /api/gpt
-    let res = await runWithMaybeTimeout(doGpt, TIMEOUT_GPT_MS);
+    // 1) intento 1 a /api/gpt
+    let res = await runWithMaybeTimeout(doGpt, TIMEOUT_GPT_MS, currentAbortCtrl.signal);
 
-    // Si el backend soporta “job async”: {job_id} o 202 → activamos polling
+    // 1.a) modo job async si el server devuelve 202 o job_id
     if ((res.r.status === 202) || (res.data && res.data.job_id)){
       const jobId = res.data.job_id || res.data.id || res.data.jobId;
       setStatusText((langHint==="en"?"Queued. Tracking job ":"En cola. Seguimiento del job ") + jobId);
@@ -513,13 +532,14 @@ async function ask(){
       return;
     }
 
-    // Solo si 404/405 → fallback con timeout
+    // 1.b) fallback si 404/405
     if (res.r.status === 404 || res.r.status === 405) {
-      mode = "fallback";
-      const doFallback = (signal)=>fetchJSON(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}&lang=${langHint}`, {
-        headers:{ "Accept":"application/json" }, signal
+      mode="fallback";
+      const doFallback = (signal)=>fetchJSON(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}&lang=${langHint}&force_lang=1`, {
+        headers: { "Accept":"application/json", "Accept-Language": commonHeaders["Accept-Language"] },
+        signal
       });
-      res = await runWithMaybeTimeout(doFallback, TIMEOUT_FALLBACK_MS);
+      res = await runWithMaybeTimeout(doFallback, TIMEOUT_FALLBACK_MS, currentAbortCtrl.signal);
     }
 
     if(!res.r.ok) throw new Error(res.data?.error || `HTTP ${res.r.status}`);
@@ -529,15 +549,14 @@ async function ask(){
     renderAnswer(data, text, langHint);
     saveSession(text, data);
     const dt = Math.round(performance.now() - t0);
-    setStatusText(`✔ ${mode === "gpt" ? "GPT" : "fallback"} · ${dt} ms`);
+    setStatusText(`✔ ${mode==="gpt"?"GPT":"fallback"} · ${dt} ms`);
   }catch(e1){
+    // Reintento si fue corte/timeout
     const e1Msg = String(e1||"");
     const aborted = (e1?.name==="AbortError") || /Failed to fetch/i.test(e1Msg);
-
-    if (aborted){
-      // Reintento único a /api/gpt
+    if (aborted && !currentAbortCtrl.signal.aborted){
       try{
-        const res2 = await runWithMaybeTimeout(doGpt, TIMEOUT_GPT_MS);
+        const res2 = await runWithMaybeTimeout(doGpt, TIMEOUT_GPT_MS, currentAbortCtrl.signal);
         if (res2.r.status === 202 || (res2.data && res2.data.job_id)){
           const jobId = res2.data.job_id || res2.data.id || res2.data.jobId;
           setStatusText((langHint==="en"?"Queued. Tracking job ":"En cola. Seguimiento del job ") + jobId);
@@ -549,7 +568,6 @@ async function ask(){
         if(!res2.r.ok) throw new Error(res2.data?.error || `HTTP ${res2.r.status}`);
         const data2 = res2.data || {};
         if(data2.ok===false) throw new Error(data2.error || data2.general || "Error");
-
         renderAnswer(data2, text, langHint);
         saveSession(text, data2);
         const dt2 = Math.round(performance.now() - t0);
@@ -562,19 +580,20 @@ async function ask(){
       handleAskError(e1, t0, mode, langHint);
     }
   } finally {
-    isBusy=false; btnSend.disabled=false; btnSend.textContent=old;
+    isBusy=false;
+    btnSend.disabled=false; btnCancel.disabled=true; btnSend.textContent=old;
+    currentAbortCtrl = null; jobPollAbort=false;
   }
 }
 
 function handleAskError(err, t0, mode, langHint){
   const dt = Math.round(performance.now() - t0);
-  try { TTS.stopAll(); } catch {}
-  const isAbort = (err?.name === "AbortError");
-  const friendly = isAbort
-    ? (langHint==="en" ? `Timeout in ${mode==="gpt"?"/api/gpt":"/api/answer"}` : `Se agotó el tiempo en ${mode==="gpt"?"/api/gpt":"/api/answer"}`)
-    : ( /Failed to fetch/i.test(String(err))
-        ? (langHint==="en" ? "Connection interrupted by browser or proxy" : "Conexión interrumpida por el navegador o proxy")
-        : String(err) );
+  try{ TTS.stopAll(); }catch(_){}
+  const isAbort = (err?.name==="AbortError") || /Cancelado por el usuario/.test(String(err));
+  let friendly;
+  if (isAbort) friendly = langHint==="en" ? "Canceled by user" : "Cancelado por el usuario";
+  else if (/Failed to fetch/i.test(String(err))) friendly = langHint==="en" ? "Connection interrupted by browser or proxy" : "Conexión interrumpida por el navegador o proxy";
+  else friendly = String(err);
   out.innerHTML = `<pre style="color:var(--err)">Error: ${esc(friendly)}\n(${dt} ms)</pre>`;
   saveSession(q.value.trim(), {});
   setStatusText(`${friendly} · ${dt} ms`);
@@ -584,7 +603,7 @@ function handleAskError(err, t0, mode, langHint){
 function htmlToCSV(includeQuestion=true){
   const rows=[];
   if(includeQuestion){
-    const pq = (document.querySelector("h3+ p")?.textContent || "").trim();
+    const pq=(document.querySelector("h3+ p")?.textContent||"").trim();
     if(pq) rows.push(["PREGUNTA", pq]);
   }
   out.querySelectorAll("p").forEach(p=>{
@@ -604,35 +623,42 @@ function htmlToCSV(includeQuestion=true){
     });
   });
   return rows.map(r => r.map(cell=>{
-    const v = String(cell ?? "");
+    const v=String(cell??"");
     if (/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`;
     return v;
   }).join(",")).join("\n");
 }
 
 function download(filename, blob){
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=filename;
   document.body.appendChild(a);
   a.click();
   setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
 
 function printHTML(html){
-  const iframe = document.createElement('iframe');
+  const iframe=document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
   iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0';
   document.body.appendChild(iframe);
-  const doc = iframe.contentWindow || iframe.contentDocument;
-  const idoc = doc.document || doc;
+  const doc=iframe.contentWindow||iframe.contentDocument;
+  const idoc=doc.document||doc;
   idoc.open(); idoc.write(html); idoc.close();
-  setTimeout(()=>{ try{ (iframe.contentWindow || iframe).focus(); (iframe.contentWindow || iframe).print(); }catch{} }, 60);
+  setTimeout(()=>{ try{ (iframe.contentWindow||iframe).focus(); (iframe.contentWindow||iframe).print(); }catch{} }, 60);
   setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
 }
 
 /* ====== Botones ====== */
 btnSend.addEventListener("click", ask);
+btnCancel.disabled = true;
+btnCancel.addEventListener("click", ()=>{
+  if (currentAbortCtrl) { try{ currentAbortCtrl.abort(); }catch{} }
+  jobPollAbort = true;
+  try{ TTS.stopAll(); }catch(_){}
+  setStatusText("Cancelado");
+});
 btnDict.addEventListener("click", toggleDict);
 btnToggleAV.addEventListener("click", ()=>{
   if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i, TTS.lang); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
@@ -640,30 +666,25 @@ btnToggleAV.addEventListener("click", ()=>{
   else if(TTS.speaking){ TTS.pause(); btnToggleAV.textContent="▶ Reanudar voz"; }
   else { TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
 });
-btnReplay.addEventListener("click", ()=>{ 
+btnReplay.addEventListener("click", ()=>{
   const langHint = detectLang((document.querySelector("h3+ p")?.textContent || q.value || "").trim());
   TTS.restartFromStart(langHint); btnToggleAV.textContent="⏸ Silenciar voz";
 });
 btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
 btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunta)", {}); TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus(); });
 
-/* ====== Hist ====== */
-btnHist.addEventListener("click", openHistory);
-
 /* ====== UX ====== */
 q.addEventListener("keydown",(e)=>{
-  // Ctrl/Cmd+Enter: enviar. Shift+Enter: nueva línea
-  if ((e.ctrlKey || e.metaKey) && e.key === "Enter"){
-    e.preventDefault();
-    if(!isBusy) ask();
+  if ((e.ctrlKey||e.metaKey) && e.key==="Enter"){
+    e.preventDefault(); if(!isBusy) ask();
   }
 });
 
-/* Exportar: PDF, CSV, DOC */
+/* ====== Exportar ====== */
 selExport.addEventListener("change", ()=>{
   const v=selExport.value; selExport.value="";
   if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
-  const questionText = (document.querySelector("h3+ p")?.textContent || "").trim();
+  const questionText=(document.querySelector("h3+ p")?.textContent||"").trim();
 
   if(v==="pdf"){
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
@@ -681,8 +702,8 @@ selExport.addEventListener("change", ()=>{
     return;
   }
   if(v==="csv"){
-    const csv = htmlToCSV(true);
-    const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+    const csv=htmlToCSV(true);
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
     download("export.csv", blob);
     return;
   }
@@ -697,14 +718,13 @@ selExport.addEventListener("change", ()=>{
   }
 });
 
-/* Mostrar errores JS en pantalla */
-window.addEventListener("error", (e)=>{
-  const msg = (e?.error?.stack || e?.message || String(e)).slice(0, 600);
-  const box = document.getElementById("status");
-  if (box) box.innerHTML = '<span class="loader" role="status" aria-busy="true">'
+/* ====== Errores JS ====== */
+window.addEventListener("error",(e)=>{
+  const msg=(e?.error?.stack||e?.message||String(e)).slice(0,600);
+  statusEl.innerHTML = '<span class="loader" role="status" aria-busy="true">'
     + '<span class="dot"></span><span class="dot"></span><span class="dot"></span>'
     + esc('JS error: ' + msg) + '</span>';
-}, {once:false});
+},{once:false});
 </script>
 </body>
 </html>
