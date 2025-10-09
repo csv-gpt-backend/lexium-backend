@@ -1,511 +1,587 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>0840 Lexium · Chat</title>
-  <style>
-    :root{
-      --bg:#0b0f17;--card:#111827;--muted:#1f2937;--text:#e5e7eb;--accent:#38bdf8;--ok:#22c55e;
-      --warn:#f59e0b;--danger:#ef4444;--border:#273244;
-    }
-    html,body{height:100%}
-    body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial}
-    .wrap{max-width:1100px;margin:0 auto;padding:18px}
-    .row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:12px}
-    .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-    .btn{background:var(--muted);color:var(--text);border:1px solid var(--border);padding:10px 12px;border-radius:10px;cursor:pointer}
-    .btn[disabled]{opacity:.55;cursor:not-allowed}
-    .btn.primary{background:var(--accent);color:#001018;border-color:#22a5dc}
-    .btn.ok{background:var(--ok);color:#001008;border-color:#149a46}
-    .btn.ghost{background:transparent}
-    .tag{font-size:12px;opacity:.75}
-    textarea{width:100%;min-height:92px;resize:vertical;background:#0f1522;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:12px;outline:none}
-    .chat{margin-top:12px;display:flex;flex-direction:column;gap:10px}
-    .bubble{padding:12px 14px;border-radius:12px;border:1px solid var(--border)}
-    .bubble.user{background:#132034}
-    .bubble.ai{background:#121e17}
-    .split{display:grid;grid-template-columns:1fr 320px;gap:14px}
-    .panel{position:sticky;top:12px}
-    .hlist{display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow:auto}
-    .hitem{padding:10px;border:1px dashed var(--border);border-radius:10px;background:#0f1624}
-    .hitem small{opacity:.6}
-    .muted{opacity:.8}
-    .divider{height:1px;background:var(--border);margin:8px 0}
-    .dropdown{position:relative;display:inline-block}
-    .menu{position:absolute;z-index:10;min-width:220px;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:6px;margin-top:6px;display:none}
-    .menu.show{display:block}
-    .menu .item{display:flex;align-items:center;gap:8px;padding:10px;border-radius:10px;cursor:pointer}
-    .menu .item:hover{background:var(--muted)}
-    .right{margin-left:auto}
-    .mono{font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace}
-    .sr{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
-    /* Modal simple para PDF preview y para Historial en pantallas pequeñas */
-    .modal{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;padding:16px}
-    .modal.show{display:flex}
-    .modal .box{background:var(--card);border:1px solid var(--border);border-radius:14px;max-width:900px;width:100%;max-height:85vh;display:flex;flex-direction:column}
-    .box header, .box footer{padding:10px 12px;border-bottom:1px solid var(--border)}
-    .box footer{border-top:1px solid var(--border);border-bottom:none}
-    .box .content{padding:0 12px 12px 12px;overflow:auto}
-    iframe.pdf{width:100%;height:70vh;border:0;border-radius:10px}
-    @media (max-width:980px){.split{grid-template-columns:1fr}}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>0859 Asistente Lexium</title>
+<style>
+  :root{
+    --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
+    --ok:#16a34a; --err:#b91c1c;
+    --heroH: 65vh;
+    --wrapW: 1180px;
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
+
+  .mediaBar{
+    position:fixed; top:0; left:0; width:100vw; z-index:50;
+    background:#fff; border-bottom:none; padding:0; margin:0;
+    pointer-events:none;
+  }
+  .mediaBar *{ pointer-events:none; }
+  .mediaInner{max-width:var(--wrapW); margin:0 auto; padding:12px;}
+  .heroGrid{display:grid; grid-template-columns:1fr 3fr 1.16fr; align-items:center; gap:8px;}
+  .sideImg{display:flex; justify-content:center; height:var(--heroH); margin:0;}
+  .sideImg img{max-width:100%; height:100%; object-fit:contain; opacity:.95}
+  .videoBox{height:var(--heroH); margin:0;}
+  .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
+
+  .contentWrap{max-width:var(--wrapW); margin:0 auto; padding:12px; padding-top:calc(var(--heroH) + 8px);}
+
+  .toolbar{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:8px 0}
+  .toolbar button, .toolbar select{padding:9px 14px; border:1px solid var(--bd); border-radius:10px; background:#fff; cursor:pointer;}
+  .toolbar button:hover{background:#f5f7fb}
+  .toolbar button[disabled]{opacity:.6; cursor:not-allowed}
+
+  .hist{position:fixed; right:14px; top:10px; z-index:60}
+  .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
+
+  /* 1 línea exacta */
+  .query{
+    width:100%;
+    height:36px; min-height:36px; max-height:36px;
+    resize:none; border:1px solid var(--bd); border-radius:10px;
+    padding:8px 10px; font-size:16px; line-height:1.2; overflow:hidden;
+  }
+
+  .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
+  .muted{color:var(--muted); font-size:.9rem}
+
+  table{width:100%; border-collapse:collapse; margin:10px 0}
+  th,td{border:1px solid var(--bd); padding:8px}
+  th{background:#f8fafc; text-align:left}
+
+  .loader{display:inline-flex; align-items:center; gap:8px; font-size:.95rem; color:var(--muted)}
+  .dot{width:8px; height:8px; border-radius:50%; background:var(--pri); opacity:.7; animation:bounce 1s infinite}
+  .dot:nth-child(2){animation-delay:.15s}
+  .dot:nth-child(3){animation-delay:.3s}
+  @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
+
+  /* Procesando arriba a la izquierda (mismo diseño) */
+  #status { position:fixed; top:8px; left:12px; z-index:70; }
+
+  /* Overlay Historial (evita popups bloqueados) */
+  .overlay{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.25);
+    z-index:80; align-items:center; justify-content:center; padding:24px;
+  }
+  .overlay.show{ display:flex; }
+  .panel{
+    background:#fff; border:1px solid var(--bd); border-radius:12px;
+    width:min(900px, 92vw); max-height:80vh; overflow:auto; padding:16px;
+  }
+  .panel header{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px}
+  .panel h2{margin:0; font-size:18px}
+  .closeBtn{border:1px solid var(--bd); background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer}
+  .session{border-top:1px solid var(--bd); padding:10px 0}
+  .session b{display:block; margin-bottom:4px}
+  .linkBadge{font-size:.82rem; margin-left:6px}
+  .okBadge{color:var(--ok)}
+  .warnBadge{color:#b45309}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="row">
-      <h2 style="margin:0">Lexium · Chat</h2>
-      <span class="tag">Cloud Run servicio: <span class="mono">lexium-gpt5</span></span>
-      <div class="right toolbar">
-        <button id="btnHistorial" class="btn">🕘 Historial</button>
-        <div class="dropdown">
-          <button id="btnExportar" class="btn">⬇️ Exportar…</button>
-          <div id="menuExportar" class="menu" role="menu" aria-labelledby="btnExportar">
-            <div class="item" data-export="word">📝 Exportar a Word (.doc)</div>
-            <div class="item" data-export="pdf">📄 Exportar a PDF (con preview)</div>
-            <div class="item" data-export="csv">🧾 Exportar a CSV (.csv)</div>
-          </div>
+
+  <div class="hist">
+    <button id="btnHist" title="Ver sesiones guardadas">Historial</button>
+  </div>
+
+  <div class="mediaBar" aria-label="cabecera">
+    <div class="mediaInner">
+      <div class="heroGrid">
+        <div class="sideImg left">
+          <img src="left.png" alt="Logo izquierdo"/>
         </div>
-        <button id="btnLimpiar" class="btn ghost">🧹 Limpiar</button>
+        <div class="videoBox">
+          <video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
+        </div>
+        <div class="sideImg right">
+          <img src="right.png" alt="Logo derecho"/>
+        </div>
       </div>
-    </div>
-
-    <div class="split">
-      <main class="card">
-        <label class="sr" for="prompt">Pregunta</label>
-        <textarea id="prompt" placeholder="Escribe tu pregunta... (Ctrl+Enter para enviar)"></textarea>
-
-        <div class="toolbar" style="margin-top:10px">
-          <button id="btnEnviar" class="btn primary">Enviar</button>
-          <button id="btnDictado" class="btn">🎤 Dictar</button>
-          <button id="btnToggleVoz" class="btn">⏯ Activar voz</button>
-          <button id="btnReproducir" class="btn">⟳ Reproducir</button>
-          <button id="btnNueva" class="btn">＋ Nueva sesión</button>
-          <span id="estado" class="tag">Listo</span>
-        </div>
-
-        <div class="divider"></div>
-
-        <section id="chat" class="chat" aria-live="polite" aria-busy="false"></section>
-
-        <audio id="tts" preload="auto"></audio>
-      </main>
-
-      <aside class="panel">
-        <div class="card">
-          <b>Sesión</b>
-          <div class="muted">ID: <span id="sid" class="mono"></span></div>
-          <div class="muted">Mensajes: <span id="count">0</span></div>
-          <div class="muted">Voz: <span id="vozLabel">desactivada</span></div>
-        </div>
-        <div class="card">
-          <b>Historial (vista rápida)</b>
-          <div id="histShort" class="hlist"></div>
-        </div>
-      </aside>
     </div>
   </div>
 
-  <!-- Modal Historial (modo lista completa en móviles) -->
-  <div id="modalHistorial" class="modal" role="dialog" aria-modal="true" aria-labelledby="ttlHist">
-    <div class="box">
+  <div class="contentWrap">
+    <div style="margin:10px 0 6px">
+      <textarea id="q" class="query" rows="1" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
+    </div>
+
+    <div class="toolbar">
+      <!-- sin onclick (evita doble disparo) -->
+      <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
+      <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
+      <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
+      <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
+      <button id="btnNew" title="Nueva sesión (limpia y guarda la actual)">＋ Nueva sesión</button>
+      <button id="btnClear" title="Limpiar pregunta y respuesta">🧹 Limpiar</button>
+      <select id="selExport" title="Exportar lo generado (PDF muestra vista previa)">
+        <option value="">Exportar…</option>
+        <option value="pdf">PDF (vista previa)</option>
+        <option value="csv">CSV</option>
+        <option value="doc">DOC</option>
+      </select>
+    </div>
+
+    <div id="out" class="out" aria-live="polite"></div>
+    <div id="status" class="muted"></div>
+  </div>
+
+  <!-- Overlay del Historial -->
+  <div id="histOverlay" class="overlay" aria-modal="true" role="dialog">
+    <div class="panel">
       <header>
-        <b id="ttlHist">Historial de conversaciones</b>
+        <h2>Sesiones</h2>
+        <button class="closeBtn" id="closeHist">Cerrar</button>
       </header>
-      <div class="content">
-        <div id="histFull" class="hlist"></div>
-      </div>
-      <footer class="row">
-        <button id="btnCerrarHist" class="btn">Cerrar</button>
-        <span class="right tag">Guardado local en tu navegador</span>
-      </footer>
+      <div id="histBody"></div>
     </div>
   </div>
 
-  <!-- Modal PDF Preview -->
-  <div id="modalPDF" class="modal" role="dialog" aria-modal="true" aria-labelledby="ttlPDF">
-    <div class="box">
-      <header class="row">
-        <b id="ttlPDF">Vista previa PDF</b>
-        <a id="lnkPDF" class="btn right" href="#" download="lexium_chat.pdf">Descargar PDF</a>
-      </header>
-      <div class="content">
-        <iframe class="pdf" id="pdfFrame"></iframe>
-      </div>
-      <footer class="row">
-        <button id="btnCerrarPDF" class="btn">Cerrar</button>
-      </footer>
+<script>
+/* ====== CONFIG ====== */
+const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app";
+const GPT_PATH = "/api/gpt";
+const FALLBACK_PATH = "/api/answer";
+
+/* ====== UI refs ====== */
+const q = document.getElementById("q");
+const out = document.getElementById("out");
+const statusEl = document.getElementById("status");
+const vid = document.getElementById("vid");
+const btnSend = document.getElementById("btnSend");
+const btnDict = document.getElementById("btnDict");
+const btnToggleAV = document.getElementById("btnToggleAV");
+const btnReplay = document.getElementById("btnReplay");
+const btnNew = document.getElementById("btnNew");
+const btnClear = document.getElementById("btnClear");
+const selExport = document.getElementById("selExport");
+const btnHist = document.getElementById("btnHist");
+const histOverlay = document.getElementById("histOverlay");
+const histBody = document.getElementById("histBody");
+const closeHist = document.getElementById("closeHist");
+
+let isBusy = false; // evita doble disparo
+
+/* ====== Utilidades ====== */
+function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+function setStatusLoading(msg="Generando…"){
+  statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
+}
+function clearStatus(){ statusEl.textContent = ""; }
+
+/* Detectar URLs y enlazarlas */
+const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
+function linkifyHTML(html){
+  return html.replace(URL_RE, (u)=>{
+    const safe = esc(u);
+    return `<a href="${safe}" target="_blank" rel="noopener">${safe}</a><span class="linkBadge" data-url="${safe}">⏳</span>`;
+  });
+}
+
+/* Verificar enlaces (best effort) */
+async function verifyLinks(){
+  const badges = document.querySelectorAll('.linkBadge[data-url]');
+  for (const b of badges){
+    const url = b.getAttribute('data-url');
+    try{
+      // HEAD primero; si falla por CORS, intentamos GET y capturamos error
+      let ok = false;
+      try {
+        const r = await fetch(url, { method:"HEAD" });
+        ok = r.ok;
+      } catch {
+        // CORS u otros; segundo intento GET por si el host permite
+        const r2 = await fetch(url, { method:"GET", mode:"cors" });
+        ok = r2.ok;
+      }
+      if(ok){ b.textContent = "✅"; b.classList.add("okBadge"); b.title="Verificado"; }
+      else { b.textContent = "⚠️"; b.classList.add("warnBadge"); b.title="No se pudo verificar (status)"; }
+    }catch(_){
+      b.textContent = "⚠️"; b.classList.add("warnBadge"); b.title="No se pudo verificar (CORS o red)";
+    }
+  }
+}
+
+/* ====== Historial (overlay) ====== */
+function saveSession(question, data){
+  const visible = (document.getElementById('out')?.textContent || "").trim();
+  const summary = (data?.general || data?.answer || data?.text || data?.html || visible || "").slice(0, 2000);
+  const minimal = { id: new Date().toISOString(), question: question || "(sin pregunta)", summary, when: Date.now() };
+  try{
+    const key="lexium_sessions"; const all=JSON.parse(localStorage.getItem(key)||"[]");
+    all.unshift(minimal); localStorage.setItem(key, JSON.stringify(all.slice(0,50)));
+  }catch(e){
+    try{
+      const key="lexium_sessions_fallback"; const all=JSON.parse(sessionStorage.getItem(key)||"[]");
+      all.unshift(minimal); sessionStorage.setItem(key, JSON.stringify(all.slice(0,50)));
+    }catch(_){}
+  }
+}
+function readSessions(){
+  try{
+    const a=JSON.parse(localStorage.getItem("lexium_sessions")||"[]");
+    const b=JSON.parse(sessionStorage.getItem("lexium_sessions_fallback")||"[]");
+    return [...a,...b];
+  }catch(e){ return []; }
+}
+function renderHistory(){
+  const all=readSessions();
+  if(!all.length){ histBody.innerHTML = "<p class='muted'>Sin historial.</p>"; return; }
+  histBody.innerHTML = all.map(s=>`
+    <div class="session">
+      <b>${new Date(s.when).toLocaleString()}</b>
+      <div><i>Pregunta:</i> ${esc(s.question)}</div>
+      <pre>${esc(s.summary||"(sin resumen)")}</pre>
     </div>
-  </div>
+  `).join("");
+}
+function openHistory(){
+  renderHistory();
+  histOverlay.classList.add("show");
+}
+function closeHistory(){
+  histOverlay.classList.remove("show");
+}
+btnHist.addEventListener("click", openHistory);
+closeHist.addEventListener("click", closeHistory);
+histOverlay.addEventListener("click",(e)=>{ if(e.target===histOverlay) closeHistory(); });
 
-  <script>
-    // ========= CONFIG =========
-    // ⛳ ACTUALIZA ESTA URL con tu endpoint de Cloud Run:
-    const API_BASE = "https://TU-SERVICIO-a.run.app"; // p.ej. https://lexium-gpt5-xxxxx.a.run.app
+/* ====== Dictado ====== */
+let recognizer=null;
+function toggleDict(){
+  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  if(!SR){ alert("Dictado no soportado en este navegador."); return; }
+  if(!recognizer){
+    recognizer=new SR(); recognizer.lang="es-ES"; recognizer.continuous=false; recognizer.interimResults=false;
+    recognizer.onresult=e=>{
+      const t=Array.from(e.results).map(r=>r[0].transcript).join(" ");
+      q.value=(q.value? q.value+" " : "") + t;
+    };
+  }
+  if(recognizer.listening){ recognizer.stop(); recognizer.listening=false; btnDict.textContent="🎤 Dictar"; }
+  else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
+}
 
-    // ========= ESTADO GLOBAL =========
-    const el = (id) => document.getElementById(id);
-    const chatEl = el('chat');
-    const ttsEl  = el('tts');
-    const estadoEl = el('estado');
-    const countEl = el('count');
-    const sidEl = el('sid');
-    const vozLabelEl = el('vozLabel');
-    const histShortEl = el('histShort');
-    const histFullEl  = el('histFull');
+/* ====== Voz femenina + TTS ====== */
+const PREFERRED_NAMES=[
+  "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
+  "Google español","Google español de Estados","Google US Español",
+  "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"
+];
+const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
 
-    let sessionId = makeId();
-    let messages = []; // {role:'user'|'assistant', text, at}
-    let voiceEnabled = false;
-    let isSending = false; // 🔒 evita doble disparo
-    let lastAudioBlobUrl = null;
+let selectedVoice=null;
+function scoreVoice(v){
+  const name=(v.name||"").toLowerCase(), lang=(v.lang||"").toLowerCase();
+  let s=0;
+  if (SP_LANGS.some(l=>lang.startsWith(l.toLowerCase()))) s+=5;
+  if (PREFERRED_NAMES.some(n=>name.includes(n.toLowerCase()))) s+=6;
+  if (name.includes("female")||name.includes("femenina")||name.includes("mujer")) s+=4;
+  if (name.includes("google")) s+=2; if (name.includes("microsoft")) s+=2;
+  return s;
+}
+function chooseFemaleES(){
+  if(typeof speechSynthesis==="undefined") return null;
+  const vs=speechSynthesis.getVoices(); if(!vs.length) return null;
+  for(const n of PREFERRED_NAMES){ const m=vs.find(v=>v.name.toLowerCase().includes(n.toLowerCase())); if(m) return m; }
+  return vs.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a))[0]||null;
+}
+function initVoice(){ selectedVoice=chooseFemaleES(); }
+if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
 
-    sidEl.textContent = sessionId;
+/* === Regex bullets === */
+const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
 
-    // ========= UTIL =========
-    function makeId(){ return 'S' + Math.random().toString(36).slice(2,10); }
-    function ts(){ return new Date().toISOString(); }
+/* === Numerar texto general si aplica === */
+function generalToOrderedListHTML(g){
+  if (!g) return "";
+  const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const bulletLike = lines.filter(s=>BULLET_RE.test(s)).length;
+  const manyPlainLines = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length;
+  const shouldNumber = (lines.length>=3) && (bulletLike>0 || manyPlainLines >= Math.ceil(lines.length*0.6));
+  if (shouldNumber) {
+    const items = lines.map(s=>s.replace(BULLET_RE,"")).filter(Boolean);
+    return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
+  }
+  return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
+}
 
-    function addMsg(role, text){
-      messages.push({ role, text, at: ts() });
-      renderChat();
-      countEl.textContent = String(messages.length);
-      persistHistory();
-      refreshHistoryViews();
-    }
-
-    function bubble(role, text){
-      const div = document.createElement('div');
-      div.className = 'bubble ' + (role === 'user' ? 'user' : 'ai');
-      div.innerText = text;
-      return div;
-    }
-
-    function renderChat(){
-      chatEl.innerHTML = '';
-      messages.forEach(m => chatEl.appendChild(bubble(m.role, m.text)));
-      chatEl.scrollTop = chatEl.scrollHeight;
-    }
-
-    function setEstado(txt){ estadoEl.textContent = txt; }
-
-    // ========= HISTORIAL (LocalStorage) =========
-    const LS_KEY = 'lexium_history_v2';
-    function persistHistory(){
-      // Guardamos como lista de sesiones, cada una con id y transcript
-      const store = loadAllHistory();
-      const idx = store.findIndex(s => s.sessionId === sessionId);
-      const snap = { sessionId, at: ts(), transcript: messages };
-      if (idx >= 0) store[idx] = snap; else store.unshift(snap);
-      localStorage.setItem(LS_KEY, JSON.stringify(store).slice(0, 5_000_000)); // defensivo
-    }
-    function loadAllHistory(){
-      try{
-        const raw = localStorage.getItem(LS_KEY);
-        if(!raw) return [];
-        return JSON.parse(raw);
-      }catch{ return []; }
-    }
-    function refreshHistoryViews(){
-      const all = loadAllHistory();
-      // Vista corta (sidebar)
-      histShortEl.innerHTML = '';
-      all.slice(0,8).forEach(s => {
-        const div = document.createElement('div');
-        div.className = 'hitem';
-        const firstQ = (s.transcript.find(m => m.role==='user')||{}).text || '(sin pregunta)';
-        div.innerHTML = `<small class="mono">${s.sessionId}</small><br>${escapeHtml(firstQ).slice(0,120)}…`;
-        div.title = s.sessionId;
-        div.onclick = () => loadSession(s.sessionId);
-        histShortEl.appendChild(div);
-      });
-
-      // Vista completa (modal)
-      histFullEl.innerHTML = '';
-      all.forEach(s => {
-        const div = document.createElement('div');
-        div.className = 'hitem';
-        const human = new Date(s.at).toLocaleString();
-        const preview = s.transcript.map(m => (m.role==='user'?'Tú: ':'IA: ') + m.text).join('\n').slice(0,500);
-        div.innerHTML = `<b>${s.sessionId}</b> · <small>${human}</small><div class="muted" style="white-space:pre-wrap;margin-top:6px">${escapeHtml(preview)}${s.transcript.length>0?'…':''}</div>`;
-        const row = document.createElement('div');
-        row.className = 'row';
-        const btnAbrir = mkBtn('Abrir', () => loadSession(s.sessionId));
-        const btnBorrar = mkBtn('Eliminar', () => { deleteSession(s.sessionId); refreshHistoryViews(); });
-        row.append(btnAbrir, btnBorrar);
-        div.appendChild(row);
-        histFullEl.appendChild(div);
-      });
-    }
-    function deleteSession(id){
-      const all = loadAllHistory().filter(s => s.sessionId !== id);
-      localStorage.setItem(LS_KEY, JSON.stringify(all));
-    }
-    function loadSession(id){
-      const found = loadAllHistory().find(s => s.sessionId === id);
-      if(!found) return;
-      sessionId = found.sessionId;
-      messages = found.transcript || [];
-      sidEl.textContent = sessionId;
-      renderChat();
-      setEstado('Sesión cargada');
-      closeModal('modalHistorial');
-    }
-    function mkBtn(label, fn){
-      const b = document.createElement('button');
-      b.className = 'btn'; b.textContent = label; b.onclick = fn; return b;
-    }
-    function escapeHtml(s){ return s.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
-
-    // ========= EXPORTACIONES =========
-    function asPlainTranscript(){
-      return messages.map(m => `[${m.role.toUpperCase()}] ${m.text}`).join('\n\n');
-    }
-    function exportWord(){
-      // Mantiene el esquema viejo basado en HTML -> .doc (funcionaba perfecto)
-      const html =
-`<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-<head><meta charset="utf-8"><title>Lexium</title></head>
-<body>
-<h2>Lexium · Sesión ${sessionId}</h2>
-${messages.map(m => `<p><b>${m.role==='user'?'Tú':'IA'}:</b> ${escapeHtml(m.text).replace(/\n/g,'<br>')}</p>`).join('\n')}
-</body></html>`;
-      const blob = new Blob([html], {type: 'application/msword'});
-      const url = URL.createObjectURL(blob);
-      download(url, `lexium_${sessionId}.doc`);
-      URL.revokeObjectURL(url);
-    }
-    function exportPDF(){
-      // Genera un PDF simple (sin librerías externas) usando <iframe> + print-to-PDF compatible
-      const html =
-`<!doctype html><html><head><meta charset="utf-8"><style>
-body{font:14px/1.45 -apple-system,Segoe UI,Roboto,Ubuntu,Arial;padding:20px}
-.b{font-weight:bold} .mt{margin-top:8px}
-</style></head><body>
-<h2>Lexium · Sesión ${sessionId}</h2>
-${messages.map(m => `<div class="mt"><span class="b">${m.role==='user'?'Tú':'IA'}:</span> ${escapeHtml(m.text).replace(/\n/g,'<br>')}</div>`).join('')}
-</body></html>`;
-      const blob = new Blob([html], {type:'text/html;charset=utf-8'});
-      const url = URL.createObjectURL(blob);
-      // Mostramos preview en modal con iframe
-      openModal('modalPDF');
-      const frame = el('pdfFrame');
-      frame.src = url;
-      // También habilitamos descarga como .pdf via print-to-pdf (se descargará como HTML,
-      // pero los visores modernos permiten "Imprimir" a PDF desde el preview).
-      const dl = el('lnkPDF');
-      dl.href = url;
-    }
-    function exportCSV(){
-      // ✅ Reemplaza Excel por CSV (con BOM para abrir bien en Excel)
-      const rows = [['session_id','timestamp','role','text']];
-      messages.forEach(m => rows.push([sessionId, m.at, m.role, m.text.replace(/\r?\n/g,' ') ]));
-      const csv = rows.map(r => r.map(cell => {
-        const s = String(cell).replace(/"/g,'""');
-        return `"${s}"`;
-      }).join(',')).join('\r\n');
-      const BOM = '\ufeff'; // Byte Order Mark para Excel
-      const blob = new Blob([BOM + csv], {type:'text/csv;charset=utf-8;'});
-      const url = URL.createObjectURL(blob);
-      download(url, `lexium_${sessionId}.csv`);
-      URL.revokeObjectURL(url);
-      setEstado('CSV generado');
-    }
-    function download(url, filename){
-      const a = document.createElement('a');
-      a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
-    }
-
-    // ========= ENVÍO (un solo disparo) =========
-    async function enviar(){
-      if(isSending) return; // 🔒 evita doble disparo
-      const prompt = el('prompt').value.trim();
-      if(!prompt){ setEstado('Escribe una pregunta'); return; }
-
-      try{
-        isSending = true;
-        lockUI(true);
-        setEstado('Enviando…');
-        addMsg('user', prompt);
-
-        // Llamada al backend
-        const res = await fetch(`${API_BASE}/chat`, {
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({
-            sessionId,
-            messages, // el backend puede tomar el historial
-          }),
-        });
-
-        if(!res.ok){
-          throw new Error(`HTTP ${res.status}`);
-        }
-        const data = await res.json();
-        const text = data.text || '(sin texto)';
-        addMsg('assistant', text);
-
-        // TTS: soporta audioUrl directo o base64 { audioBase64, mime }
-        if(voiceEnabled){
-          await playTTS(data);
-        }
-        setEstado('Listo');
-      }catch(err){
-        console.error(err);
-        setEstado('Error: ' + (err.message||''));
-      }finally{
-        lockUI(false);
-        isSending = false; // 🔓 listo para siguiente envío
-      }
-    }
-
-    function lockUI(lock){
-      el('btnEnviar').disabled = lock;
-      el('btnDictado').disabled = lock;
-      el('btnToggleVoz').disabled = lock;
-      el('btnReproducir').disabled = lock || !lastAudioBlobUrl;
-    }
-
-    // ========= TTS =========
-    async function playTTS(data){
-      // Queremos lectura completa: esperamos canplay, luego reproducimos y resolvemos al terminar
-      try{
-        // limpiar anterior
-        if(lastAudioBlobUrl){ URL.revokeObjectURL(lastAudioBlobUrl); lastAudioBlobUrl = null; }
-
-        if(data.audioUrl){
-          ttsEl.src = data.audioUrl;
-        }else if(data.audioBase64){
-          const mime = data.mime || 'audio/mpeg';
-          const bin = b64ToArrayBuffer(data.audioBase64);
-          const blob = new Blob([bin], {type: mime});
-          lastAudioBlobUrl = URL.createObjectURL(blob);
-          ttsEl.src = lastAudioBlobUrl;
-        }else{
-          // Si no viene audio, pedimos al endpoint /tts (opcional, si tu backend lo expone)
-          const last = messages[messages.length-1]?.text || '';
-          const tRes = await fetch(`${API_BASE}/tts`,{
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ text: last, sessionId })
-          });
-          if(tRes.ok){
-            const b = await tRes.blob();
-            lastAudioBlobUrl = URL.createObjectURL(b);
-            ttsEl.src = lastAudioBlobUrl;
-          }
-        }
-
-        await new Promise((resolve, reject) => {
-          const onEnd=()=>{ cleanup(); resolve(); };
-          const onErr=()=>{ cleanup(); reject(new Error('Fallo al reproducir TTS')); };
-          const cleanup=()=>{
-            ttsEl.removeEventListener('ended', onEnd);
-            ttsEl.removeEventListener('error', onErr);
-          };
-          ttsEl.addEventListener('ended', onEnd, {once:true});
-          ttsEl.addEventListener('error', onErr, {once:true});
-          // Aseguramos que cargue antes de play
-          ttsEl.oncanplay = ()=> { ttsEl.oncanplay = null; ttsEl.play().catch(onErr); };
-          // Fallback si ya está listo
-          if(ttsEl.readyState >= 2){ ttsEl.play().catch(onErr); }
-        });
-      }catch(e){
-        console.warn('TTS warning:', e);
-      }
-    }
-    function b64ToArrayBuffer(base64){
-      const binary_string = atob(base64);
-      const len = binary_string.length;
-      const bytes = new Uint8Array(len);
-      for (let i=0;i<len;i++){ bytes[i]=binary_string.charCodeAt(i); }
-      return bytes.buffer;
-    }
-
-    // ========= UI: Eventos =========
-    el('btnEnviar').addEventListener('click', enviar);
-
-    // ÚNICO manejador del form: Ctrl+Enter envía; Enter inserta salto (evita doble disparo)
-    el('prompt').addEventListener('keydown', (e)=>{
-      if(e.key === 'Enter' && (e.ctrlKey || e.metaKey)){
-        e.preventDefault();
-        enviar();
-      }
+/* === TTS helpers: lee TODO (títulos, listas, tablas y números) === */
+function buildTTSTextFromOut(){
+  const c=document.createElement("div"); c.innerHTML=out.innerHTML;
+  const parts=[];
+  // Títulos
+  c.querySelectorAll("h1,h2,h3,h4").forEach(h=>{
+    const t=h.textContent.trim(); if(t) parts.push(t);
+  });
+  // Párrafos
+  c.querySelectorAll("p").forEach(p=>{
+    const t=p.textContent.trim(); if(t) parts.push(t);
+  });
+  // Listas
+  c.querySelectorAll("ol,ul").forEach(list=>{
+    const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
+    if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); }
+  });
+  // Tablas (lee encabezados y filas con números)
+  c.querySelectorAll("table").forEach(tbl=>{
+    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim()).filter(Boolean);
+    if(headers.length) parts.push(`Tabla: ${headers.join(", ")}`);
+    const rows=[...tbl.querySelectorAll("tbody tr")];
+    rows.forEach((tr,ri)=>{
+      const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
+      parts.push(`${ri+1}. ${cells.join(" | ")}`);
     });
+  });
+  const fallback=(out.textContent||"").trim();
+  return (parts.join("\n\n") || fallback).trim();
+}
 
-    el('btnNueva').addEventListener('click', ()=>{
-      sessionId = makeId();
-      sidEl.textContent = sessionId;
-      messages = [];
-      renderChat();
-      persistHistory();
-      refreshHistoryViews();
-      setEstado('Nueva sesión');
+const TTS={
+  enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
+  makeChunks(text,maxLen=360){
+    const res=[]; const parts=String(text).split(/(\.|\?|!|\n)/);
+    let buf=""; for(let i=0;i<parts.length;i+=2){ const seg=(parts[i]||"")+(parts[i+1]||"");
+      if((buf+seg).length<=maxLen) buf+=seg; else{ if(buf.trim()) res.push(buf.trim()); buf=seg; } }
+    if(buf.trim()) res.push(buf.trim()); return res;
+  },
+  loadFromOut(){ this.textCache=buildTTSTextFromOut(); this.chunks=this.makeChunks(this.textCache); this.i=0; },
+  speakNext(){
+    if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
+    const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
+    if(selectedVoice) u.voice=selectedVoice;
+    u.lang=(selectedVoice?.lang)||"es-ES"; u.rate=0.98; u.pitch=1.08; u.volume=1;
+    u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.play().catch(()=>{});} };
+    u.onend =()=>{ this.speakNext(); };
+    u.onerror=()=>{ this.speakNext(); };
+    this.utter=u; speechSynthesis.speak(u);
+  },
+  start(fromIndex=0){
+    if(typeof speechSynthesis==="undefined" || !this.chunks.length) return;
+    this.enabled=true; if(fromIndex>=0) this.i=fromIndex;
+    speechSynthesis.cancel(); this.speakNext();
+  },
+  pause(){ if(this.speaking && !this.paused){ speechSynthesis.pause(); this.paused=true; if(vid) vid.pause(); } },
+  resume(){ if(this.paused){ speechSynthesis.resume(); this.paused=false; if(vid) vid.play().catch(()=>{}); }
+           else if(!this.speaking && this.enabled){ this.speakNext(); } },
+  restartFromStart(){ this.enabled=true; this.loadFromOut(); this.start(0); },
+  finish(){ this.speaking=false; this.paused=false; this.utter=null; if(vid){ vid.loop=false; vid.pause(); } },
+  stopAll(){ this.enabled=false; this.paused=false; this.speaking=false; this.utter=null;
+             if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel();
+             if(vid){ vid.loop=false; vid.pause(); } }
+};
+
+/* ====== Normalizar listas/tablas del backend ====== */
+function normalizeLists(lists){
+  if(!Array.isArray(lists)) return [];
+  return lists.map((entry,i)=>{
+    if(Array.isArray(entry)){
+      const flat=entry.every(x=>typeof x==="string"||typeof x==="number");
+      return {title:`Lista ${i+1}`, items: flat? entry : entry.map(x=>Array.isArray(x)? x.join(" ") : String(x))};
+    }else if(entry && typeof entry==="object"){
+      return {title: entry.title||`Lista ${i+1}`, items: Array.isArray(entry.items)? entry.items: []};
+    }else{
+      return {title:`Lista ${i+1}`, items:[String(entry)]};
+    }
+  });
+}
+
+/* ====== Render ====== */
+function renderAnswer(data, userQuestion){
+  let html="";
+  // Encabezado con la pregunta
+  if (userQuestion) {
+    html += `<h3>Pregunta</h3><p>${esc(userQuestion)}</p>`;
+  }
+
+  const generalTxt = data.general || data.answer || data.text || "";
+  if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
+
+  const lists=normalizeLists(data.lists||[]);
+  lists.forEach(l=>{
+    html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
+  });
+
+  (data.tables||[]).forEach(t=>{
+    const cols=t.columns||[]; const rows=t.rows||[];
+    html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
+    html += cols.map(c=>`<th>${esc(c)}</th>`).join("");
+    html += `</tr></thead><tbody>`;
+    rows.forEach(r=>{ html += `<tr>` + r.map(x=>`<td>${esc(x)}</td>`).join("") + `</tr>`; });
+    html += `</tbody></table>`;
+  });
+
+  // Linkify + render
+  out.innerHTML = linkifyHTML(html || "<em>Sin contenido.</em>");
+  // Verificar enlaces (best effort)
+  verifyLinks();
+
+  // TTS
+  TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
+}
+
+/* ====== Backend ====== */
+async function ask(){
+  if (isBusy) return;
+  const text=q.value.trim(); if(!text) return;
+
+  isBusy = true;
+  btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
+  setStatusLoading("Consultando…");
+  try{
+    let r = await fetch(`${API_BASE}${GPT_PATH}`, {
+      method:"POST", headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({ q: text })
     });
+    if(r.status===404 || r.status===405 || r.status===0){
+      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, { headers:{ "Accept":"application/json" } });
+    }
+    const data = await r.json().catch(()=>({}));
+    if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
+    renderAnswer(data, text);
+    saveSession(text, data);
+  }catch(e){
+    out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
+    saveSession(text, {});
+  }finally{
+    btnSend.disabled=false; btnSend.textContent=old; clearStatus(); isBusy=false;
+  }
+}
 
-    // Dictado (placeholder sin Web Speech para no multiplicar eventos)
-    el('btnDictado').addEventListener('click', ()=>{
-      alert('Dictado de voz: integraremos Web Speech o endpoint STT cuando lo indiques.');
+/* ====== Exportar ====== */
+function htmlToCSV(includeQuestion=true){
+  const rows=[];
+  // Pregunta (si existe)
+  if(includeQuestion){
+    const pq = (document.querySelector("h3+ p")?.textContent || "").trim();
+    if(pq) rows.push(["PREGUNTA", pq]);
+  }
+  // Párrafos
+  out.querySelectorAll("p").forEach(p=>{
+    const t=p.textContent.trim(); if(t) rows.push(["TEXTO", t]);
+  });
+  // Listas
+  out.querySelectorAll("ol,ul").forEach(list=>{
+    const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}`);
+    if(items.length){ rows.push(["LISTA", items.join(" \\ ")]); }
+  });
+  // Tablas
+  out.querySelectorAll("table").forEach(tbl=>{
+    const head=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
+    if(head.length) rows.push(["TABLA CABECERAS", ...head]);
+    const trs=[...tbl.querySelectorAll("tbody tr")];
+    trs.forEach((tr,ri)=>{
+      const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
+      rows.push([`FILA ${ri+1}`, ...cells]);
     });
+  });
 
-    // Voz on/off
-    el('btnToggleVoz').addEventListener('click', ()=>{
-      voiceEnabled = !voiceEnabled;
-      vozLabelEl.textContent = voiceEnabled ? 'activada' : 'desactivada';
-      el('btnToggleVoz').textContent = voiceEnabled ? '⏸ Desactivar voz' : '⏯ Activar voz';
-    });
+  // A CSV
+  return rows.map(r => r.map(cell=>{
+    const v = String(cell ?? "");
+    if (/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`;
+    return v;
+  }).join(",")).join("\n");
+}
 
-    // Reproducir último audio
-    el('btnReproducir').addEventListener('click', ()=>{
-      if(ttsEl.src){ ttsEl.currentTime = 0; ttsEl.play().catch(()=>{}); }
-    });
+function download(filename, blob){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
 
-    // Limpiar chat actual
-    el('btnLimpiar').addEventListener('click', ()=>{
-      messages = [];
-      renderChat();
-      persistHistory();
-      refreshHistoryViews();
-      setEstado('Sesión vaciada');
-    });
+/* PDF sin popup extra */
+function printHTML(html){
+  const iframe = document.createElement('iframe');
+  iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
+  iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentWindow || iframe.contentDocument;
+  const idoc = doc.document || doc;
+  idoc.open(); idoc.write(html); idoc.close();
+  setTimeout(()=>{ try{ (iframe.contentWindow || iframe).focus(); (iframe.contentWindow || iframe).print(); }catch{} }, 60);
+  setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
+}
 
-    // Exportar menú
-    const menu = el('menuExportar');
-    el('btnExportar').addEventListener('click', ()=>{
-      menu.classList.toggle('show');
-    });
-    window.addEventListener('click', (e)=>{
-      if(!e.target.closest('.dropdown')) menu.classList.remove('show');
-    });
-    menu.addEventListener('click', (e)=>{
-      const item = e.target.closest('.item'); if(!item) return;
-      const kind = item.dataset.export;
-      if(kind==='word') exportWord();
-      else if(kind==='pdf') exportPDF();
-      else if(kind==='csv') exportCSV();
-      menu.classList.remove('show');
-    });
+selExport.addEventListener("change", ()=>{
+  const v=selExport.value; selExport.value="";
+  if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
 
-    // Historial botón: abre modal completo
-    el('btnHistorial').addEventListener('click', ()=> openModal('modalHistorial'));
-    el('btnCerrarHist').addEventListener('click', ()=> closeModal('modalHistorial'));
+  // Obtener la pregunta para PDF/DOC
+  const questionText = (document.querySelector("h3+ p")?.textContent || "").trim();
 
-    // PDF modal
-    el('btnCerrarPDF').addEventListener('click', ()=>{
-      // Limpia el iframe para liberar URL
-      const frame = el('pdfFrame');
-      const old = frame.src; frame.src='about:blank';
-      if(old.startsWith('blob:')) URL.revokeObjectURL(old);
-      closeModal('modalPDF');
-    });
+  if(v==="pdf"){
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
+      <style>body{font:16px/1.5 system-ui;margin:28px;color:#111}
+             h3{margin-top:0}
+             table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
+      </head><body>
+      ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
+      ${out.innerHTML}
+      </body></html>`;
+    try{ printHTML(html); }
+    catch(_){
+      const w=window.open("", "_blank", "noopener,noreferrer");
+      if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
+    }
+    return;
+  }
 
-    function openModal(id){ el(id).classList.add('show'); }
-    function closeModal(id){ el(id).classList.remove('show'); }
+  if(v==="csv"){
+    const csv = htmlToCSV(true);
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+    download("export.csv", blob);
+    return;
+  }
 
-    // Primera carga
-    refreshHistoryViews();
+  if(v==="doc"){
+    const html = `<!doctype html><html><head><meta charset="utf-8"></head><body>
+      ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
+      ${out.innerHTML}
+    </body></html>`;
+    const blob=new Blob([html],{type:"application/msword"});
+    download("export.doc", blob);
+    return;
+  }
+});
 
-  </script>
+/* ====== Botones ====== */
+btnSend.addEventListener("click", ask);
+btnDict.addEventListener("click", toggleDict);
+btnToggleAV.addEventListener("click", ()=>{
+  if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
+  if(TTS.paused){ TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
+  else if(TTS.speaking){ TTS.pause(); btnToggleAV.textContent="▶ Reanudar voz"; }
+  else { TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
+});
+btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
+btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
+btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunta)", {}); TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus(); });
+
+/* ====== Hist ====== */
+btnHist.addEventListener("click", openHistory);
+
+/* ====== UX ====== */
+q.addEventListener("keydown",(e)=>{
+  if(e.key==="Enter" && (e.ctrlKey||e.metaKey)){
+    e.preventDefault();
+    if(!isBusy) ask();
+  }
+});
+
+/* Mostrar errores JS en pantalla */
+window.addEventListener("error", (e)=>{
+  const msg = (e?.error?.stack || e?.message || String(e)).slice(0, 600);
+  const box = document.getElementById("status");
+  if (box) box.innerHTML = '<span class="loader" role="status" aria-busy="true">'
+    + '<span class="dot"></span><span class="dot"></span><span class="dot"></span>'
+    + esc('JS error: ' + msg) + '</span>';
+}, {once:false});
+</script>
 </body>
 </html>
-
