@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>1247 Asistente Lexium</title>
+<title>1305 Asistente Lexium</title>
 
 <!-- Latencia: preconnect / dns-prefetch -->
 <link rel="preconnect" href="https://lexium-gpt5-383217514425.southamerica-west1.run.app" crossorigin>
@@ -41,15 +41,22 @@
   .hist{position:fixed; right:14px; top:10px; z-index:60}
   .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
-  /* 1 línea exacta */
+  /* Caja de texto: con scroll interno y resize vertical */
   .query{
     width:100%;
-    height:36px; min-height:36px; max-height:36px;
-    resize:none; border:1px solid var(--bd); border-radius:10px;
-    padding:8px 10px; font-size:16px; line-height:1.2; overflow:hidden;
+    min-height:48px; max-height:200px;
+    resize:vertical; /* permitir estirar */
+    border:1px solid var(--bd); border-radius:10px;
+    padding:8px 10px; font-size:16px; line-height:1.35;
+    overflow:auto; /* scroll interno */
   }
 
-  .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
+  .out{
+    margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px;
+    overflow:auto; white-space:pre-wrap; max-height:65vh;
+    font-size:0.95rem; line-height:1.5; scrollbar-gutter:stable;
+  }
+
   .muted{color:var(--muted); font-size:.9rem}
 
   table{width:100%; border-collapse:collapse; margin:10px 0}
@@ -62,7 +69,6 @@
   .dot:nth-child(3){animation-delay:.3s}
   @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
 
-  /* Procesando arriba a la izquierda (mismo diseño) */
   #status { position:fixed; top:8px; left:12px; z-index:70; }
 
   /* Overlay Historial */
@@ -78,11 +84,12 @@
   .panel header{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px}
   .panel h2{margin:0; font-size:18px}
   .closeBtn{border:1px solid var(--bd); background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer}
-  .session{border-top:1px solid var(--bd); padding:10px 0}
-  .session b{display:block; margin-bottom:4px}
+  .session{border-top:1px solid var(--bd); padding:10px 0; display:flex; align-items:center; gap:10px}
+  .session .meta{flex:1}
   .linkBadge{font-size:.82rem; margin-left:6px}
   .okBadge{color:var(--ok)}
   .warnBadge{color:#b45309}
+  .viewBtn{border:1px solid var(--bd); background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer}
 </style>
 </head>
 <body>
@@ -109,11 +116,10 @@
 
   <div class="contentWrap">
     <div style="margin:10px 0 6px">
-      <textarea id="q" class="query" rows="1" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
+      <textarea id="q" class="query" rows="2" placeholder="ESCRIBE O HABLA PARA PREGUNTAR… (Shift+Enter = nueva línea, Ctrl/Cmd+Enter = enviar)"></textarea>
     </div>
 
     <div class="toolbar">
-      <!-- sin onclick (evita doble disparo) -->
       <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
       <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
       <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
@@ -149,12 +155,12 @@ const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app";
 const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
 
-/* === Timeouts configurables ===
-   Pon TIMEOUT_GPT_MS = 0 para esperar sin límite (como el lunes). */
-const TIMEOUT_GPT_MS = 0;      // 60s
-const TIMEOUT_FALLBACK_MS = 0; // 30s
+/* === Timeouts controlados + reintento ===
+   Ajustados por debajo del corte del navegador (~120 s) */
+const TIMEOUT_GPT_MS = 115000;      // 115s
+const TIMEOUT_FALLBACK_MS = 90000;   // 90s
 
-/* ====== Warm-up del backend (no cambia UX) ====== */
+/* ====== Warm-up discreto ====== */
 (async () => {
   try { await fetch(`${API_BASE}${FALLBACK_PATH}?q=ping`, { method: "GET" }); } catch (_) {}
 })();
@@ -176,9 +182,9 @@ const histOverlay = document.getElementById("histOverlay");
 const histBody = document.getElementById("histBody");
 const closeHist = document.getElementById("closeHist");
 
-let isBusy = false; // evita doble disparo
+let isBusy = false;
 
-/* ====== Utilidades ====== */
+/* ====== Utils ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
 function setStatusLoading(msg="Generando…"){
   statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
@@ -187,7 +193,6 @@ function setStatusLoading(msg="Generando…"){
 function clearStatus(){ statusEl.textContent = ""; }
 function setStatusText(msg=""){ statusEl.textContent = msg ? String(msg) : ""; }
 
-/* Detectar URLs y enlazarlas */
 const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
 function linkifyHTML(html){
   return html.replace(URL_RE, (u)=>{
@@ -195,62 +200,79 @@ function linkifyHTML(html){
     return `<a href="${safe}" target="_blank" rel="noopener">${safe}</a><span class="linkBadge" data-url="${safe}">⏳</span>`;
   });
 }
-
-/* Verificar enlaces (best effort) */
 async function verifyLinks(){
   const badges = document.querySelectorAll('.linkBadge[data-url]');
   for (const b of badges){
     const url = b.getAttribute('data-url');
     try{
-      let ok = false;
-      try { const r = await fetch(url, { method:"HEAD" }); ok = r.ok; }
-      catch { const r2 = await fetch(url, { method:"GET", mode:"cors" }); ok = r2.ok; }
-      if(ok){ b.textContent = "✅"; b.classList.add("okBadge"); b.title="Verificado"; }
-      else { b.textContent = "⚠️"; b.classList.add("warnBadge"); b.title="No se pudo verificar (status)"; }
+      let ok=false;
+      try { const r=await fetch(url,{method:"HEAD"}); ok=r.ok; }
+      catch { const r2=await fetch(url,{method:"GET",mode:"cors"}); ok=r2.ok; }
+      if(ok){ b.textContent="✅"; b.classList.add("okBadge"); b.title="Verificado"; }
+      else { b.textContent="⚠️"; b.classList.add("warnBadge"); b.title="No se pudo verificar (status)"; }
     }catch(_){
-      b.textContent = "⚠️"; b.classList.add("warnBadge"); b.title="No se pudo verificar (CORS o red)";
+      b.textContent="⚠️"; b.classList.add("warnBadge"); b.title="No se pudo verificar (CORS o red)";
     }
   }
 }
 
-/* ====== Historial (igual que antes) ====== */
+/* ====== Historial (guarda TODO y permite “Ver”) ====== */
+const SESS_KEY = "lexium_sessions_v2";
 function saveSession(question, data){
-  const visible = (document.getElementById('out')?.textContent || "").trim();
-  const summary = (data?.general || data?.answer || data?.text || data?.html || visible || "").slice(0, 2000);
-  const minimal = { id: new Date().toISOString(), question: question || "(sin pregunta)", summary, when: Date.now() };
+  const html = (document.getElementById('out')?.innerHTML || "").trim();
+  const text = (document.getElementById('out')?.textContent || "").trim();
+  const entry = {
+    id: new Date().toISOString(),
+    question: question || "(sin pregunta)",
+    html,
+    text,
+    when: Date.now()
+  };
   try{
-    const key="lexium_sessions"; const all=JSON.parse(localStorage.getItem(key)||"[]");
-    all.unshift(minimal); localStorage.setItem(key, JSON.stringify(all.slice(0,50)));
-  }catch(e){
-    try{
-      const key="lexium_sessions_fallback"; const all=JSON.parse(sessionStorage.getItem(key)||"[]");
-      all.unshift(minimal); sessionStorage.setItem(key, JSON.stringify(all.slice(0,50)));
-    }catch(_){}
-  }
+    const all = JSON.parse(localStorage.getItem(SESS_KEY) || "[]");
+    all.unshift(entry);
+    localStorage.setItem(SESS_KEY, JSON.stringify(all.slice(0,50)));
+  }catch(_){}
 }
 function readSessions(){
-  try{
-    const a=JSON.parse(localStorage.getItem("lexium_sessions")||"[]");
-    const b=JSON.parse(sessionStorage.getItem("lexium_sessions_fallback")||"[]");
-    return [...a,...b];
-  }catch(e){ return []; }
+  try{ return JSON.parse(localStorage.getItem(SESS_KEY) || "[]"); }
+  catch(_){ return []; }
 }
 function renderHistory(){
-  const all=readSessions();
+  const all = readSessions();
   if(!all.length){ histBody.innerHTML = "<p class='muted'>Sin historial.</p>"; return; }
   histBody.innerHTML = all.map(s=>`
     <div class="session">
-      <b>${new Date(s.when).toLocaleString()}</b>
-      <div><i>Pregunta:</i> ${esc(s.question)}</div>
-      <pre>${esc(s.summary||"(sin resumen)")}</pre>
+      <div class="meta">
+        <b>${new Date(s.when).toLocaleString()}</b>
+        <div><i>Pregunta:</i> ${esc(s.question)}</div>
+        <div class="muted">${esc((s.text||"").slice(0,140))}${(s.text||"").length>140?"…":""}</div>
+      </div>
+      <button class="viewBtn" data-id="${esc(s.id)}">Ver</button>
     </div>
   `).join("");
+
+  // Delegación de click “Ver”
+  histBody.querySelectorAll(".viewBtn").forEach(btn=>{
+    btn.addEventListener("click", ()=>{
+      const id = btn.getAttribute("data-id");
+      const match = readSessions().find(x=>x.id===id);
+      if(match){
+        out.innerHTML = match.html || "<em>Vacío</em>";
+        clearStatus();
+        // Reiniciar TTS/video sobre el contenido reabierto
+        try{ TTS.stopAll(); }catch(_){}
+        TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
+        histOverlay.classList.remove("show");
+      }
+    });
+  });
 }
 function openHistory(){ renderHistory(); histOverlay.classList.add("show"); }
-function closeHistory(){ histOverlay.classList.remove("show"); }
+function closeHistoryOverlay(){ histOverlay.classList.remove("show"); }
 btnHist.addEventListener("click", openHistory);
-closeHist.addEventListener("click", closeHistory);
-histOverlay.addEventListener("click",(e)=>{ if(e.target===histOverlay) closeHistory(); });
+closeHist.addEventListener("click", closeHistoryOverlay);
+histOverlay.addEventListener("click",(e)=>{ if(e.target===histOverlay) closeHistoryOverlay(); });
 
 /* ====== Dictado ====== */
 let recognizer=null;
@@ -268,19 +290,13 @@ function toggleDict(){
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
 }
 
-/* ====== Voz femenina + TTS ====== */
-const PREFERRED_NAMES=[
-  "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
-  "Google español","Google español de Estados","Google US Español",
-  "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"
-];
+/* ====== Voz + Video (igual que tenías) ====== */
+const PREFERRED_NAMES=["Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia","Google español","Google español de Estados","Google US Español","Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"];
 const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
-
 let selectedVoice=null;
 function scoreVoice(v){
   const name=(v.name||"").toLowerCase(), lang=(v.lang||"").toLowerCase();
-  let s=0;
-  if (SP_LANGS.some(l=>lang.startsWith(l.toLowerCase()))) s+=5;
+  let s=0; if (SP_LANGS.some(l=>lang.startsWith(l))) s+=5;
   if (PREFERRED_NAMES.some(n=>name.includes(n.toLowerCase()))) s+=6;
   if (name.includes("female")||name.includes("femenina")||name.includes("mujer")) s+=4;
   if (name.includes("google")) s+=2; if (name.includes("microsoft")) s+=2;
@@ -295,10 +311,7 @@ function chooseFemaleES(){
 function initVoice(){ selectedVoice=chooseFemaleES(); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
 
-/* === Regex bullets === */
 const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
-
-/* === Numerar texto general si aplica === */
 function generalToOrderedListHTML(g){
   if (!g) return "";
   const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
@@ -312,20 +325,16 @@ function generalToOrderedListHTML(g){
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* === TTS helpers: lee TODO (títulos, listas, tablas y números) === */
+/* === TTS helpers === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
-  // Títulos
   c.querySelectorAll("h1,h2,h3,h4").forEach(h=>{ const t=h.textContent.trim(); if(t) parts.push(t); });
-  // Párrafos
   c.querySelectorAll("p").forEach(p=>{ const t=p.textContent.trim(); if(t) parts.push(t); });
-  // Listas
   c.querySelectorAll("ol,ul").forEach(list=>{
     const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
     if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); }
   });
-  // Tablas
   c.querySelectorAll("table").forEach(tbl=>{
     const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim()).filter(Boolean);
     if(headers.length) parts.push(`Tabla: ${headers.join(", ")}`);
@@ -339,7 +348,7 @@ function buildTTSTextFromOut(){
   return (parts.join("\n\n") || fallback).trim();
 }
 
-/* ====== TTS + control de video: EXACTO COMO TENÍAS ====== */
+/* ====== TTS + Video (igual que antes) ====== */
 const TTS={
   enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
   makeChunks(text,maxLen=360){
@@ -412,20 +421,27 @@ function renderAnswer(data, userQuestion){
   });
 
   out.innerHTML = linkifyHTML(html || "<em>Sin contenido.</em>");
-  verifyLinks();
+  const idle = window.requestIdleCallback || ((fn)=>setTimeout(fn,120));
+  idle(()=>verifyLinks());
 
-  // Narrar (esto enciende/detiene el video según el botón de voz)
+  // Narrar (enciende/pausa video según voz)
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 }
 
-/* ====== Helpers: timeout (configurable) + fetch JSON ====== */
-async function fetchJSON(url, opts = {}, signal){
-  const r = await fetch(url, { ...opts, signal });
+/* ====== Helpers: fetch + timeout opcional ====== */
+async function fetchJSON(url, opts = {}){
+  const r = await fetch(url, opts);
   const data = await r.json().catch(()=>({}));
   return { r, data };
 }
+function runWithMaybeTimeout(factory, ms){
+  if (!ms || ms <= 0) return factory(); // sin timeout
+  const ctrl = new AbortController();
+  const t = setTimeout(()=>ctrl.abort(), ms);
+  return factory(ctrl.signal).finally(()=>clearTimeout(t));
+}
 
-/* ====== Backend con timeout configurable y fallback solo 404/405 ====== */
+/* ====== Backend: timeout controlado + 1 reintento y fallback 404/405 ====== */
 async function ask(){
   if (isBusy) return;
   const text=q.value.trim(); if(!text) return;
@@ -436,61 +452,73 @@ async function ask(){
   const t0 = performance.now();
   let mode = "gpt";
 
-  // helper local para correr con/sin timeout
-  const runWithMaybeTimeout = (factory, ms) => {
-    if (!ms || ms <= 0) return factory(); // sin timeout
-    const ctrl = new AbortController();
-    const t = setTimeout(()=>ctrl.abort(), ms);
-    return factory(ctrl.signal).finally(()=>clearTimeout(t));
-  };
+  const doGpt = (signal) => fetchJSON(`${API_BASE}${GPT_PATH}`, {
+    method:"POST",
+    headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+    body: JSON.stringify({ q: text }),
+    signal
+  });
 
   try{
-    // 1) /api/gpt (usa TIMEOUT_GPT_MS; si 0 => sin timeout)
-    let res = await runWithMaybeTimeout(
-      (signal)=>fetchJSON(`${API_BASE}${GPT_PATH}`, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-        body: JSON.stringify({ q: text }),
-        signal
-      }),
-      TIMEOUT_GPT_MS
-    );
+    // Intento 1 a /api/gpt
+    let res = await runWithMaybeTimeout(doGpt, TIMEOUT_GPT_MS);
 
-    // 2) Solo si el server dice 404/405 → fallback GET (TIMEOUT_FALLBACK_MS)
+    // Solo si 404/405 → fallback con timeout
     if (res.r.status === 404 || res.r.status === 405) {
       mode = "fallback";
-      res = await runWithMaybeTimeout(
-        (signal)=>fetchJSON(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
-          headers:{ "Accept":"application/json" },
-          signal
-        }),
-        TIMEOUT_FALLBACK_MS
-      );
+      const doFallback = (signal)=>fetchJSON(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
+        headers:{ "Accept":"application/json" }, signal
+      });
+      res = await runWithMaybeTimeout(doFallback, TIMEOUT_FALLBACK_MS);
     }
 
     if(!res.r.ok) throw new Error(res.data?.error || `HTTP ${res.r.status}`);
-
     const data = res.data || {};
-    if(data.ok===false) throw new Error(data.error || data.general || `HTTP ${res.r.status}`);
+    if(data.ok===false) throw new Error(data.error || data.general || "Error");
+
     renderAnswer(data, text);
     saveSession(text, data);
-
     const dt = Math.round(performance.now() - t0);
     setStatusText(`✔ Respuesta ${mode === "gpt" ? "GPT" : "fallback"} en ${dt} ms`);
-  }catch(e){
-    const dt = Math.round(performance.now() - t0);
-    try { TTS.stopAll(); } catch {}
-    const isAbort = (e?.name === "AbortError");
-    const msg = isAbort
-      ? `⏳ Timeout en ${mode === "gpt" ? "/api/gpt" : "/api/answer"}`
-      : String(e);
-    out.innerHTML = `<pre style="color:var(--err)">Error: ${esc(msg)}\n(${dt} ms)</pre>`;
-    saveSession(text, {});
-    setStatusText(`Error: ${msg} · ${dt} ms`);
-  }finally{
-    btnSend.disabled=false; btnSend.textContent=old;
-    isBusy=false;
+  }catch(e1){
+    const e1Msg = String(e1||"");
+    const aborted = (e1?.name==="AbortError") || /Failed to fetch/i.test(e1Msg);
+
+    if (aborted){
+      // Reintento único a /api/gpt
+      try{
+        const res2 = await runWithMaybeTimeout(doGpt, TIMEOUT_GPT_MS);
+        if(!res2.r.ok) throw new Error(res2.data?.error || `HTTP ${res2.r.status}`);
+        const data2 = res2.data || {};
+        if(data2.ok===false) throw new Error(data2.error || data2.general || "Error");
+
+        renderAnswer(data2, text);
+        saveSession(text, data2);
+        const dt2 = Math.round(performance.now() - t0);
+        setStatusText(`✔ Respuesta GPT (reintento) en ${dt2} ms`);
+        isBusy=false; btnSend.disabled=false; btnSend.textContent=old;
+        return;
+      }catch(e2){
+        handleAskError(e2, t0, mode);
+      }
+    } else {
+      handleAskError(e1, t0, mode);
+    }
+  } finally {
+    isBusy=false; btnSend.disabled=false; btnSend.textContent=old;
   }
+}
+
+function handleAskError(err, t0, mode){
+  const dt = Math.round(performance.now() - t0);
+  try { TTS.stopAll(); } catch {}
+  const isAbort = (err?.name === "AbortError");
+  const friendly = isAbort
+    ? `Se agotó el tiempo en ${mode === "gpt" ? "/api/gpt" : "/api/answer"}`
+    : ( /Failed to fetch/i.test(String(err)) ? "Conexión interrumpida por el navegador o proxy" : String(err) );
+  out.innerHTML = `<pre style="color:var(--err)">Error: ${esc(friendly)}\n(${dt} ms)</pre>`;
+  saveSession(q.value.trim(), {});
+  setStatusText(`Error: ${friendly} · ${dt} ms`);
 }
 
 /* ====== Exportar ====== */
@@ -516,7 +544,6 @@ function htmlToCSV(includeQuestion=true){
       rows.push([`FILA ${ri+1}`, ...cells]);
     });
   });
-
   return rows.map(r => r.map(cell=>{
     const v = String(cell ?? "");
     if (/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`;
@@ -563,9 +590,48 @@ btnHist.addEventListener("click", openHistory);
 
 /* ====== UX ====== */
 q.addEventListener("keydown",(e)=>{
-  if(e.key==="Enter" && (e.ctrlKey||e.metaKey)){
+  // Ctrl/Cmd+Enter: enviar. Shift+Enter: nueva línea
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter"){
     e.preventDefault();
     if(!isBusy) ask();
+  }
+});
+
+/* Exportar: PDF, CSV, DOC */
+selExport.addEventListener("change", ()=>{
+  const v=selExport.value; selExport.value="";
+  if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
+  const questionText = (document.querySelector("h3+ p")?.textContent || "").trim();
+
+  if(v==="pdf"){
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
+      <style>body{font:16px/1.5 system-ui;margin:28px;color:#111}
+             h3{margin-top:0}
+             table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
+      </head><body>
+      ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
+      ${out.innerHTML}
+      </body></html>`;
+    try{ printHTML(html); }catch(_){
+      const w=window.open("", "_blank", "noopener,noreferrer");
+      if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
+    }
+    return;
+  }
+  if(v==="csv"){
+    const csv = htmlToCSV(true);
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
+    download("export.csv", blob);
+    return;
+  }
+  if(v==="doc"){
+    const html = `<!doctype html><html><head><meta charset="utf-8"></head><body>
+      ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
+      ${out.innerHTML}
+    </body></html>`;
+    const blob=new Blob([html],{type:"application/msword"});
+    download("export.doc", blob);
+    return;
   }
 });
 
@@ -580,5 +646,3 @@ window.addEventListener("error", (e)=>{
 </script>
 </body>
 </html>
-
-
