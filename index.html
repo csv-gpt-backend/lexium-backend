@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>HHAsistente Lexium</title>
+<title>0701Asistente Lexium</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -16,7 +16,7 @@
   .mediaBar{
     position:fixed; top:0; left:0; width:100vw; z-index:50;
     background:#fff; border-bottom:none; padding:0; margin:0;
-    pointer-events:none; /* MARCELO: bloque fijo sin interacción */
+    pointer-events:none; /* Bloque fijo sin interacción */
   }
   .mediaBar *{ pointer-events:none; }
   .mediaInner{max-width:var(--wrapW); margin:0 auto; padding:12px;}
@@ -36,7 +36,7 @@
   .hist{position:fixed; right:14px; top:10px; z-index:60}
   .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
-  /* MARCELO: caja de una línea (48px), ya estaba fijo; lo conservamos */
+  /* Textarea de 1 línea (48px) */
   .query{width:100%; height:48px; min-height:48px; max-height:48px; resize:none; border:1px solid var(--bd); border-radius:10px; padding:10px; font-size:16px; line-height:1.4; overflow:hidden;}
   .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
   .muted{color:var(--muted); font-size:.9rem}
@@ -51,7 +51,7 @@
   .dot:nth-child(3){animation-delay:.3s}
   @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
 
-  /* MARCELO: mismo estilo, pero fijamos el status en la esquina superior izquierda */
+  /* Status arriba-izquierda, mismo estilo .muted */
   #status{position:fixed; top:10px; left:12px; z-index:70;}
 </style>
 </head>
@@ -83,7 +83,7 @@
     </div>
 
     <div class="toolbar">
-      <!-- MARCELO: quitamos onclick para evitar doble disparo -->
+      <!-- Quitamos onclick para evitar doble-disparo -->
       <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
       <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
       <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
@@ -104,7 +104,7 @@
 
 <script>
 /* ====== CONFIG ====== */
-const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app"; // MARCELO: URL correcta
+const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app"; // Cloud Run OK
 const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
 
@@ -121,6 +121,9 @@ const btnNew = document.getElementById("btnNew");
 const btnClear = document.getElementById("btnClear");
 const selExport = document.getElementById("selExport");
 const btnHist = document.getElementById("btnHist");
+
+/* ====== Estado de sesión ====== */
+let lastQuestion = ""; // para exportar pregunta en PDF/Excel/Doc
 
 /* ====== Utilidades ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
@@ -213,7 +216,7 @@ function chooseFemaleES(){
 function initVoice(){ selectedVoice=chooseFemaleES(); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
 
-/* === Regex corregida (sin escapes inválidos con 'u') === */
+/* === Regex bullets === */
 const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
 
 /* === Convertir texto general a lista numerada (visual) === */
@@ -232,22 +235,31 @@ function generalToOrderedListHTML(g){
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* === TTS helpers === */
+/* === TTS: habla títulos, listas, tablas y números === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
-  c.querySelectorAll("p").forEach(p=>{const t=p.textContent.trim(); if(t) parts.push(t);});
+  // Títulos
+  c.querySelectorAll("h1,h2,h3,h4").forEach(h=>{
+    const t=h.textContent.trim(); if(t) parts.push(t);
+  });
+  // Párrafos
+  c.querySelectorAll("p").forEach(p=>{
+    const t=p.textContent.trim(); if(t) parts.push(t);
+  });
+  // Listas
   c.querySelectorAll("ol,ul").forEach(list=>{
     const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
     if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); }
   });
+  // Tablas
   c.querySelectorAll("table").forEach(tbl=>{
     const rows=[...tbl.querySelectorAll("tbody tr")]; if(!rows.length) return;
-    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim().toUpperCase());
-    let col=0; const iN=headers.findIndex(h=>/NOMBRE/.test(h)); if(iN>=0) col=iN;
+    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
+    if(headers.length){ parts.push(`Tabla: ${headers.join(", ")}`); }
     const items=rows.map((tr,i)=>{
-      const t=(tr.querySelectorAll("td")[col]?.textContent||tr.querySelector("td")?.textContent||"").trim();
-      return `${i+1}. ${t}.`;
+      const cols=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim()).filter(Boolean);
+      return `${i+1}. ${cols.join(" | ")}.`;
     }).filter(Boolean).join("\n");
     if(items) parts.push(items);
   });
@@ -325,33 +337,37 @@ async function validateLinksInOut(){
   // validate (HEAD). Si falla CORS, se ignora y queda clicable.
   for(const u of urls){
     try{
-      const r = await fetch(u, { method:"HEAD", mode:"no-cors" }); // no-cors para no romper
-      // Si no hay error, lo damos por OK visualmente
+      await fetch(u, { method:"HEAD", mode:"no-cors" });
     }catch{
-      // marcar visual ⚠️
       const links = out.querySelectorAll(`a[href="${u}"]`);
       links.forEach(a=>{ a.textContent = a.textContent + " ⚠️"; a.style.opacity = "0.85"; });
     }
   }
 }
 
-/* ====== Render ====== */
+/* ====== Helpers de tablas ====== */
 function isIndexHeader(h){
   const x = (h||"").toString().trim().toUpperCase();
   return ["#","N","NO","Nº","N°"].includes(x);
 }
 
+/* ====== Render (sin duplicar listas si hay tablas) ====== */
 function renderAnswer(data){
   let html="";
   const generalTxt = data.general || data.answer || data.text || "";
   if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
 
-  const lists=normalizeLists(data.lists||[]);
-  lists.forEach(l=>{
-    html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map((it,i)=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
-  });
+  const tables = Array.isArray(data.tables) ? data.tables : [];
+  const lists  = Array.isArray(data.lists)  ? normalizeLists(data.lists) : [];
 
-  (data.tables||[]).forEach(t=>{
+  // Si hay tablas, NO renderizamos lists para evitar duplicación visual
+  if(!tables.length && lists.length){
+    lists.forEach(l=>{
+      html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
+    });
+  }
+
+  tables.forEach(t=>{
     const cols=t.columns||[]; const rows=t.rows||[];
     const firstIsIndex = cols.length && isIndexHeader(cols[0]);
     html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
@@ -359,7 +375,7 @@ function renderAnswer(data){
     html += `</tr></thead><tbody>`;
     rows.forEach((r,i)=>{
       const cells = r.map((x,j)=>{
-        if(firstIsIndex && j===0) return `${i+1}`; // MARCELO: numeración estable
+        if(firstIsIndex && j===0) return `${i+1}`; // numeración estable
         return esc(x);
       });
       html += `<tr>` + cells.map(x=>`<td>${x}</td>`).join("") + `</tr>`;
@@ -369,45 +385,78 @@ function renderAnswer(data){
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
-  // MARCELO: evitamos que se pise el TTS
+  // Evitar pisar TTS; hablar TODO (títulos, listas, tablas)
   TTS.stopAll();
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 
-  // MARCELO: convertir URLs a enlaces y validar disponibilidad
+  // Enlaces clicables + validación
   validateLinksInOut();
 }
 
-/* ====== Backend ====== */
+/* ====== Backend: GET primero (sin CORS), luego POST opcional ====== */
 async function ask(){
-  // MARCELO: candado anti doble-disparo
-  if (btnSend._busy) return;
+  if (btnSend._busy) return;          // candado anti-doble-disparo
   btnSend._busy = true;
 
-  const text=q.value.trim(); if(!text){ btnSend._busy=false; return; }
-  btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
+  const text=q.value.trim(); 
+  if(!text){ btnSend._busy=false; return; }
+
+  lastQuestion = text;                // guardar pregunta para export
+  btnSend.disabled=true; 
+  const old=btnSend.textContent; 
+  btnSend.textContent="Enviando…";
   setStatusLoading("Consultando…");
+
+  const ctrl = new AbortController();
+  const tmr = setTimeout(()=>ctrl.abort("timeout"), 15000);
+
   try{
-    let r = await fetch(`${API_BASE}${GPT_PATH}`, {
-      method:"POST", headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-      body: JSON.stringify({ q: text })
+    // 1) PRIMERO: GET /api/answer (sin preflight, evita "Failed to fetch")
+    let r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
+      method:"GET", signal: ctrl.signal
     });
-    if(r.status===404 || r.status===405){
-      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, { headers:{ "Accept":"application/json" } });
+
+    // 2) Si el GET no responde OK, intenta POST a /api/gpt
+    if (!r.ok) {
+      r = await fetch(`${API_BASE}${GPT_PATH}`, {
+        method:"POST",
+        headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+        body: JSON.stringify({ q: text }),
+        signal: ctrl.signal
+      });
     }
+
     const data = await r.json().catch(()=>({}));
     if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
+
     renderAnswer(data);
     saveSession(text, data);
+
   }catch(e){
-    out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
+    const why = (e && e.message) ? e.message : String(e);
+    out.innerHTML = `<pre style="color:var(--err)">No se pudo conectar con el servicio.\n\nDetalle: ${esc(why)}\n\nVerifica que ${esc(API_BASE)} esté accesible y que /api/healthz responde "ok".</pre>`;
     saveSession(text, {});
   }finally{
-    btnSend.disabled=false; btnSend.textContent=old; clearStatus();
-    btnSend._busy = false; // MARCELO: liberamos candado
+    clearTimeout(tmr);
+    btnSend.disabled=false; 
+    btnSend.textContent=old; 
+    clearStatus();
+    btnSend._busy = false;
   }
 }
 
-/* ====== Exportar: PDF con vista previa sin pop-up ====== */
+/* ====== Exportar: PDF incluye la PREGUNTA ====== */
+function wrapForExport(bodyHTML){
+  const qHtml = lastQuestion ? `<h2>Pregunta</h2><p>${esc(lastQuestion)}</p>` : "";
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export</title>
+    <style>
+      body{font:16px/1.5 system-ui;margin:28px;color:#111}
+      h1,h2,h3{margin:12px 0 6px}
+      table{border-collapse:collapse;width:100%; margin:8px 0}
+      td,th{border:1px solid #ddd;padding:6px}
+    </style>
+    </head><body>${qHtml}${bodyHTML}</body></html>`;
+}
 function printHTML(html){
   const iframe = document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
@@ -422,18 +471,16 @@ function printHTML(html){
 selExport.addEventListener("change", ()=>{
   const v=selExport.value; selExport.value="";
   if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
+
+  const htmlDoc = wrapForExport(out.innerHTML);
+
   if(v==="pdf"){
-    // MARCELO: por ahora exporta solo la respuesta (como pediste, luego agregamos preguntas también)
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
-      <style>body{font:16px/1.5 system-ui;margin:28px;color:#111}
-             table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
-      </head><body>${out.innerHTML}</body></html>`;
-    try{ printHTML(html); }
+    try{ printHTML(htmlDoc); }
     catch(_){
       const w=window.open("", "_blank", "noopener,noreferrer");
-      if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
+      if(w){ w.document.open(); w.document.write(htmlDoc); w.document.close(); w.focus(); w.print(); }
       else{
-        const blob=new Blob([html],{type:"text/html"});
+        const blob=new Blob([htmlDoc],{type:"text/html"});
         const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="lexium_export.html"; a.click();
         setTimeout(()=>URL.revokeObjectURL(a.href),500);
       }
@@ -442,7 +489,7 @@ selExport.addEventListener("change", ()=>{
   }
   if(v==="xls"||v==="doc"){
     const mime = v==="xls" ? "application/vnd.ms-excel" : "application/msword";
-    const blob=new Blob([`<html><body>${out.innerHTML}</body></html>`],{type:mime});
+    const blob=new Blob([htmlDoc],{type:mime});
     const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`export.${v}`; a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),500);
   }
