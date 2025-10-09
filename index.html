@@ -1,587 +1,162 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>0859 Asistente Lexium</title>
-<style>
-  :root{
-    --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
-    --ok:#16a34a; --err:#b91c1c;
-    --heroH: 65vh;
-    --wrapW: 1180px;
-  }
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Lexium</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #0a0a0a;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 0;
+      height: 100vh;
+      overflow: hidden;
+    }
 
-  .mediaBar{
-    position:fixed; top:0; left:0; width:100vw; z-index:50;
-    background:#fff; border-bottom:none; padding:0; margin:0;
-    pointer-events:none;
-  }
-  .mediaBar *{ pointer-events:none; }
-  .mediaInner{max-width:var(--wrapW); margin:0 auto; padding:12px;}
-  .heroGrid{display:grid; grid-template-columns:1fr 3fr 1.16fr; align-items:center; gap:8px;}
-  .sideImg{display:flex; justify-content:center; height:var(--heroH); margin:0;}
-  .sideImg img{max-width:100%; height:100%; object-fit:contain; opacity:.95}
-  .videoBox{height:var(--heroH); margin:0;}
-  .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
+    h1 {
+      margin: 10px 0;
+      font-size: 1.6em;
+      color: #00ffc8;
+    }
 
-  .contentWrap{max-width:var(--wrapW); margin:0 auto; padding:12px; padding-top:calc(var(--heroH) + 8px);}
+    #video-container {
+      width: 50%;
+      max-width: 640px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 0 15px rgba(0, 255, 200, 0.3);
+    }
 
-  .toolbar{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:8px 0}
-  .toolbar button, .toolbar select{padding:9px 14px; border:1px solid var(--bd); border-radius:10px; background:#fff; cursor:pointer;}
-  .toolbar button:hover{background:#f5f7fb}
-  .toolbar button[disabled]{opacity:.6; cursor:not-allowed}
+    video {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
 
-  .hist{position:fixed; right:14px; top:10px; z-index:60}
-  .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
+    #chat-container {
+      width: 50%;
+      max-width: 640px;
+      margin-top: 10px;
+      display: flex;
+      flex-direction: column;
+      background-color: #1a1a1a;
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 0 0 10px rgba(0, 255, 200, 0.2);
+      overflow-y: auto;
+      max-height: 240px;
+      font-size: 0.9em; /* Tamaño de letra reducido */
+    }
 
-  /* 1 línea exacta */
-  .query{
-    width:100%;
-    height:36px; min-height:36px; max-height:36px;
-    resize:none; border:1px solid var(--bd); border-radius:10px;
-    padding:8px 10px; font-size:16px; line-height:1.2; overflow:hidden;
-  }
+    #input-container {
+      display: flex;
+      width: 50%;
+      max-width: 640px;
+      margin-top: 10px;
+    }
 
-  .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
-  .muted{color:var(--muted); font-size:.9rem}
+    #user-input {
+      flex: 1;
+      padding: 10px;
+      font-size: 0.9em;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+    }
 
-  table{width:100%; border-collapse:collapse; margin:10px 0}
-  th,td{border:1px solid var(--bd); padding:8px}
-  th{background:#f8fafc; text-align:left}
+    button {
+      background-color: #00ffc8;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 15px;
+      margin-left: 5px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #000;
+    }
 
-  .loader{display:inline-flex; align-items:center; gap:8px; font-size:.95rem; color:var(--muted)}
-  .dot{width:8px; height:8px; border-radius:50%; background:var(--pri); opacity:.7; animation:bounce 1s infinite}
-  .dot:nth-child(2){animation-delay:.15s}
-  .dot:nth-child(3){animation-delay:.3s}
-  @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
+    button:hover {
+      background-color: #00cca0;
+    }
 
-  /* Procesando arriba a la izquierda (mismo diseño) */
-  #status { position:fixed; top:8px; left:12px; z-index:70; }
+    .message {
+      margin: 4px 0;
+    }
 
-  /* Overlay Historial (evita popups bloqueados) */
-  .overlay{
-    display:none; position:fixed; inset:0; background:rgba(0,0,0,.25);
-    z-index:80; align-items:center; justify-content:center; padding:24px;
-  }
-  .overlay.show{ display:flex; }
-  .panel{
-    background:#fff; border:1px solid var(--bd); border-radius:12px;
-    width:min(900px, 92vw); max-height:80vh; overflow:auto; padding:16px;
-  }
-  .panel header{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px}
-  .panel h2{margin:0; font-size:18px}
-  .closeBtn{border:1px solid var(--bd); background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer}
-  .session{border-top:1px solid var(--bd); padding:10px 0}
-  .session b{display:block; margin-bottom:4px}
-  .linkBadge{font-size:.82rem; margin-left:6px}
-  .okBadge{color:var(--ok)}
-  .warnBadge{color:#b45309}
-</style>
+    .user {
+      color: #00ffc8;
+      font-weight: bold;
+    }
+
+    .bot {
+      color: #fff;
+    }
+  </style>
 </head>
 <body>
+  <h1>LEXIUM</h1>
 
-  <div class="hist">
-    <button id="btnHist" title="Ver sesiones guardadas">Historial</button>
+  <div id="video-container">
+    <video id="avatarVideo" autoplay muted playsinline loop>
+      <source src="descarga.mp4" type="video/mp4" />
+      Tu navegador no soporta video.
+    </video>
   </div>
 
-  <div class="mediaBar" aria-label="cabecera">
-    <div class="mediaInner">
-      <div class="heroGrid">
-        <div class="sideImg left">
-          <img src="left.png" alt="Logo izquierdo"/>
-        </div>
-        <div class="videoBox">
-          <video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
-        </div>
-        <div class="sideImg right">
-          <img src="right.png" alt="Logo derecho"/>
-        </div>
-      </div>
-    </div>
+  <div id="chat-container">
+    <div id="chat-messages"></div>
   </div>
 
-  <div class="contentWrap">
-    <div style="margin:10px 0 6px">
-      <textarea id="q" class="query" rows="1" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
-    </div>
-
-    <div class="toolbar">
-      <!-- sin onclick (evita doble disparo) -->
-      <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
-      <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
-      <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
-      <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
-      <button id="btnNew" title="Nueva sesión (limpia y guarda la actual)">＋ Nueva sesión</button>
-      <button id="btnClear" title="Limpiar pregunta y respuesta">🧹 Limpiar</button>
-      <select id="selExport" title="Exportar lo generado (PDF muestra vista previa)">
-        <option value="">Exportar…</option>
-        <option value="pdf">PDF (vista previa)</option>
-        <option value="csv">CSV</option>
-        <option value="doc">DOC</option>
-      </select>
-    </div>
-
-    <div id="out" class="out" aria-live="polite"></div>
-    <div id="status" class="muted"></div>
+  <div id="input-container">
+    <input type="text" id="user-input" placeholder="Escribe tu pregunta..." />
+    <button id="send-btn">Enviar</button>
   </div>
 
-  <!-- Overlay del Historial -->
-  <div id="histOverlay" class="overlay" aria-modal="true" role="dialog">
-    <div class="panel">
-      <header>
-        <h2>Sesiones</h2>
-        <button class="closeBtn" id="closeHist">Cerrar</button>
-      </header>
-      <div id="histBody"></div>
-    </div>
-  </div>
+  <script>
+    const API_BASE = "https://lexium-gpt5-xxxxxx.a.run.app"; // Actualiza aquí tu endpoint de Cloud Run
+    const sendBtn = document.getElementById("send-btn");
+    const input = document.getElementById("user-input");
+    const messages = document.getElementById("chat-messages");
 
-<script>
-/* ====== CONFIG ====== */
-const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app";
-const GPT_PATH = "/api/gpt";
-const FALLBACK_PATH = "/api/answer";
+    function addMessage(sender, text) {
+      const msg = document.createElement("div");
+      msg.classList.add("message", sender);
+      msg.textContent = (sender === "user" ? "🧑: " : "🤖: ") + text;
+      messages.appendChild(msg);
+      messages.scrollTop = messages.scrollHeight;
+    }
 
-/* ====== UI refs ====== */
-const q = document.getElementById("q");
-const out = document.getElementById("out");
-const statusEl = document.getElementById("status");
-const vid = document.getElementById("vid");
-const btnSend = document.getElementById("btnSend");
-const btnDict = document.getElementById("btnDict");
-const btnToggleAV = document.getElementById("btnToggleAV");
-const btnReplay = document.getElementById("btnReplay");
-const btnNew = document.getElementById("btnNew");
-const btnClear = document.getElementById("btnClear");
-const selExport = document.getElementById("selExport");
-const btnHist = document.getElementById("btnHist");
-const histOverlay = document.getElementById("histOverlay");
-const histBody = document.getElementById("histBody");
-const closeHist = document.getElementById("closeHist");
+    async function sendMessage() {
+      const text = input.value.trim();
+      if (!text) return;
+      addMessage("user", text);
+      input.value = "";
 
-let isBusy = false; // evita doble disparo
-
-/* ====== Utilidades ====== */
-function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
-function setStatusLoading(msg="Generando…"){
-  statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
-    <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
-}
-function clearStatus(){ statusEl.textContent = ""; }
-
-/* Detectar URLs y enlazarlas */
-const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
-function linkifyHTML(html){
-  return html.replace(URL_RE, (u)=>{
-    const safe = esc(u);
-    return `<a href="${safe}" target="_blank" rel="noopener">${safe}</a><span class="linkBadge" data-url="${safe}">⏳</span>`;
-  });
-}
-
-/* Verificar enlaces (best effort) */
-async function verifyLinks(){
-  const badges = document.querySelectorAll('.linkBadge[data-url]');
-  for (const b of badges){
-    const url = b.getAttribute('data-url');
-    try{
-      // HEAD primero; si falla por CORS, intentamos GET y capturamos error
-      let ok = false;
       try {
-        const r = await fetch(url, { method:"HEAD" });
-        ok = r.ok;
-      } catch {
-        // CORS u otros; segundo intento GET por si el host permite
-        const r2 = await fetch(url, { method:"GET", mode:"cors" });
-        ok = r2.ok;
+        const res = await fetch(`${API_BASE}/ask`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: text }),
+        });
+
+        if (!res.ok) throw new Error("Error de red");
+        const data = await res.json();
+        addMessage("bot", data.answer || "No hubo respuesta del servidor.");
+      } catch (err) {
+        addMessage("bot", "⚠️ Error al conectar con el servidor.");
+        console.error(err);
       }
-      if(ok){ b.textContent = "✅"; b.classList.add("okBadge"); b.title="Verificado"; }
-      else { b.textContent = "⚠️"; b.classList.add("warnBadge"); b.title="No se pudo verificar (status)"; }
-    }catch(_){
-      b.textContent = "⚠️"; b.classList.add("warnBadge"); b.title="No se pudo verificar (CORS o red)";
     }
-  }
-}
 
-/* ====== Historial (overlay) ====== */
-function saveSession(question, data){
-  const visible = (document.getElementById('out')?.textContent || "").trim();
-  const summary = (data?.general || data?.answer || data?.text || data?.html || visible || "").slice(0, 2000);
-  const minimal = { id: new Date().toISOString(), question: question || "(sin pregunta)", summary, when: Date.now() };
-  try{
-    const key="lexium_sessions"; const all=JSON.parse(localStorage.getItem(key)||"[]");
-    all.unshift(minimal); localStorage.setItem(key, JSON.stringify(all.slice(0,50)));
-  }catch(e){
-    try{
-      const key="lexium_sessions_fallback"; const all=JSON.parse(sessionStorage.getItem(key)||"[]");
-      all.unshift(minimal); sessionStorage.setItem(key, JSON.stringify(all.slice(0,50)));
-    }catch(_){}
-  }
-}
-function readSessions(){
-  try{
-    const a=JSON.parse(localStorage.getItem("lexium_sessions")||"[]");
-    const b=JSON.parse(sessionStorage.getItem("lexium_sessions_fallback")||"[]");
-    return [...a,...b];
-  }catch(e){ return []; }
-}
-function renderHistory(){
-  const all=readSessions();
-  if(!all.length){ histBody.innerHTML = "<p class='muted'>Sin historial.</p>"; return; }
-  histBody.innerHTML = all.map(s=>`
-    <div class="session">
-      <b>${new Date(s.when).toLocaleString()}</b>
-      <div><i>Pregunta:</i> ${esc(s.question)}</div>
-      <pre>${esc(s.summary||"(sin resumen)")}</pre>
-    </div>
-  `).join("");
-}
-function openHistory(){
-  renderHistory();
-  histOverlay.classList.add("show");
-}
-function closeHistory(){
-  histOverlay.classList.remove("show");
-}
-btnHist.addEventListener("click", openHistory);
-closeHist.addEventListener("click", closeHistory);
-histOverlay.addEventListener("click",(e)=>{ if(e.target===histOverlay) closeHistory(); });
-
-/* ====== Dictado ====== */
-let recognizer=null;
-function toggleDict(){
-  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){ alert("Dictado no soportado en este navegador."); return; }
-  if(!recognizer){
-    recognizer=new SR(); recognizer.lang="es-ES"; recognizer.continuous=false; recognizer.interimResults=false;
-    recognizer.onresult=e=>{
-      const t=Array.from(e.results).map(r=>r[0].transcript).join(" ");
-      q.value=(q.value? q.value+" " : "") + t;
-    };
-  }
-  if(recognizer.listening){ recognizer.stop(); recognizer.listening=false; btnDict.textContent="🎤 Dictar"; }
-  else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
-}
-
-/* ====== Voz femenina + TTS ====== */
-const PREFERRED_NAMES=[
-  "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
-  "Google español","Google español de Estados","Google US Español",
-  "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"
-];
-const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
-
-let selectedVoice=null;
-function scoreVoice(v){
-  const name=(v.name||"").toLowerCase(), lang=(v.lang||"").toLowerCase();
-  let s=0;
-  if (SP_LANGS.some(l=>lang.startsWith(l.toLowerCase()))) s+=5;
-  if (PREFERRED_NAMES.some(n=>name.includes(n.toLowerCase()))) s+=6;
-  if (name.includes("female")||name.includes("femenina")||name.includes("mujer")) s+=4;
-  if (name.includes("google")) s+=2; if (name.includes("microsoft")) s+=2;
-  return s;
-}
-function chooseFemaleES(){
-  if(typeof speechSynthesis==="undefined") return null;
-  const vs=speechSynthesis.getVoices(); if(!vs.length) return null;
-  for(const n of PREFERRED_NAMES){ const m=vs.find(v=>v.name.toLowerCase().includes(n.toLowerCase())); if(m) return m; }
-  return vs.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a))[0]||null;
-}
-function initVoice(){ selectedVoice=chooseFemaleES(); }
-if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
-
-/* === Regex bullets === */
-const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
-
-/* === Numerar texto general si aplica === */
-function generalToOrderedListHTML(g){
-  if (!g) return "";
-  const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-  const bulletLike = lines.filter(s=>BULLET_RE.test(s)).length;
-  const manyPlainLines = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length;
-  const shouldNumber = (lines.length>=3) && (bulletLike>0 || manyPlainLines >= Math.ceil(lines.length*0.6));
-  if (shouldNumber) {
-    const items = lines.map(s=>s.replace(BULLET_RE,"")).filter(Boolean);
-    return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
-  }
-  return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
-}
-
-/* === TTS helpers: lee TODO (títulos, listas, tablas y números) === */
-function buildTTSTextFromOut(){
-  const c=document.createElement("div"); c.innerHTML=out.innerHTML;
-  const parts=[];
-  // Títulos
-  c.querySelectorAll("h1,h2,h3,h4").forEach(h=>{
-    const t=h.textContent.trim(); if(t) parts.push(t);
-  });
-  // Párrafos
-  c.querySelectorAll("p").forEach(p=>{
-    const t=p.textContent.trim(); if(t) parts.push(t);
-  });
-  // Listas
-  c.querySelectorAll("ol,ul").forEach(list=>{
-    const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
-    if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); }
-  });
-  // Tablas (lee encabezados y filas con números)
-  c.querySelectorAll("table").forEach(tbl=>{
-    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim()).filter(Boolean);
-    if(headers.length) parts.push(`Tabla: ${headers.join(", ")}`);
-    const rows=[...tbl.querySelectorAll("tbody tr")];
-    rows.forEach((tr,ri)=>{
-      const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
-      parts.push(`${ri+1}. ${cells.join(" | ")}`);
+    sendBtn.addEventListener("click", sendMessage);
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") sendMessage();
     });
-  });
-  const fallback=(out.textContent||"").trim();
-  return (parts.join("\n\n") || fallback).trim();
-}
-
-const TTS={
-  enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
-  makeChunks(text,maxLen=360){
-    const res=[]; const parts=String(text).split(/(\.|\?|!|\n)/);
-    let buf=""; for(let i=0;i<parts.length;i+=2){ const seg=(parts[i]||"")+(parts[i+1]||"");
-      if((buf+seg).length<=maxLen) buf+=seg; else{ if(buf.trim()) res.push(buf.trim()); buf=seg; } }
-    if(buf.trim()) res.push(buf.trim()); return res;
-  },
-  loadFromOut(){ this.textCache=buildTTSTextFromOut(); this.chunks=this.makeChunks(this.textCache); this.i=0; },
-  speakNext(){
-    if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
-    const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
-    if(selectedVoice) u.voice=selectedVoice;
-    u.lang=(selectedVoice?.lang)||"es-ES"; u.rate=0.98; u.pitch=1.08; u.volume=1;
-    u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.play().catch(()=>{});} };
-    u.onend =()=>{ this.speakNext(); };
-    u.onerror=()=>{ this.speakNext(); };
-    this.utter=u; speechSynthesis.speak(u);
-  },
-  start(fromIndex=0){
-    if(typeof speechSynthesis==="undefined" || !this.chunks.length) return;
-    this.enabled=true; if(fromIndex>=0) this.i=fromIndex;
-    speechSynthesis.cancel(); this.speakNext();
-  },
-  pause(){ if(this.speaking && !this.paused){ speechSynthesis.pause(); this.paused=true; if(vid) vid.pause(); } },
-  resume(){ if(this.paused){ speechSynthesis.resume(); this.paused=false; if(vid) vid.play().catch(()=>{}); }
-           else if(!this.speaking && this.enabled){ this.speakNext(); } },
-  restartFromStart(){ this.enabled=true; this.loadFromOut(); this.start(0); },
-  finish(){ this.speaking=false; this.paused=false; this.utter=null; if(vid){ vid.loop=false; vid.pause(); } },
-  stopAll(){ this.enabled=false; this.paused=false; this.speaking=false; this.utter=null;
-             if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel();
-             if(vid){ vid.loop=false; vid.pause(); } }
-};
-
-/* ====== Normalizar listas/tablas del backend ====== */
-function normalizeLists(lists){
-  if(!Array.isArray(lists)) return [];
-  return lists.map((entry,i)=>{
-    if(Array.isArray(entry)){
-      const flat=entry.every(x=>typeof x==="string"||typeof x==="number");
-      return {title:`Lista ${i+1}`, items: flat? entry : entry.map(x=>Array.isArray(x)? x.join(" ") : String(x))};
-    }else if(entry && typeof entry==="object"){
-      return {title: entry.title||`Lista ${i+1}`, items: Array.isArray(entry.items)? entry.items: []};
-    }else{
-      return {title:`Lista ${i+1}`, items:[String(entry)]};
-    }
-  });
-}
-
-/* ====== Render ====== */
-function renderAnswer(data, userQuestion){
-  let html="";
-  // Encabezado con la pregunta
-  if (userQuestion) {
-    html += `<h3>Pregunta</h3><p>${esc(userQuestion)}</p>`;
-  }
-
-  const generalTxt = data.general || data.answer || data.text || "";
-  if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
-
-  const lists=normalizeLists(data.lists||[]);
-  lists.forEach(l=>{
-    html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
-  });
-
-  (data.tables||[]).forEach(t=>{
-    const cols=t.columns||[]; const rows=t.rows||[];
-    html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
-    html += cols.map(c=>`<th>${esc(c)}</th>`).join("");
-    html += `</tr></thead><tbody>`;
-    rows.forEach(r=>{ html += `<tr>` + r.map(x=>`<td>${esc(x)}</td>`).join("") + `</tr>`; });
-    html += `</tbody></table>`;
-  });
-
-  // Linkify + render
-  out.innerHTML = linkifyHTML(html || "<em>Sin contenido.</em>");
-  // Verificar enlaces (best effort)
-  verifyLinks();
-
-  // TTS
-  TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
-}
-
-/* ====== Backend ====== */
-async function ask(){
-  if (isBusy) return;
-  const text=q.value.trim(); if(!text) return;
-
-  isBusy = true;
-  btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
-  setStatusLoading("Consultando…");
-  try{
-    let r = await fetch(`${API_BASE}${GPT_PATH}`, {
-      method:"POST", headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-      body: JSON.stringify({ q: text })
-    });
-    if(r.status===404 || r.status===405 || r.status===0){
-      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, { headers:{ "Accept":"application/json" } });
-    }
-    const data = await r.json().catch(()=>({}));
-    if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
-    renderAnswer(data, text);
-    saveSession(text, data);
-  }catch(e){
-    out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
-    saveSession(text, {});
-  }finally{
-    btnSend.disabled=false; btnSend.textContent=old; clearStatus(); isBusy=false;
-  }
-}
-
-/* ====== Exportar ====== */
-function htmlToCSV(includeQuestion=true){
-  const rows=[];
-  // Pregunta (si existe)
-  if(includeQuestion){
-    const pq = (document.querySelector("h3+ p")?.textContent || "").trim();
-    if(pq) rows.push(["PREGUNTA", pq]);
-  }
-  // Párrafos
-  out.querySelectorAll("p").forEach(p=>{
-    const t=p.textContent.trim(); if(t) rows.push(["TEXTO", t]);
-  });
-  // Listas
-  out.querySelectorAll("ol,ul").forEach(list=>{
-    const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}`);
-    if(items.length){ rows.push(["LISTA", items.join(" \\ ")]); }
-  });
-  // Tablas
-  out.querySelectorAll("table").forEach(tbl=>{
-    const head=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
-    if(head.length) rows.push(["TABLA CABECERAS", ...head]);
-    const trs=[...tbl.querySelectorAll("tbody tr")];
-    trs.forEach((tr,ri)=>{
-      const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
-      rows.push([`FILA ${ri+1}`, ...cells]);
-    });
-  });
-
-  // A CSV
-  return rows.map(r => r.map(cell=>{
-    const v = String(cell ?? "");
-    if (/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`;
-    return v;
-  }).join(",")).join("\n");
-}
-
-function download(filename, blob){
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
-}
-
-/* PDF sin popup extra */
-function printHTML(html){
-  const iframe = document.createElement('iframe');
-  iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
-  iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0';
-  document.body.appendChild(iframe);
-  const doc = iframe.contentWindow || iframe.contentDocument;
-  const idoc = doc.document || doc;
-  idoc.open(); idoc.write(html); idoc.close();
-  setTimeout(()=>{ try{ (iframe.contentWindow || iframe).focus(); (iframe.contentWindow || iframe).print(); }catch{} }, 60);
-  setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
-}
-
-selExport.addEventListener("change", ()=>{
-  const v=selExport.value; selExport.value="";
-  if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
-
-  // Obtener la pregunta para PDF/DOC
-  const questionText = (document.querySelector("h3+ p")?.textContent || "").trim();
-
-  if(v==="pdf"){
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
-      <style>body{font:16px/1.5 system-ui;margin:28px;color:#111}
-             h3{margin-top:0}
-             table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
-      </head><body>
-      ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
-      ${out.innerHTML}
-      </body></html>`;
-    try{ printHTML(html); }
-    catch(_){
-      const w=window.open("", "_blank", "noopener,noreferrer");
-      if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
-    }
-    return;
-  }
-
-  if(v==="csv"){
-    const csv = htmlToCSV(true);
-    const blob = new Blob([csv], {type:"text/csv;charset=utf-8"});
-    download("export.csv", blob);
-    return;
-  }
-
-  if(v==="doc"){
-    const html = `<!doctype html><html><head><meta charset="utf-8"></head><body>
-      ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
-      ${out.innerHTML}
-    </body></html>`;
-    const blob=new Blob([html],{type:"application/msword"});
-    download("export.doc", blob);
-    return;
-  }
-});
-
-/* ====== Botones ====== */
-btnSend.addEventListener("click", ask);
-btnDict.addEventListener("click", toggleDict);
-btnToggleAV.addEventListener("click", ()=>{
-  if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
-  if(TTS.paused){ TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
-  else if(TTS.speaking){ TTS.pause(); btnToggleAV.textContent="▶ Reanudar voz"; }
-  else { TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
-});
-btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
-btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
-btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunta)", {}); TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus(); });
-
-/* ====== Hist ====== */
-btnHist.addEventListener("click", openHistory);
-
-/* ====== UX ====== */
-q.addEventListener("keydown",(e)=>{
-  if(e.key==="Enter" && (e.ctrlKey||e.metaKey)){
-    e.preventDefault();
-    if(!isBusy) ask();
-  }
-});
-
-/* Mostrar errores JS en pantalla */
-window.addEventListener("error", (e)=>{
-  const msg = (e?.error?.stack || e?.message || String(e)).slice(0, 600);
-  const box = document.getElementById("status");
-  if (box) box.innerHTML = '<span class="loader" role="status" aria-busy="true">'
-    + '<span class="dot"></span><span class="dot"></span><span class="dot"></span>'
-    + esc('JS error: ' + msg) + '</span>';
-}, {once:false});
-</script>
+  </script>
 </body>
 </html>
