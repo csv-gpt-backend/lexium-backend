@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Asistente Lexium</title>
+<title>SSAsistente Lexium</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -13,6 +13,7 @@
   }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
 
+  /* ===== Cabecera fija con video e imágenes: no se mueve ni 1px ===== */
   .mediaBar{
     position:fixed; top:0; left:0; width:100vw; z-index:50;
     background:#fff; border-bottom:none; padding:0; margin:0;
@@ -26,6 +27,7 @@
   .videoBox{height:var(--heroH); margin:0;}
   .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
 
+  /* El contenido inicia bajo el header fijo */
   .contentWrap{max-width:var(--wrapW); margin:0 auto; padding:12px; padding-top:calc(var(--heroH) + 8px);}
 
   .toolbar{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:8px 0}
@@ -36,9 +38,14 @@
   .hist{position:fixed; right:14px; top:10px; z-index:60}
   .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
-  .query{width:100%; height:48px; min-height:48px; max-height:48px; resize:none; border:1px solid var(--bd); border-radius:10px; padding:10px; font-size:16px; line-height:1.4;}
+  /* ===== Textarea 1 línea ===== */
+  .query{width:100%; height:48px; min-height:48px; max-height:48px; resize:none; overflow:hidden; border:1px solid var(--bd); border-radius:10px; padding:10px; font-size:16px; line-height:1.4;}
+
   .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
   .muted{color:var(--muted); font-size:.9rem}
+
+  /* ===== Status arriba-izquierda (mismo look) ===== */
+  #status{position:fixed; top:10px; left:12px; z-index:70;}
 
   table{width:100%; border-collapse:collapse; margin:10px 0}
   th,td{border:1px solid var(--bd); padding:8px}
@@ -97,6 +104,17 @@
     <div id="status" class="muted"></div>
   </div>
 
+  <!-- ===== Modal de historial (sin pop-up) ===== -->
+  <div id="histModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:999;">
+    <div style="background:#fff;max-width:900px;margin:40px auto;padding:16px;border-radius:12px;max-height:80vh;overflow:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <h3 style="margin:0">Historial</h3>
+        <button id="histClose" style="padding:6px 10px;border:1px solid var(--bd);border-radius:8px;background:#fff;cursor:pointer">Cerrar</button>
+      </div>
+      <div id="histContent" style="margin-top:10px;font:14px system-ui"></div>
+    </div>
+  </div>
+
 <script>
 /* ====== CONFIG ====== */
 const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
@@ -147,23 +165,27 @@ function readSessions(){
     return [...a,...b];
   }catch(e){ return []; }
 }
+
+/* Modal de historial */
 function openHistory(){
   const all=readSessions();
-  if(!all.length){ alert("Sin historial."); return; }
-  const w=window.open("", "_blank","noopener,noreferrer");
-  const html=`<html><head><title>Historial</title>
-  <style>body{font:14px system-ui} pre{white-space:pre-wrap}</style></head><body>
-  <h2>Sesiones</h2>
-  ${all.map(s=>`
-    <details>
-      <summary><b>${new Date(s.when).toLocaleString()}</b> — ${esc(s.question)}</summary>
-      <pre>${esc(s.summary||"(sin resumen)")}</pre>
-    </details>
-  `).join("")}
-  </body></html>`;
-  if (w){ w.document.open(); w.document.write(html); w.document.close(); }
-  else { alert("No se pudo abrir la ventana del historial (bloqueada por el navegador)."); }
+  const modal=document.getElementById("histModal");
+  const box=document.getElementById("histContent");
+  if(!all.length){
+    box.innerHTML = "<em>Sin historial.</em>";
+  }else{
+    const html = all.map(s=>(
+      `<details>
+         <summary><b>${new Date(s.when).toLocaleString()}</b> — ${esc(s.question)}</summary>
+         <pre style="white-space:pre-wrap">${esc(s.summary||"(sin resumen)")}</pre>
+       </details>`
+    )).join("");
+    box.innerHTML = html;
+  }
+  modal.style.display="block";
 }
+document.getElementById("histClose")?.addEventListener("click", ()=>{ document.getElementById("histModal").style.display="none"; });
+document.getElementById("histModal")?.addEventListener("click", (e)=>{ if(e.target.id==="histModal") e.currentTarget.style.display="none"; });
 
 /* ====== Dictado ====== */
 let recognizer=null;
@@ -227,24 +249,32 @@ function generalToOrderedListHTML(g){
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* === TTS helpers === */
+/* === TTS helpers: LEE TODO (títulos, listas, tablas con números) === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
-  c.querySelectorAll("p").forEach(p=>{const t=p.textContent.trim(); if(t) parts.push(t);});
+  // Títulos
+  c.querySelectorAll("h1,h2,h3,h4").forEach(h=>{
+    const t=h.textContent.trim(); if(t) parts.push(t);
+  });
+  // Párrafos
+  c.querySelectorAll("p").forEach(p=>{
+    const t=p.textContent.trim(); if(t) parts.push(t);
+  });
+  // Listas -> numeradas para voz
   c.querySelectorAll("ol,ul").forEach(list=>{
     const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
     if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); }
   });
+  // Tablas -> lee cabeceras y filas con índice
   c.querySelectorAll("table").forEach(tbl=>{
-    const rows=[...tbl.querySelectorAll("tbody tr")]; if(!rows.length) return;
-    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim().toUpperCase());
-    let col=0; const iN=headers.findIndex(h=>/NOMBRE/.test(h)); if(iN>=0) col=iN;
-    const items=rows.map((tr,i)=>{
-      const t=(tr.querySelectorAll("td")[col]?.textContent||tr.querySelector("td")?.textContent||"").trim();
-      return `${i+1}. ${t}.`;
-    }).filter(Boolean).join("\n");
-    if(items) parts.push(items);
+    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim()).filter(Boolean);
+    if(headers.length){ parts.push(`Tabla: ${headers.join(", ")}`); }
+    const rows=[...tbl.querySelectorAll("tbody tr")];
+    rows.forEach((tr,i)=>{
+      const cols=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim()).filter(Boolean);
+      if(cols.length) parts.push(`${i+1}. ${cols.join(" | ")}.`);
+    });
   });
   const fallback=(out.textContent||"").trim();
   return parts.join("\n\n") || fallback;
@@ -299,6 +329,35 @@ function normalizeLists(lists){
   });
 }
 
+/* ====== Linkificación + verificación suave ====== */
+function findUrls(str){
+  const re = /\bhttps?:\/\/[^\s<>"']+/g; const m = str.match(re); return m||[];
+}
+async function validateLinksInOut(){
+  const html = out.innerHTML;
+  const urls = findUrls(html);
+  if(!urls.length) return;
+
+  // linkify
+  let linked = html;
+  for(const u of urls){
+    const safe = esc(u);
+    const a = `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
+    linked = linked.replaceAll(safe, a);
+  }
+  out.innerHTML = linked;
+
+  // validate (HEAD). Si CORS bloquea, omitimos el warning.
+  for(const u of urls){
+    try{
+      await fetch(u, { method:"HEAD", mode:"no-cors" });
+    }catch{
+      const links = out.querySelectorAll(`a[href="${u}"]`);
+      links.forEach(a=>{ a.textContent = a.textContent + " ⚠️"; a.style.opacity = "0.85"; });
+    }
+  }
+}
+
 /* ====== Render ====== */
 function renderAnswer(data){
   let html="";
@@ -321,7 +380,11 @@ function renderAnswer(data){
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
+  // Hablar TODO
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
+
+  // Linkificación + verificación
+  validateLinksInOut();
 }
 
 /* ====== Backend ====== */
@@ -349,7 +412,25 @@ async function ask(){
   }
 }
 
-/* ====== Exportar: PDF con vista previa sin pop-up ====== */
+/* ====== Exportar: PDF/XLS/DOC incluyendo la PREGUNTA ====== */
+let __lastQuestion = "";
+// Capturamos la pregunta justo ANTES del envío (no toca tu ask())
+document.getElementById("btnSend")?.addEventListener("click", ()=>{
+  if(q) __lastQuestion = (q.value||"").trim();
+}, {capture:true});
+
+function wrapForExport(bodyHTML){
+  const qHtml = __lastQuestion ? `<h2>Pregunta</h2><p>${esc(__lastQuestion)}</p>` : "";
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export</title>
+    <style>
+      body{font:16px/1.5 system-ui;margin:28px;color:#111}
+      h1,h2,h3{margin:12px 0 6px}
+      table{border-collapse:collapse;width:100%; margin:8px 0}
+      td,th{border:1px solid #ddd;padding:6px}
+    </style>
+    </head><body>${qHtml}${bodyHTML}</body></html>`;
+}
+
 function printHTML(html){
   const iframe = document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
@@ -364,17 +445,16 @@ function printHTML(html){
 selExport.addEventListener("change", ()=>{
   const v=selExport.value; selExport.value="";
   if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
+
+  const htmlDoc = wrapForExport(out.innerHTML);
+
   if(v==="pdf"){
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
-      <style>body{font:16px/1.5 system-ui;margin:28px;color:#111}
-             table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
-      </head><body>${out.innerHTML}</body></html>`;
-    try{ printHTML(html); }
+    try{ printHTML(htmlDoc); }
     catch(_){
       const w=window.open("", "_blank", "noopener,noreferrer");
-      if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
+      if(w){ w.document.open(); w.document.write(htmlDoc); w.document.close(); w.focus(); w.print(); }
       else{
-        const blob=new Blob([html],{type:"text/html"});
+        const blob=new Blob([htmlDoc],{type:"text/html"});
         const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="lexium_export.html"; a.click();
         setTimeout(()=>URL.revokeObjectURL(a.href),500);
       }
@@ -383,7 +463,7 @@ selExport.addEventListener("change", ()=>{
   }
   if(v==="xls"||v==="doc"){
     const mime = v==="xls" ? "application/vnd.ms-excel" : "application/msword";
-    const blob=new Blob([`<html><body>${out.innerHTML}</body></html>`],{type:mime});
+    const blob=new Blob([htmlDoc],{type:mime});
     const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`export.${v}`; a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),500);
   }
