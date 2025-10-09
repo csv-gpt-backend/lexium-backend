@@ -79,7 +79,7 @@
     </div>
 
     <div class="toolbar">
-      <button id="btnSend" title="Enviar consulta al backend" onclick="ask()">Enviar</button>
+      <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
       <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
       <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
       <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
@@ -322,14 +322,22 @@ function renderAnswer(data){
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
-  TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
+TTS.stopAll();              // ⬅️ NUEVA LÍNEA (evita solapamientos)
+TTS.enabled = true; 
+TTS.loadFromOut(); 
+TTS.start(0);
+
 }
 
 /* ====== Backend ====== */
 async function ask(){
-  const text=q.value.trim(); if(!text) return;
+  if (btnSend._busy) return;    // ⬅️ NUEVA LÍNEA (candado)
+  btnSend._busy = true;         // ⬅️ NUEVA LÍNEA (marca ocupado)
+
+  const text=q.value.trim(); if(!text){ btnSend._busy=false; return; }
   btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
   setStatusLoading("Consultando…");
+
   try{
     let r = await fetch(`${API_BASE}${GPT_PATH}`, {
       method:"POST", headers:{ "Content-Type":"application/json", "Accept":"application/json" },
@@ -346,7 +354,8 @@ async function ask(){
     out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
     saveSession(text, {});
   }finally{
-    btnSend.disabled=false; btnSend.textContent=old; clearStatus();
+  btnSend.disabled=false; btnSend.textContent=old; clearStatus();
+  btnSend._busy = false;     // ⬅️ NUEVA LÍNEA (libera candado)
   }
 }
 
@@ -417,5 +426,6 @@ window.addEventListener("error", (e)=>{
 </script>
 </body>
 </html>
+
 
 
