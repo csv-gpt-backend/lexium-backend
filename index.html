@@ -3,12 +3,11 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>0859 VVAsistente Lexium</title>
+<title>12129 Asistente Lexium</title>
 
-<!-- ↓↓↓ Latencia: preconnect/dns-prefetch al backend ↓↓↓ -->
+<!-- Latencia: preconnect / dns-prefetch (no cambia UI/UX) -->
 <link rel="preconnect" href="https://lexium-gpt5-383217514425.southamerica-west1.run.app" crossorigin>
 <link rel="dns-prefetch" href="//lexium-gpt5-383217514425.southamerica-west1.run.app">
-<!-- ↑↑↑ -->
 
 <style>
   :root{
@@ -47,17 +46,10 @@
     width:100%;
     height:36px; min-height:36px; max-height:36px;
     resize:none; border:1px solid var(--bd); border-radius:10px;
-    padding:8px 10px;
-    font-size:15px; /* ajuste mínimo */
-    line-height:1.2; overflow:hidden;
+    padding:8px 10px; font-size:16px; line-height:1.2; overflow:hidden;
   }
 
-  .out{
-    margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px;
-    overflow:auto; white-space:pre-wrap; max-height:65vh;
-    font-size:0.95rem; line-height:1.5; scrollbar-gutter:stable;
-  }
-
+  .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
   .muted{color:var(--muted); font-size:.9rem}
 
   table{width:100%; border-collapse:collapse; margin:10px 0}
@@ -73,7 +65,7 @@
   /* Procesando arriba a la izquierda (mismo diseño) */
   #status { position:fixed; top:8px; left:12px; z-index:70; }
 
-  /* Overlay Historial */
+  /* Overlay Historial (evita popups bloqueados) */
   .overlay{
     display:none; position:fixed; inset:0; background:rgba(0,0,0,.25);
     z-index:80; align-items:center; justify-content:center; padding:24px;
@@ -157,7 +149,7 @@ const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app";
 const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
 
-/* ====== Warm-up del backend (evita cold start) ====== */
+/* ====== Warm-up del backend (no cambia UX) ====== */
 (async () => {
   try { await fetch(`${API_BASE}${FALLBACK_PATH}?q=ping`, { method: "GET" }); } catch (_) {}
 })();
@@ -248,8 +240,13 @@ function renderHistory(){
     </div>
   `).join("");
 }
-function openHistory(){ renderHistory(); histOverlay.classList.add("show"); }
-function closeHistory(){ histOverlay.classList.remove("show"); }
+function openHistory(){
+  renderHistory();
+  histOverlay.classList.add("show");
+}
+function closeHistory(){
+  histOverlay.classList.remove("show");
+}
 btnHist.addEventListener("click", openHistory);
 closeHist.addEventListener("click", closeHistory);
 histOverlay.addEventListener("click",(e)=>{ if(e.target===histOverlay) closeHistory(); });
@@ -314,16 +311,20 @@ function generalToOrderedListHTML(g){
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* === TTS helpers === */
+/* === TTS helpers: lee TODO (títulos, listas, tablas y números) === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
+  // Títulos
   c.querySelectorAll("h1,h2,h3,h4").forEach(h=>{ const t=h.textContent.trim(); if(t) parts.push(t); });
+  // Párrafos
   c.querySelectorAll("p").forEach(p=>{ const t=p.textContent.trim(); if(t) parts.push(t); });
+  // Listas
   c.querySelectorAll("ol,ul").forEach(list=>{
     const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
     if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); }
   });
+  // Tablas
   c.querySelectorAll("table").forEach(tbl=>{
     const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim()).filter(Boolean);
     if(headers.length) parts.push(`Tabla: ${headers.join(", ")}`);
@@ -337,6 +338,7 @@ function buildTTSTextFromOut(){
   return (parts.join("\n\n") || fallback).trim();
 }
 
+/* ====== TTS + control de video: EXACTO COMO TENÍAS ====== */
 const TTS={
   enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
   makeChunks(text,maxLen=360){
@@ -389,7 +391,10 @@ function normalizeLists(lists){
 /* ====== Render ====== */
 function renderAnswer(data, userQuestion){
   let html="";
-  if (userQuestion) { html += `<h3>Pregunta</h3><p>${esc(userQuestion)}</p>`; }
+  // Encabezado con la pregunta
+  if (userQuestion) {
+    html += `<h3>Pregunta</h3><p>${esc(userQuestion)}</p>`;
+  }
 
   const generalTxt = data.general || data.answer || data.text || "";
   if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
@@ -408,14 +413,12 @@ function renderAnswer(data, userQuestion){
     html += `</tbody></table>`;
   });
 
-  // Linkify + render inmediato
+  // Linkify + render
   out.innerHTML = linkifyHTML(html || "<em>Sin contenido.</em>");
+  // Verificar enlaces (best effort)
+  verifyLinks();
 
-  // ↓↓↓ Latencia: verifica enlaces en idle, no bloquea el paint ↓↓↓
-  const idle = window.requestIdleCallback || ((fn)=>setTimeout(fn, 120));
-  idle(()=> verifyLinks());
-
-  // TTS
+  // TTS: se enciende y dispara el video SOLO al narrar (como antes)
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 }
 
@@ -454,12 +457,15 @@ async function ask(){
       20000
     );
 
-    // 2) Solo si el server dice 404/405, usamos fallback GET
+    // 2) Solo si el server dice 404/405, usamos fallback GET (15s)
     if (res.r.status === 404 || res.r.status === 405) {
       mode = "fallback";
-      res = await fetchJSON(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
-        headers:{ "Accept":"application/json" }
-      });
+      res = await withTimeout(
+        (signal)=>fetchJSON(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
+          headers:{ "Accept":"application/json" }
+        }, signal),
+        15000
+      );
     }
 
     if(!res.r.ok) throw new Error(res.data?.error || `HTTP ${res.r.status}`);
@@ -473,28 +479,35 @@ async function ask(){
     statusEl.innerHTML = `<span class="muted">✔ Respuesta ${mode === "gpt" ? "GPT" : "fallback"} en ${dt} ms</span>`;
   }catch(e){
     const dt = Math.round(performance.now() - t0);
-    out.innerHTML = `<pre style="color:var(--err)">Error: ${esc(String(e))}\n(${dt} ms)</pre>`;
+    const msg = (e?.name === "AbortError")
+      ? `⏳ Timeout en ${mode === "gpt" ? "/api/gpt (20s)" : "/api/answer (15s)"}`
+      : String(e);
+    out.innerHTML = `<pre style="color:var(--err)">Error: ${esc(msg)}\n(${dt} ms)</pre>`;
     saveSession(text, {});
   }finally{
-    btnSend.disabled=false; btnSend.textContent=old; /* no borramos status para ver el modo */
+    btnSend.disabled=false; btnSend.textContent=old; /* dejamos status para diag */
     isBusy=false;
   }
 }
 
-/* ====== Exportar (igual) ====== */
+/* ====== Exportar ====== */
 function htmlToCSV(includeQuestion=true){
   const rows=[];
+  // Pregunta (si existe)
   if(includeQuestion){
     const pq = (document.querySelector("h3+ p")?.textContent || "").trim();
     if(pq) rows.push(["PREGUNTA", pq]);
   }
+  // Párrafos
   out.querySelectorAll("p").forEach(p=>{
     const t=p.textContent.trim(); if(t) rows.push(["TEXTO", t]);
   });
+  // Listas
   out.querySelectorAll("ol,ul").forEach(list=>{
     const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}`);
     if(items.length){ rows.push(["LISTA", items.join(" \\ ")]); }
   });
+  // Tablas
   out.querySelectorAll("table").forEach(tbl=>{
     const head=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
     if(head.length) rows.push(["TABLA CABECERAS", ...head]);
@@ -505,12 +518,14 @@ function htmlToCSV(includeQuestion=true){
     });
   });
 
+  // A CSV
   return rows.map(r => r.map(cell=>{
     const v = String(cell ?? "");
     if (/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`;
     return v;
   }).join(",")).join("\n");
 }
+
 function download(filename, blob){
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
@@ -519,6 +534,8 @@ function download(filename, blob){
   a.click();
   setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
+
+/* PDF sin popup extra */
 function printHTML(html){
   const iframe = document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
@@ -554,9 +571,6 @@ q.addEventListener("keydown",(e)=>{
     if(!isBusy) ask();
   }
 });
-
-/* Inicia el video cuanto antes, sin bloquear otras tareas */
-window.addEventListener("load", () => { vid?.play?.().catch(()=>{}); }, { once:true });
 
 /* Mostrar errores JS en pantalla */
 window.addEventListener("error", (e)=>{
