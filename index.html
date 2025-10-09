@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>1305 Asistente Lexium</title>
+<title>1323 Asistente Lexium</title>
 
 <!-- Latencia: preconnect / dns-prefetch -->
 <link rel="preconnect" href="https://lexium-gpt5-383217514425.southamerica-west1.run.app" crossorigin>
@@ -41,14 +41,14 @@
   .hist{position:fixed; right:14px; top:10px; z-index:60}
   .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
-  /* Caja de texto: con scroll interno y resize vertical */
+  /* Caja de texto con scroll y resize vertical */
   .query{
     width:100%;
     min-height:48px; max-height:200px;
-    resize:vertical; /* permitir estirar */
+    resize:vertical;
     border:1px solid var(--bd); border-radius:10px;
     padding:8px 10px; font-size:16px; line-height:1.35;
-    overflow:auto; /* scroll interno */
+    overflow:auto;
   }
 
   .out{
@@ -153,17 +153,17 @@
 /* ====== CONFIG ====== */
 const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app";
 const GPT_PATH = "/api/gpt";
+const STATUS_PATH = "/api/gpt/status";     // ← soporta modo “job async” si existe en tu server
 const FALLBACK_PATH = "/api/answer";
 
-/* === Timeouts controlados + reintento ===
-   Ajustados por debajo del corte del navegador (~120 s) */
-const TIMEOUT_GPT_MS = 115000;      // 115s
+/* ====== Timeouts + reintento ====== */
+const TIMEOUT_GPT_MS = 115000;      // 115s (antes de que el navegador corte ~120s)
 const TIMEOUT_FALLBACK_MS = 90000;   // 90s
+const JOB_POLL_MAX_MS = 10*60*1000;  // 10 min de polling máximo
+const JOB_POLL_INTERVAL_MS = 2500;   // 2.5s entre consultas
 
-/* ====== Warm-up discreto ====== */
-(async () => {
-  try { await fetch(`${API_BASE}${FALLBACK_PATH}?q=ping`, { method: "GET" }); } catch (_) {}
-})();
+/* ====== Warm-up ====== */
+(async () => { try { await fetch(`${API_BASE}${FALLBACK_PATH}?q=ping`, { method: "GET" }); } catch (_) {} })();
 
 /* ====== UI refs ====== */
 const q = document.getElementById("q");
@@ -193,6 +193,20 @@ function setStatusLoading(msg="Generando…"){
 function clearStatus(){ statusEl.textContent = ""; }
 function setStatusText(msg=""){ statusEl.textContent = msg ? String(msg) : ""; }
 
+/* Detectar idioma (inglés o español, heurística simple) */
+function detectLang(text){
+  const t = (text||"").trim().toLowerCase();
+  if(!t) return (navigator.language||"es").startsWith("en") ? "en" : "es";
+  const enHits = (t.match(/\b(the|and|you|for|with|from|to|of|in|on|are|is|please)\b/g)||[]).length;
+  const esHits = (t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por favor)\b/g)||[]).length;
+  if(enHits>esHits) return "en";
+  if(esHits>enHits) return "es";
+  // fallback por caracteres: si casi todo es ASCII -> puede ser inglés
+  const nonASCII = (t.match(/[^\x00-\x7F]/g)||[]).length;
+  return nonASCII>0 ? "es" : "en";
+}
+
+/* Linkify + verificación en idle */
 const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
 function linkifyHTML(html){
   return html.replace(URL_RE, (u)=>{
@@ -215,19 +229,14 @@ async function verifyLinks(){
     }
   }
 }
+const idle = window.requestIdleCallback || ((fn)=>setTimeout(fn,120));
 
-/* ====== Historial (guarda TODO y permite “Ver”) ====== */
-const SESS_KEY = "lexium_sessions_v2";
+/* ====== Historial (guarda TODO y permite “Ver” sin auto-audio) ====== */
+const SESS_KEY = "lexium_sessions_v3";
 function saveSession(question, data){
   const html = (document.getElementById('out')?.innerHTML || "").trim();
   const text = (document.getElementById('out')?.textContent || "").trim();
-  const entry = {
-    id: new Date().toISOString(),
-    question: question || "(sin pregunta)",
-    html,
-    text,
-    when: Date.now()
-  };
+  const entry = { id: new Date().toISOString(), question: question || "(sin pregunta)", html, text, when: Date.now() };
   try{
     const all = JSON.parse(localStorage.getItem(SESS_KEY) || "[]");
     all.unshift(entry);
@@ -246,13 +255,12 @@ function renderHistory(){
       <div class="meta">
         <b>${new Date(s.when).toLocaleString()}</b>
         <div><i>Pregunta:</i> ${esc(s.question)}</div>
-        <div class="muted">${esc((s.text||"").slice(0,140))}${(s.text||"").length>140?"…":""}</div>
+        <div class="muted">${esc((s.text||"").slice(0,160))}${(s.text||"").length>160?"…":""}</div>
       </div>
       <button class="viewBtn" data-id="${esc(s.id)}">Ver</button>
     </div>
   `).join("");
 
-  // Delegación de click “Ver”
   histBody.querySelectorAll(".viewBtn").forEach(btn=>{
     btn.addEventListener("click", ()=>{
       const id = btn.getAttribute("data-id");
@@ -260,9 +268,9 @@ function renderHistory(){
       if(match){
         out.innerHTML = match.html || "<em>Vacío</em>";
         clearStatus();
-        // Reiniciar TTS/video sobre el contenido reabierto
+        // Al reabrir NO arrancamos narración automáticamente
         try{ TTS.stopAll(); }catch(_){}
-        TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
+        TTS.enabled = false; TTS.loadFromOut(); // queda listo, pero no habla
         histOverlay.classList.remove("show");
       }
     });
@@ -290,27 +298,33 @@ function toggleDict(){
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
 }
 
-/* ====== Voz + Video (igual que tenías) ====== */
-const PREFERRED_NAMES=["Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia","Google español","Google español de Estados","Google US Español","Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"];
+/* ====== Voz + Video ====== */
+const PREFERRED_NAMES_ES=["Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Maria","Microsoft Lucia","Monica","Paulina","Camila","Sofia","Elena","Lucia","Maria","Carla","Google español","Google español de Estados","Google US Español"];
+const PREFERRED_NAMES_EN=["Microsoft Jenny","Microsoft Aria","Microsoft Zira","Microsoft Sara","Google US English","Google UK English"];
 const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
+const EN_LANGS=["en","en-US","en-GB","en-CA","en-AU","en-IN"];
 let selectedVoice=null;
-function scoreVoice(v){
-  const name=(v.name||"").toLowerCase(), lang=(v.lang||"").toLowerCase();
-  let s=0; if (SP_LANGS.some(l=>lang.startsWith(l))) s+=5;
-  if (PREFERRED_NAMES.some(n=>name.includes(n.toLowerCase()))) s+=6;
-  if (name.includes("female")||name.includes("femenina")||name.includes("mujer")) s+=4;
-  if (name.includes("google")) s+=2; if (name.includes("microsoft")) s+=2;
-  return s;
-}
-function chooseFemaleES(){
+
+function pickVoice(langHint){
   if(typeof speechSynthesis==="undefined") return null;
-  const vs=speechSynthesis.getVoices(); if(!vs.length) return null;
-  for(const n of PREFERRED_NAMES){ const m=vs.find(v=>v.name.toLowerCase().includes(n.toLowerCase())); if(m) return m; }
-  return vs.slice().sort((a,b)=>scoreVoice(b)-scoreVoice(a))[0]||null;
+  const vs=speechSynthesis.getVoices()||[];
+  const prefList = langHint==="en" ? PREFERRED_NAMES_EN : PREFERRED_NAMES_ES;
+  const langList = langHint==="en" ? EN_LANGS : SP_LANGS;
+  // 1) intentamos nombre preferido
+  for(const name of prefList){
+    const m=vs.find(v=>v.name && v.name.toLowerCase().includes(name.toLowerCase()));
+    if(m) return m;
+  }
+  // 2) intentamos por lang
+  const byLang = vs.find(v=>langList.some(l=> (v.lang||"").toLowerCase().startsWith(l.toLowerCase())));
+  if(byLang) return byLang;
+  // 3) fallback cualquiera
+  return vs[0]||null;
 }
-function initVoice(){ selectedVoice=chooseFemaleES(); }
+function initVoice(){ selectedVoice = pickVoice("es"); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
 
+/* === bullets === */
 const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
 function generalToOrderedListHTML(g){
   if (!g) return "";
@@ -348,9 +362,9 @@ function buildTTSTextFromOut(){
   return (parts.join("\n\n") || fallback).trim();
 }
 
-/* ====== TTS + Video (igual que antes) ====== */
+/* ====== TTS + Video (no auto al abrir; se activa con narración) ====== */
 const TTS={
-  enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
+  enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"", lang:"es",
   makeChunks(text,maxLen=360){
     const res=[]; const parts=String(text).split(/(\.|\?|!|\n)/);
     let buf=""; for(let i=0;i<parts.length;i+=2){ const seg=(parts[i]||"")+(parts[i+1]||"");
@@ -361,22 +375,25 @@ const TTS={
   speakNext(){
     if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
     const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
-    if(selectedVoice) u.voice=selectedVoice;
-    u.lang=(selectedVoice?.lang)||"es-ES"; u.rate=0.98; u.pitch=1.08; u.volume=1;
+    const v = pickVoice(this.lang||"es"); if(v) u.voice=v;
+    u.lang=(v?.lang)|| (this.lang==="en"?"en-US":"es-ES");
+    u.rate=0.98; u.pitch=1.08; u.volume=1;
     u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.muted=true; vid.play().catch(()=>{});} };
     u.onend =()=>{ this.speakNext(); };
     u.onerror=()=>{ this.speakNext(); };
     this.utter=u; speechSynthesis.speak(u);
   },
-  start(fromIndex=0){
-    if(typeof speechSynthesis==="undefined" || !this.chunks.length) return;
+  start(fromIndex=0, langHint="es"){
+    if(typeof speechSynthesis==="undefined") return;
+    this.lang = langHint || "es";
+    if(!this.chunks.length) this.loadFromOut();
     this.enabled=true; if(fromIndex>=0) this.i=fromIndex;
     speechSynthesis.cancel(); this.speakNext();
   },
   pause(){ if(this.speaking && !this.paused){ speechSynthesis.pause(); this.paused=true; if(vid) vid.pause(); } },
   resume(){ if(this.paused){ speechSynthesis.resume(); this.paused=false; if(vid) vid.play().catch(()=>{}); }
            else if(!this.speaking && this.enabled){ this.speakNext(); } },
-  restartFromStart(){ this.enabled=true; this.loadFromOut(); this.start(0); },
+  restartFromStart(langHint){ this.enabled=true; this.loadFromOut(); this.start(0, langHint||this.lang); },
   finish(){ this.speaking=false; this.paused=false; this.utter=null; if(vid){ vid.loop=false; vid.pause(); } },
   stopAll(){ this.enabled=false; this.paused=false; this.speaking=false; this.utter=null;
              if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel();
@@ -399,7 +416,7 @@ function normalizeLists(lists){
 }
 
 /* ====== Render ====== */
-function renderAnswer(data, userQuestion){
+function renderAnswer(data, userQuestion, langHint){
   let html="";
   if (userQuestion) { html += `<h3>Pregunta</h3><p>${esc(userQuestion)}</p>`; }
 
@@ -421,11 +438,10 @@ function renderAnswer(data, userQuestion){
   });
 
   out.innerHTML = linkifyHTML(html || "<em>Sin contenido.</em>");
-  const idle = window.requestIdleCallback || ((fn)=>setTimeout(fn,120));
   idle(()=>verifyLinks());
 
-  // Narrar (enciende/pausa video según voz)
-  TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
+  // Narración: solo al generar (historial Ver NO la dispara)
+  TTS.enabled = true; TTS.loadFromOut(); TTS.start(0, langHint||"es");
 }
 
 /* ====== Helpers: fetch + timeout opcional ====== */
@@ -441,21 +457,45 @@ function runWithMaybeTimeout(factory, ms){
   return factory(ctrl.signal).finally(()=>clearTimeout(t));
 }
 
-/* ====== Backend: timeout controlado + 1 reintento y fallback 404/405 ====== */
+/* ====== Poll de trabajo asíncrono (si el backend lo soporta) ====== */
+async function pollJob(jobId, startedAt, langHint){
+  const deadline = startedAt + JOB_POLL_MAX_MS;
+  let lastMsg = "Procesando…";
+  while (Date.now() < deadline){
+    await new Promise(r=>setTimeout(r, JOB_POLL_INTERVAL_MS));
+    try{
+      const { r, data } = await fetchJSON(`${API_BASE}${STATUS_PATH}?id=${encodeURIComponent(jobId)}`, { method:"GET" });
+      if(r.ok && data && (data.done || data.status==="done" || data.result)){
+        const payload = data.result || data;
+        renderAnswer(payload, payload.question || "", langHint);
+        saveSession(payload.question || "", payload);
+        setStatusText(`✔ Respuesta por job ${jobId}`);
+        return true;
+      }
+      // feedback mínimo
+      const msg = (data?.statusText || data?.status || "Procesando…");
+      if (msg !== lastMsg){ setStatusText(`⏳ ${msg}`); lastMsg = msg; }
+    }catch(_){}
+  }
+  throw new Error("Tiempo de espera de job excedido");
+}
+
+/* ====== Backend: timeout controlado + 1 reintento + modo job async opcional ====== */
 async function ask(){
   if (isBusy) return;
   const text=q.value.trim(); if(!text) return;
 
+  const langHint = detectLang(text);  // ← ES/EN automático
   isBusy = true;
   btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
-  setStatusLoading("Consultando…");
+  setStatusLoading(langHint==="en" ? "Consulting…" : "Consultando…");
   const t0 = performance.now();
   let mode = "gpt";
 
   const doGpt = (signal) => fetchJSON(`${API_BASE}${GPT_PATH}`, {
     method:"POST",
     headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-    body: JSON.stringify({ q: text }),
+    body: JSON.stringify({ q: text, lang: langHint }),
     signal
   });
 
@@ -463,10 +503,20 @@ async function ask(){
     // Intento 1 a /api/gpt
     let res = await runWithMaybeTimeout(doGpt, TIMEOUT_GPT_MS);
 
+    // Si el backend soporta “job async”: {job_id} o 202 → activamos polling
+    if ((res.r.status === 202) || (res.data && res.data.job_id)){
+      const jobId = res.data.job_id || res.data.id || res.data.jobId;
+      setStatusText((langHint==="en"?"Queued. Tracking job ":"En cola. Seguimiento del job ") + jobId);
+      await pollJob(jobId, Date.now(), langHint);
+      const dt = Math.round(performance.now() - t0);
+      setStatusText((langHint==="en"?"✔ Answer via job in ":"✔ Respuesta por job en ") + dt + " ms");
+      return;
+    }
+
     // Solo si 404/405 → fallback con timeout
     if (res.r.status === 404 || res.r.status === 405) {
       mode = "fallback";
-      const doFallback = (signal)=>fetchJSON(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
+      const doFallback = (signal)=>fetchJSON(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}&lang=${langHint}`, {
         headers:{ "Accept":"application/json" }, signal
       });
       res = await runWithMaybeTimeout(doFallback, TIMEOUT_FALLBACK_MS);
@@ -476,10 +526,10 @@ async function ask(){
     const data = res.data || {};
     if(data.ok===false) throw new Error(data.error || data.general || "Error");
 
-    renderAnswer(data, text);
+    renderAnswer(data, text, langHint);
     saveSession(text, data);
     const dt = Math.round(performance.now() - t0);
-    setStatusText(`✔ Respuesta ${mode === "gpt" ? "GPT" : "fallback"} en ${dt} ms`);
+    setStatusText(`✔ ${mode === "gpt" ? "GPT" : "fallback"} · ${dt} ms`);
   }catch(e1){
     const e1Msg = String(e1||"");
     const aborted = (e1?.name==="AbortError") || /Failed to fetch/i.test(e1Msg);
@@ -488,37 +538,46 @@ async function ask(){
       // Reintento único a /api/gpt
       try{
         const res2 = await runWithMaybeTimeout(doGpt, TIMEOUT_GPT_MS);
+        if (res2.r.status === 202 || (res2.data && res2.data.job_id)){
+          const jobId = res2.data.job_id || res2.data.id || res2.data.jobId;
+          setStatusText((langHint==="en"?"Queued. Tracking job ":"En cola. Seguimiento del job ") + jobId);
+          await pollJob(jobId, Date.now(), langHint);
+          const dt2 = Math.round(performance.now() - t0);
+          setStatusText(`✔ GPT (retry via job) · ${dt2} ms`);
+          return;
+        }
         if(!res2.r.ok) throw new Error(res2.data?.error || `HTTP ${res2.r.status}`);
         const data2 = res2.data || {};
         if(data2.ok===false) throw new Error(data2.error || data2.general || "Error");
 
-        renderAnswer(data2, text);
+        renderAnswer(data2, text, langHint);
         saveSession(text, data2);
         const dt2 = Math.round(performance.now() - t0);
-        setStatusText(`✔ Respuesta GPT (reintento) en ${dt2} ms`);
-        isBusy=false; btnSend.disabled=false; btnSend.textContent=old;
+        setStatusText(`✔ GPT (retry) · ${dt2} ms`);
         return;
       }catch(e2){
-        handleAskError(e2, t0, mode);
+        handleAskError(e2, t0, mode, langHint);
       }
     } else {
-      handleAskError(e1, t0, mode);
+      handleAskError(e1, t0, mode, langHint);
     }
   } finally {
     isBusy=false; btnSend.disabled=false; btnSend.textContent=old;
   }
 }
 
-function handleAskError(err, t0, mode){
+function handleAskError(err, t0, mode, langHint){
   const dt = Math.round(performance.now() - t0);
   try { TTS.stopAll(); } catch {}
   const isAbort = (err?.name === "AbortError");
   const friendly = isAbort
-    ? `Se agotó el tiempo en ${mode === "gpt" ? "/api/gpt" : "/api/answer"}`
-    : ( /Failed to fetch/i.test(String(err)) ? "Conexión interrumpida por el navegador o proxy" : String(err) );
+    ? (langHint==="en" ? `Timeout in ${mode==="gpt"?"/api/gpt":"/api/answer"}` : `Se agotó el tiempo en ${mode==="gpt"?"/api/gpt":"/api/answer"}`)
+    : ( /Failed to fetch/i.test(String(err))
+        ? (langHint==="en" ? "Connection interrupted by browser or proxy" : "Conexión interrumpida por el navegador o proxy")
+        : String(err) );
   out.innerHTML = `<pre style="color:var(--err)">Error: ${esc(friendly)}\n(${dt} ms)</pre>`;
   saveSession(q.value.trim(), {});
-  setStatusText(`Error: ${friendly} · ${dt} ms`);
+  setStatusText(`${friendly} · ${dt} ms`);
 }
 
 /* ====== Exportar ====== */
@@ -576,12 +635,15 @@ function printHTML(html){
 btnSend.addEventListener("click", ask);
 btnDict.addEventListener("click", toggleDict);
 btnToggleAV.addEventListener("click", ()=>{
-  if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
+  if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i, TTS.lang); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
   if(TTS.paused){ TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
   else if(TTS.speaking){ TTS.pause(); btnToggleAV.textContent="▶ Reanudar voz"; }
   else { TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
 });
-btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
+btnReplay.addEventListener("click", ()=>{ 
+  const langHint = detectLang((document.querySelector("h3+ p")?.textContent || q.value || "").trim());
+  TTS.restartFromStart(langHint); btnToggleAV.textContent="⏸ Silenciar voz";
+});
 btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
 btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunta)", {}); TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus(); });
 
