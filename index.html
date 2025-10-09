@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>12129 Asistente Lexium</title>
+<title>1236 Asistente Lexium</title>
 
-<!-- Latencia: preconnect / dns-prefetch (no cambia UI/UX) -->
+<!-- Latencia: preconnect / dns-prefetch -->
 <link rel="preconnect" href="https://lexium-gpt5-383217514425.southamerica-west1.run.app" crossorigin>
 <link rel="dns-prefetch" href="//lexium-gpt5-383217514425.southamerica-west1.run.app">
 
@@ -65,7 +65,7 @@
   /* Procesando arriba a la izquierda (mismo diseño) */
   #status { position:fixed; top:8px; left:12px; z-index:70; }
 
-  /* Overlay Historial (evita popups bloqueados) */
+  /* Overlay Historial */
   .overlay{
     display:none; position:fixed; inset:0; background:rgba(0,0,0,.25);
     z-index:80; align-items:center; justify-content:center; padding:24px;
@@ -149,6 +149,11 @@ const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app";
 const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
 
+/* === Timeouts configurables ===
+   Pon TIMEOUT_GPT_MS = 0 para esperar sin límite (como el lunes). */
+const TIMEOUT_GPT_MS = 0;      // 60s
+const TIMEOUT_FALLBACK_MS = 30000; // 30s
+
 /* ====== Warm-up del backend (no cambia UX) ====== */
 (async () => {
   try { await fetch(`${API_BASE}${FALLBACK_PATH}?q=ping`, { method: "GET" }); } catch (_) {}
@@ -180,6 +185,7 @@ function setStatusLoading(msg="Generando…"){
     <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
 }
 function clearStatus(){ statusEl.textContent = ""; }
+function setStatusText(msg=""){ statusEl.textContent = msg ? String(msg) : ""; }
 
 /* Detectar URLs y enlazarlas */
 const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
@@ -207,7 +213,7 @@ async function verifyLinks(){
   }
 }
 
-/* ====== Historial (igual) ====== */
+/* ====== Historial (igual que antes) ====== */
 function saveSession(question, data){
   const visible = (document.getElementById('out')?.textContent || "").trim();
   const summary = (data?.general || data?.answer || data?.text || data?.html || visible || "").slice(0, 2000);
@@ -240,13 +246,8 @@ function renderHistory(){
     </div>
   `).join("");
 }
-function openHistory(){
-  renderHistory();
-  histOverlay.classList.add("show");
-}
-function closeHistory(){
-  histOverlay.classList.remove("show");
-}
+function openHistory(){ renderHistory(); histOverlay.classList.add("show"); }
+function closeHistory(){ histOverlay.classList.remove("show"); }
 btnHist.addEventListener("click", openHistory);
 closeHist.addEventListener("click", closeHistory);
 histOverlay.addEventListener("click",(e)=>{ if(e.target===histOverlay) closeHistory(); });
@@ -353,7 +354,7 @@ const TTS={
     const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
     if(selectedVoice) u.voice=selectedVoice;
     u.lang=(selectedVoice?.lang)||"es-ES"; u.rate=0.98; u.pitch=1.08; u.volume=1;
-    u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.play().catch(()=>{});} };
+    u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.muted=true; vid.play().catch(()=>{});} };
     u.onend =()=>{ this.speakNext(); };
     u.onerror=()=>{ this.speakNext(); };
     this.utter=u; speechSynthesis.speak(u);
@@ -391,10 +392,7 @@ function normalizeLists(lists){
 /* ====== Render ====== */
 function renderAnswer(data, userQuestion){
   let html="";
-  // Encabezado con la pregunta
-  if (userQuestion) {
-    html += `<h3>Pregunta</h3><p>${esc(userQuestion)}</p>`;
-  }
+  if (userQuestion) { html += `<h3>Pregunta</h3><p>${esc(userQuestion)}</p>`; }
 
   const generalTxt = data.general || data.answer || data.text || "";
   if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
@@ -413,29 +411,21 @@ function renderAnswer(data, userQuestion){
     html += `</tbody></table>`;
   });
 
-  // Linkify + render
   out.innerHTML = linkifyHTML(html || "<em>Sin contenido.</em>");
-  // Verificar enlaces (best effort)
   verifyLinks();
 
-  // TTS: se enciende y dispara el video SOLO al narrar (como antes)
+  // Narrar (esto enciende/detiene el video según el botón de voz)
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 }
 
-/* ====== Helpers: timeout + fetch JSON ====== */
-async function withTimeout(factory, ms){
-  const ctrl = new AbortController();
-  const t = setTimeout(()=>ctrl.abort(), ms);
-  try { return await factory(ctrl.signal); }
-  finally { clearTimeout(t); }
-}
+/* ====== Helpers: timeout (configurable) + fetch JSON ====== */
 async function fetchJSON(url, opts = {}, signal){
   const r = await fetch(url, { ...opts, signal });
   const data = await r.json().catch(()=>({}));
   return { r, data };
 }
 
-/* ====== Backend con timeout largo y fallback solo 404/405 ====== */
+/* ====== Backend con timeout configurable y fallback solo 404/405 ====== */
 async function ask(){
   if (isBusy) return;
   const text=q.value.trim(); if(!text) return;
@@ -446,25 +436,35 @@ async function ask(){
   const t0 = performance.now();
   let mode = "gpt";
 
+  // helper local para correr con/sin timeout
+  const runWithMaybeTimeout = (factory, ms) => {
+    if (!ms || ms <= 0) return factory(); // sin timeout
+    const ctrl = new AbortController();
+    const t = setTimeout(()=>ctrl.abort(), ms);
+    return factory(ctrl.signal).finally(()=>clearTimeout(t));
+  };
+
   try{
-    // 1) endpoint principal con timeout largo (20s). No caemos a fallback por demora.
-    let res = await withTimeout(
+    // 1) /api/gpt (usa TIMEOUT_GPT_MS; si 0 => sin timeout)
+    let res = await runWithMaybeTimeout(
       (signal)=>fetchJSON(`${API_BASE}${GPT_PATH}`, {
         method:"POST",
         headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-        body: JSON.stringify({ q: text })
-      }, signal),
-      20000
+        body: JSON.stringify({ q: text }),
+        signal
+      }),
+      TIMEOUT_GPT_MS
     );
 
-    // 2) Solo si el server dice 404/405, usamos fallback GET (15s)
+    // 2) Solo si el server dice 404/405 → fallback GET (TIMEOUT_FALLBACK_MS)
     if (res.r.status === 404 || res.r.status === 405) {
       mode = "fallback";
-      res = await withTimeout(
+      res = await runWithMaybeTimeout(
         (signal)=>fetchJSON(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
-          headers:{ "Accept":"application/json" }
-        }, signal),
-        15000
+          headers:{ "Accept":"application/json" },
+          signal
+        }),
+        TIMEOUT_FALLBACK_MS
       );
     }
 
@@ -476,16 +476,19 @@ async function ask(){
     saveSession(text, data);
 
     const dt = Math.round(performance.now() - t0);
-    statusEl.innerHTML = `<span class="muted">✔ Respuesta ${mode === "gpt" ? "GPT" : "fallback"} en ${dt} ms</span>`;
+    setStatusText(`✔ Respuesta ${mode === "gpt" ? "GPT" : "fallback"} en ${dt} ms`);
   }catch(e){
     const dt = Math.round(performance.now() - t0);
-    const msg = (e?.name === "AbortError")
-      ? `⏳ Timeout en ${mode === "gpt" ? "/api/gpt (20s)" : "/api/answer (15s)"}`
+    try { TTS.stopAll(); } catch {}
+    const isAbort = (e?.name === "AbortError");
+    const msg = isAbort
+      ? `⏳ Timeout en ${mode === "gpt" ? "/api/gpt" : "/api/answer"}`
       : String(e);
     out.innerHTML = `<pre style="color:var(--err)">Error: ${esc(msg)}\n(${dt} ms)</pre>`;
     saveSession(text, {});
+    setStatusText(`Error: ${msg} · ${dt} ms`);
   }finally{
-    btnSend.disabled=false; btnSend.textContent=old; /* dejamos status para diag */
+    btnSend.disabled=false; btnSend.textContent=old;
     isBusy=false;
   }
 }
@@ -493,21 +496,17 @@ async function ask(){
 /* ====== Exportar ====== */
 function htmlToCSV(includeQuestion=true){
   const rows=[];
-  // Pregunta (si existe)
   if(includeQuestion){
     const pq = (document.querySelector("h3+ p")?.textContent || "").trim();
     if(pq) rows.push(["PREGUNTA", pq]);
   }
-  // Párrafos
   out.querySelectorAll("p").forEach(p=>{
     const t=p.textContent.trim(); if(t) rows.push(["TEXTO", t]);
   });
-  // Listas
   out.querySelectorAll("ol,ul").forEach(list=>{
     const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}`);
     if(items.length){ rows.push(["LISTA", items.join(" \\ ")]); }
   });
-  // Tablas
   out.querySelectorAll("table").forEach(tbl=>{
     const head=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
     if(head.length) rows.push(["TABLA CABECERAS", ...head]);
@@ -518,7 +517,6 @@ function htmlToCSV(includeQuestion=true){
     });
   });
 
-  // A CSV
   return rows.map(r => r.map(cell=>{
     const v = String(cell ?? "");
     if (/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`;
@@ -535,7 +533,6 @@ function download(filename, blob){
   setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
 }
 
-/* PDF sin popup extra */
 function printHTML(html){
   const iframe = document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
