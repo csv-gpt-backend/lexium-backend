@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>0701Asistente Lexium</title>
+<title>0724Asistente Lexium</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -13,10 +13,11 @@
   }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
 
+  /* ===== Cabecera fija con video e imágenes: no se mueve ni 1px ===== */
   .mediaBar{
     position:fixed; top:0; left:0; width:100vw; z-index:50;
     background:#fff; border-bottom:none; padding:0; margin:0;
-    pointer-events:none; /* Bloque fijo sin interacción */
+    pointer-events:none;
   }
   .mediaBar *{ pointer-events:none; }
   .mediaInner{max-width:var(--wrapW); margin:0 auto; padding:12px;}
@@ -26,6 +27,7 @@
   .videoBox{height:var(--heroH); margin:0;}
   .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
 
+  /* El contenido inicia bajo el header fijo */
   .contentWrap{max-width:var(--wrapW); margin:0 auto; padding:12px; padding-top:calc(var(--heroH) + 8px);}
 
   .toolbar{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:8px 0}
@@ -36,10 +38,14 @@
   .hist{position:fixed; right:14px; top:10px; z-index:60}
   .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
-  /* Textarea de 1 línea (48px) */
-  .query{width:100%; height:48px; min-height:48px; max-height:48px; resize:none; border:1px solid var(--bd); border-radius:10px; padding:10px; font-size:16px; line-height:1.4; overflow:hidden;}
+  /* ===== Textarea 1 línea ===== */
+  .query{width:100%; height:48px; min-height:48px; max-height:48px; resize:none; overflow:hidden; border:1px solid var(--bd); border-radius:10px; padding:10px; font-size:16px; line-height:1.4;}
+
   .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
   .muted{color:var(--muted); font-size:.9rem}
+
+  /* ===== Status arriba-izquierda (mismo look) ===== */
+  #status{position:fixed; top:10px; left:12px; z-index:70;}
 
   table{width:100%; border-collapse:collapse; margin:10px 0}
   th,td{border:1px solid var(--bd); padding:8px}
@@ -50,9 +56,6 @@
   .dot:nth-child(2){animation-delay:.15s}
   .dot:nth-child(3){animation-delay:.3s}
   @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
-
-  /* Status arriba-izquierda, mismo estilo .muted */
-  #status{position:fixed; top:10px; left:12px; z-index:70;}
 </style>
 </head>
 <body>
@@ -79,12 +82,11 @@
 
   <div class="contentWrap">
     <div style="margin:10px 0 6px">
-      <textarea id="q" class="query" rows="1" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
+      <textarea id="q" class="query" rows="2" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
     </div>
 
     <div class="toolbar">
-      <!-- Quitamos onclick para evitar doble-disparo -->
-      <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
+      <button id="btnSend" title="Enviar consulta al backend" onclick="ask()">Enviar</button>
       <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
       <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
       <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
@@ -102,9 +104,20 @@
     <div id="status" class="muted"></div>
   </div>
 
+  <!-- ===== Modal de historial (sin pop-up) ===== -->
+  <div id="histModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:999;">
+    <div style="background:#fff;max-width:900px;margin:40px auto;padding:16px;border-radius:12px;max-height:80vh;overflow:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
+        <h3 style="margin:0">Historial</h3>
+        <button id="histClose" style="padding:6px 10px;border:1px solid var(--bd);border-radius:8px;background:#fff;cursor:pointer">Cerrar</button>
+      </div>
+      <div id="histContent" style="margin-top:10px;font:14px system-ui"></div>
+    </div>
+  </div>
+
 <script>
 /* ====== CONFIG ====== */
-const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app"; // Cloud Run OK
+const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";
 const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
 
@@ -121,9 +134,6 @@ const btnNew = document.getElementById("btnNew");
 const btnClear = document.getElementById("btnClear");
 const selExport = document.getElementById("selExport");
 const btnHist = document.getElementById("btnHist");
-
-/* ====== Estado de sesión ====== */
-let lastQuestion = ""; // para exportar pregunta en PDF/Excel/Doc
 
 /* ====== Utilidades ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
@@ -155,23 +165,27 @@ function readSessions(){
     return [...a,...b];
   }catch(e){ return []; }
 }
+
+/* Modal de historial */
 function openHistory(){
   const all=readSessions();
-  if(!all.length){ alert("Sin historial."); return; }
-  const w=window.open("", "_blank","noopener,noreferrer");
-  const html=`<html><head><title>Historial</title>
-  <style>body{font:14px system-ui} pre{white-space:pre-wrap}</style></head><body>
-  <h2>Sesiones</h2>
-  ${all.map(s=>`
-    <details>
-      <summary><b>${new Date(s.when).toLocaleString()}</b> — ${esc(s.question)}</summary>
-      <pre>${esc(s.summary||"(sin resumen)")}</pre>
-    </details>
-  `).join("")}
-  </body></html>`;
-  if (w){ w.document.open(); w.document.write(html); w.document.close(); }
-  else { alert("No se pudo abrir la ventana del historial (bloqueada por el navegador)."); }
+  const modal=document.getElementById("histModal");
+  const box=document.getElementById("histContent");
+  if(!all.length){
+    box.innerHTML = "<em>Sin historial.</em>";
+  }else{
+    const html = all.map(s=>(
+      `<details>
+         <summary><b>${new Date(s.when).toLocaleString()}</b> — ${esc(s.question)}</summary>
+         <pre style="white-space:pre-wrap">${esc(s.summary||"(sin resumen)")}</pre>
+       </details>`
+    )).join("");
+    box.innerHTML = html;
+  }
+  modal.style.display="block";
 }
+document.getElementById("histClose")?.addEventListener("click", ()=>{ document.getElementById("histModal").style.display="none"; });
+document.getElementById("histModal")?.addEventListener("click", (e)=>{ if(e.target.id==="histModal") e.currentTarget.style.display="none"; });
 
 /* ====== Dictado ====== */
 let recognizer=null;
@@ -216,7 +230,7 @@ function chooseFemaleES(){
 function initVoice(){ selectedVoice=chooseFemaleES(); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
 
-/* === Regex bullets === */
+/* === Regex corregida (sin escapes inválidos con 'u') === */
 const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
 
 /* === Convertir texto general a lista numerada (visual) === */
@@ -235,7 +249,7 @@ function generalToOrderedListHTML(g){
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* === TTS: habla títulos, listas, tablas y números === */
+/* === TTS helpers: LEE TODO (títulos, listas, tablas con números) === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
@@ -247,21 +261,20 @@ function buildTTSTextFromOut(){
   c.querySelectorAll("p").forEach(p=>{
     const t=p.textContent.trim(); if(t) parts.push(t);
   });
-  // Listas
+  // Listas -> numeradas para voz
   c.querySelectorAll("ol,ul").forEach(list=>{
     const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
     if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); }
   });
-  // Tablas
+  // Tablas -> lee cabeceras y filas con índice
   c.querySelectorAll("table").forEach(tbl=>{
-    const rows=[...tbl.querySelectorAll("tbody tr")]; if(!rows.length) return;
-    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
+    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim()).filter(Boolean);
     if(headers.length){ parts.push(`Tabla: ${headers.join(", ")}`); }
-    const items=rows.map((tr,i)=>{
+    const rows=[...tbl.querySelectorAll("tbody tr")];
+    rows.forEach((tr,i)=>{
       const cols=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim()).filter(Boolean);
-      return `${i+1}. ${cols.join(" | ")}.`;
-    }).filter(Boolean).join("\n");
-    if(items) parts.push(items);
+      if(cols.length) parts.push(`${i+1}. ${cols.join(" | ")}.`);
+    });
   });
   const fallback=(out.textContent||"").trim();
   return parts.join("\n\n") || fallback;
@@ -316,7 +329,7 @@ function normalizeLists(lists){
   });
 }
 
-/* ====== Linkify + Verificación ====== */
+/* ====== Linkificación + verificación suave ====== */
 function findUrls(str){
   const re = /\bhttps?:\/\/[^\s<>"']+/g; const m = str.match(re); return m||[];
 }
@@ -334,7 +347,7 @@ async function validateLinksInOut(){
   }
   out.innerHTML = linked;
 
-  // validate (HEAD). Si falla CORS, se ignora y queda clicable.
+  // validate (HEAD). Si CORS bloquea, omitimos el warning.
   for(const u of urls){
     try{
       await fetch(u, { method:"HEAD", mode:"no-cors" });
@@ -345,109 +358,69 @@ async function validateLinksInOut(){
   }
 }
 
-/* ====== Helpers de tablas ====== */
-function isIndexHeader(h){
-  const x = (h||"").toString().trim().toUpperCase();
-  return ["#","N","NO","Nº","N°"].includes(x);
-}
-
-/* ====== Render (sin duplicar listas si hay tablas) ====== */
+/* ====== Render ====== */
 function renderAnswer(data){
   let html="";
   const generalTxt = data.general || data.answer || data.text || "";
   if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
 
-  const tables = Array.isArray(data.tables) ? data.tables : [];
-  const lists  = Array.isArray(data.lists)  ? normalizeLists(data.lists) : [];
+  const lists=normalizeLists(data.lists||[]);
+  lists.forEach(l=>{
+    html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
+  });
 
-  // Si hay tablas, NO renderizamos lists para evitar duplicación visual
-  if(!tables.length && lists.length){
-    lists.forEach(l=>{
-      html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
-    });
-  }
-
-  tables.forEach(t=>{
+  (data.tables||[]).forEach(t=>{
     const cols=t.columns||[]; const rows=t.rows||[];
-    const firstIsIndex = cols.length && isIndexHeader(cols[0]);
     html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
     html += cols.map(c=>`<th>${esc(c)}</th>`).join("");
     html += `</tr></thead><tbody>`;
-    rows.forEach((r,i)=>{
-      const cells = r.map((x,j)=>{
-        if(firstIsIndex && j===0) return `${i+1}`; // numeración estable
-        return esc(x);
-      });
-      html += `<tr>` + cells.map(x=>`<td>${x}</td>`).join("") + `</tr>`;
-    });
+    rows.forEach(r=>{ html += `<tr>` + r.map(x=>`<td>${esc(x)}</td>`).join("") + `</tr>`; });
     html += `</tbody></table>`;
   });
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
-  // Evitar pisar TTS; hablar TODO (títulos, listas, tablas)
-  TTS.stopAll();
+  // Hablar TODO
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 
-  // Enlaces clicables + validación
+  // Linkificación + verificación
   validateLinksInOut();
 }
 
-/* ====== Backend: GET primero (sin CORS), luego POST opcional ====== */
+/* ====== Backend ====== */
 async function ask(){
-  if (btnSend._busy) return;          // candado anti-doble-disparo
-  btnSend._busy = true;
-
-  const text=q.value.trim(); 
-  if(!text){ btnSend._busy=false; return; }
-
-  lastQuestion = text;                // guardar pregunta para export
-  btnSend.disabled=true; 
-  const old=btnSend.textContent; 
-  btnSend.textContent="Enviando…";
+  const text=q.value.trim(); if(!text) return;
+  btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
   setStatusLoading("Consultando…");
-
-  const ctrl = new AbortController();
-  const tmr = setTimeout(()=>ctrl.abort("timeout"), 15000);
-
   try{
-    // 1) PRIMERO: GET /api/answer (sin preflight, evita "Failed to fetch")
-    let r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, {
-      method:"GET", signal: ctrl.signal
+    let r = await fetch(`${API_BASE}${GPT_PATH}`, {
+      method:"POST", headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({ q: text })
     });
-
-    // 2) Si el GET no responde OK, intenta POST a /api/gpt
-    if (!r.ok) {
-      r = await fetch(`${API_BASE}${GPT_PATH}`, {
-        method:"POST",
-        headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-        body: JSON.stringify({ q: text }),
-        signal: ctrl.signal
-      });
+    if(r.status===404 || r.status===405){
+      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, { headers:{ "Accept":"application/json" } });
     }
-
     const data = await r.json().catch(()=>({}));
     if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
-
     renderAnswer(data);
     saveSession(text, data);
-
   }catch(e){
-    const why = (e && e.message) ? e.message : String(e);
-    out.innerHTML = `<pre style="color:var(--err)">No se pudo conectar con el servicio.\n\nDetalle: ${esc(why)}\n\nVerifica que ${esc(API_BASE)} esté accesible y que /api/healthz responde "ok".</pre>`;
+    out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
     saveSession(text, {});
   }finally{
-    clearTimeout(tmr);
-    btnSend.disabled=false; 
-    btnSend.textContent=old; 
-    clearStatus();
-    btnSend._busy = false;
+    btnSend.disabled=false; btnSend.textContent=old; clearStatus();
   }
 }
 
-/* ====== Exportar: PDF incluye la PREGUNTA ====== */
+/* ====== Exportar: PDF/XLS/DOC incluyendo la PREGUNTA ====== */
+let __lastQuestion = "";
+// Capturamos la pregunta justo ANTES del envío (no toca tu ask())
+document.getElementById("btnSend")?.addEventListener("click", ()=>{
+  if(q) __lastQuestion = (q.value||"").trim();
+}, {capture:true});
+
 function wrapForExport(bodyHTML){
-  const qHtml = lastQuestion ? `<h2>Pregunta</h2><p>${esc(lastQuestion)}</p>` : "";
+  const qHtml = __lastQuestion ? `<h2>Pregunta</h2><p>${esc(__lastQuestion)}</p>` : "";
   return `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export</title>
     <style>
       body{font:16px/1.5 system-ui;margin:28px;color:#111}
@@ -457,6 +430,7 @@ function wrapForExport(bodyHTML){
     </style>
     </head><body>${qHtml}${bodyHTML}</body></html>`;
 }
+
 function printHTML(html){
   const iframe = document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
