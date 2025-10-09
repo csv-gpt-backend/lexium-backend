@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>1345 Asistente Lexium</title>
+<title>1410 Asistente Lexium</title>
 
 <!-- Latencia: preconnect / dns-prefetch -->
 <link rel="preconnect" href="https://lexium-gpt5-383217514425.southamerica-west1.run.app" crossorigin>
@@ -185,11 +185,11 @@ const histBody = document.getElementById("histBody");
 const closeHist = document.getElementById("closeHist");
 
 let isBusy = false;
-let currentAbortCtrl = null;       // ← para Cancelar
-let jobPollAbort = false;          // ← corta el polling
+let currentAbortCtrl = null;       // para Cancelar
+let jobPollAbort = false;          // corta el polling
 
 /* ====== Utils ====== */
-function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;","—":"&mdash;","»":"&raquo;","«":"&laquo;","’":"&rsquo;","“":"&ldquo;","”":"&rdquo;",">":"&gt;"}[m]||m)); }
+function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
 function setStatusLoading(msg="Generando…"){
   statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
     <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
@@ -197,12 +197,12 @@ function setStatusLoading(msg="Generando…"){
 function clearStatus(){ statusEl.textContent = ""; }
 function setStatusText(msg=""){ statusEl.textContent = msg ? String(msg) : ""; }
 
-/* Detectar idioma (ES/EN) */
+/* Detectar idioma (ES/EN) agresivo */
 function detectLang(text){
   const t=(text||"").trim().toLowerCase();
   if(!t) return (navigator.language||"es").startsWith("en") ? "en":"es";
-  const enHits=(t.match(/\b(the|and|you|for|with|from|to|of|in|on|are|is|please|could|would)\b/g)||[]).length;
-  const esHits=(t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por favor|podría|sería)\b/g)||[]).length;
+  const enHits=(t.match(/\b(the|and|you|your|please|could|would|with|from|to|of|in|on|are|is|can|help|explain|summary)\b/g)||[]).length;
+  const esHits=(t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por favor|podría|sería|ayuda|explica|resumen)\b/g)||[]).length;
   if(enHits>esHits) return "en";
   if(esHits>enHits) return "es";
   const nonASCII=(t.match(/[^\x00-\x7F]/g)||[]).length;
@@ -269,7 +269,7 @@ btnHist.addEventListener("click", openHistory);
 closeHist.addEventListener("click", closeHistoryOverlay);
 histOverlay.addEventListener("click",(e)=>{ if(e.target===histOverlay) closeHistoryOverlay(); });
 
-// Delegación robusta: “Ver”
+// Delegación robusta: “Ver” → muestra sin tocar audio
 histBody.addEventListener("click",(e)=>{
   const btn = e.target.closest(".viewBtn");
   if(!btn) return;
@@ -277,10 +277,11 @@ histBody.addEventListener("click",(e)=>{
   const match = readSessions().find(x=>x.id===id);
   if(match){
     out.innerHTML = match.html || "<em>Vacío</em>";
+    out.scrollTop = 0;
     clearStatus();
-    // No iniciar narración automáticamente
+    // NO iniciar/pausar voz automáticamente
     try{ TTS.stopAll(); }catch(_){}
-    TTS.enabled=false; TTS.loadFromOut();
+    TTS.enabled=false; TTS.loadFromOut(); // listo pero silencioso
     closeHistoryOverlay();
   }
 });
@@ -358,6 +359,27 @@ function buildTTSTextFromOut(){
   return (parts.join("\n\n") || fallback).trim();
 }
 
+/* ====== Corrección de tildes comunes en español (solo TTS) ====== */
+function fixSpanishDiacritics(s){
+  if(!s) return s;
+  const repl = [
+    [/\bdecimo(s|a|as)?\b/gi, (m)=>m.replace(/decimo/i,'décimo')],
+    [/\bseptimo(s|a|as)?\b/gi, (m)=>m.replace(/septimo/i,'séptimo')],
+    [/\bundecimo(s|a|as)?\b/gi, (m)=>m.replace(/undecimo/i,'undécimo')],
+    [/\bultimo(s|a|as)?\b/gi, (m)=>m.replace(/ultimo/i,'último')],
+    [/\bpenultimo(s|a|as)?\b/gi, (m)=>m.replace(/penultimo/i,'penúltimo')],
+    [/\bproximo(s|a|as)?\b/gi, (m)=>m.replace(/proximo/i,'próximo')],
+    [/\bnumero(s)?\b/gi, (m)=>m.replace(/numero/i,'número')],
+    [/\bmedico(s|a|as)?\b/gi, (m)=>m.replace(/medico/i,'médico')],
+    [/\btecnico(s|a|as)?\b/gi, (m)=>m.replace(/tecnico/i,'técnico')],
+    [/\blogico(s|a|as)?\b/gi, (m)=>m.replace(/logico/i,'lógico')],
+    [/\bacademico(s|a|as)?\b/gi, (m)=>m.replace(/academico/i,'académico')],
+  ];
+  let out=s;
+  for(const [re,fn] of repl) out=out.replace(re,fn);
+  return out;
+}
+
 /* ====== TTS + Video ====== */
 const TTS={
   enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"", lang:"es",
@@ -367,7 +389,13 @@ const TTS={
       if((buf+seg).length<=maxLen) buf+=seg; else{ if(buf.trim()) res.push(buf.trim()); buf=seg; } }
     if(buf.trim()) res.push(buf.trim()); return res;
   },
-  loadFromOut(){ this.textCache=buildTTSTextFromOut(); this.chunks=this.makeChunks(this.textCache); this.i=0; },
+  loadFromOut(){
+    let t = buildTTSTextFromOut();
+    if ((this.lang||"es").startsWith("es")) t = fixSpanishDiacritics(t);
+    this.textCache = t;
+    this.chunks = this.makeChunks(this.textCache);
+    this.i = 0;
+  },
   speakNext(){
     if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
     const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
@@ -489,7 +517,7 @@ async function pollJob(jobId, startedAt, langHint){
   throw new Error("Tiempo de espera de job excedido");
 }
 
-/* ====== ASK (con Cancelar + idioma + reintento + fallback + job) ====== */
+/* ====== ASK (Cancelar + idioma fuerte + reintento + fallback + job) ====== */
 async function ask(){
   if (isBusy) return;
   const text=q.value.trim(); if(!text) return;
@@ -508,13 +536,22 @@ async function ask(){
   const commonHeaders = {
     "Content-Type":"application/json",
     "Accept":"application/json",
-    "Accept-Language": langHint === "en" ? "en,en-US;q=0.9" : "es,es-ES;q=0.9"
+    "Accept-Language": langHint === "en" ? "en-US,en;q=0.9" : "es-ES,es;q=0.9",
+    "X-Force-Language": langHint,                 // señal custom fuerte
+    "Prefer": `respond-language=${langHint}`      // pista semántica adicional
   };
 
   const doGpt = (signal) => fetchJSON(`${API_BASE}${GPT_PATH}`, {
     method:"POST",
     headers: commonHeaders,
-    body: JSON.stringify({ q: text, lang: langHint, force_lang: true }),
+    body: JSON.stringify({
+      q: text,
+      lang: langHint,
+      force_lang: true,
+      system_hint: langHint === "en"
+        ? "Answer strictly in English. Do not include Spanish."
+        : "Responde estrictamente en español. No incluyas inglés."
+    }),
     signal
   });
 
@@ -532,11 +569,16 @@ async function ask(){
       return;
     }
 
-    // 1.b) fallback si 404/405
+    // 1.b) fallback si 404/405 → también con señales fuertes
     if (res.r.status === 404 || res.r.status === 405) {
       mode="fallback";
       const doFallback = (signal)=>fetchJSON(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}&lang=${langHint}&force_lang=1`, {
-        headers: { "Accept":"application/json", "Accept-Language": commonHeaders["Accept-Language"] },
+        headers: {
+          "Accept":"application/json",
+          "Accept-Language": commonHeaders["Accept-Language"],
+          "X-Force-Language": langHint,
+          "Prefer": `respond-language=${langHint}`
+        },
         signal
       });
       res = await runWithMaybeTimeout(doFallback, TIMEOUT_FALLBACK_MS, currentAbortCtrl.signal);
@@ -551,7 +593,6 @@ async function ask(){
     const dt = Math.round(performance.now() - t0);
     setStatusText(`✔ ${mode==="gpt"?"GPT":"fallback"} · ${dt} ms`);
   }catch(e1){
-    // Reintento si fue corte/timeout
     const e1Msg = String(e1||"");
     const aborted = (e1?.name==="AbortError") || /Failed to fetch/i.test(e1Msg);
     if (aborted && !currentAbortCtrl.signal.aborted){
