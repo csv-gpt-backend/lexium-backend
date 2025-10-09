@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>GSSAsistente Lexium</title>
+<title>0754 Asistente Lexium</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -13,7 +13,6 @@
   }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
 
-  /* ===== Cabecera fija con video e imágenes: no se mueve ni 1px ===== */
   .mediaBar{
     position:fixed; top:0; left:0; width:100vw; z-index:50;
     background:#fff; border-bottom:none; padding:0; margin:0;
@@ -27,7 +26,6 @@
   .videoBox{height:var(--heroH); margin:0;}
   .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
 
-  /* El contenido inicia bajo el header fijo */
   .contentWrap{max-width:var(--wrapW); margin:0 auto; padding:12px; padding-top:calc(var(--heroH) + 8px);}
 
   .toolbar{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:8px 0}
@@ -38,14 +36,15 @@
   .hist{position:fixed; right:14px; top:10px; z-index:60}
   .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
-  /* ===== Textarea 1 línea ===== */
-  .query{width:100%; height:48px; min-height:48px; max-height:48px; resize:none; overflow:hidden; border:1px solid var(--bd); border-radius:10px; padding:10px; font-size:16px; line-height:1.4;}
+  /* 1 línea exacta */
+  .query{
+    width:100%; height:40px; min-height:40px; max-height:40px;
+    resize:none; border:1px solid var(--bd); border-radius:10px;
+    padding:10px; font-size:16px; line-height:20px; overflow:hidden;
+  }
 
   .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
   .muted{color:var(--muted); font-size:.9rem}
-
-  /* ===== Status arriba-izquierda (mismo look) ===== */
-  #status{position:fixed; top:10px; left:12px; z-index:70;}
 
   table{width:100%; border-collapse:collapse; margin:10px 0}
   th,td{border:1px solid var(--bd); padding:8px}
@@ -56,6 +55,13 @@
   .dot:nth-child(2){animation-delay:.15s}
   .dot:nth-child(3){animation-delay:.3s}
   @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
+
+  /* Status arriba a la izquierda, mismo estilo */
+  #status{
+    position:fixed;
+    top:10px; left:12px; z-index:70;
+    background:transparent;
+  }
 </style>
 </head>
 <body>
@@ -82,11 +88,12 @@
 
   <div class="contentWrap">
     <div style="margin:10px 0 6px">
-      <textarea id="q" class="query" rows="2" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
+      <textarea id="q" class="query" rows="1" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
     </div>
 
     <div class="toolbar">
-      <button id="btnSend" title="Enviar consulta al backend" onclick="ask()">Enviar</button>
+      <!-- Se QUITA onclick para evitar doble disparo -->
+      <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
       <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
       <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
       <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
@@ -102,17 +109,6 @@
 
     <div id="out" class="out" aria-live="polite"></div>
     <div id="status" class="muted"></div>
-  </div>
-
-  <!-- ===== Modal de historial (sin pop-up) ===== -->
-  <div id="histModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:999;">
-    <div style="background:#fff;max-width:900px;margin:40px auto;padding:16px;border-radius:12px;max-height:80vh;overflow:auto;">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px">
-        <h3 style="margin:0">Historial</h3>
-        <button id="histClose" style="padding:6px 10px;border:1px solid var(--bd);border-radius:8px;background:#fff;cursor:pointer">Cerrar</button>
-      </div>
-      <div id="histContent" style="margin-top:10px;font:14px system-ui"></div>
-    </div>
   </div>
 
 <script>
@@ -165,27 +161,23 @@ function readSessions(){
     return [...a,...b];
   }catch(e){ return []; }
 }
-
-/* Modal de historial */
 function openHistory(){
   const all=readSessions();
-  const modal=document.getElementById("histModal");
-  const box=document.getElementById("histContent");
-  if(!all.length){
-    box.innerHTML = "<em>Sin historial.</em>";
-  }else{
-    const html = all.map(s=>(
-      `<details>
-         <summary><b>${new Date(s.when).toLocaleString()}</b> — ${esc(s.question)}</summary>
-         <pre style="white-space:pre-wrap">${esc(s.summary||"(sin resumen)")}</pre>
-       </details>`
-    )).join("");
-    box.innerHTML = html;
-  }
-  modal.style.display="block";
+  if(!all.length){ alert("Sin historial."); return; }
+  const w=window.open("", "_blank","noopener,noreferrer");
+  const html=`<html><head><title>Historial</title>
+  <style>body{font:14px system-ui} pre{white-space:pre-wrap}</style></head><body>
+  <h2>Sesiones</h2>
+  ${all.map(s=>`
+    <details>
+      <summary><b>${new Date(s.when).toLocaleString()}</b> — ${esc(s.question)}</summary>
+      <pre>${esc(s.summary||"(sin resumen)")}</pre>
+    </details>
+  `).join("")}
+  </body></html>`;
+  if (w){ w.document.open(); w.document.write(html); w.document.close(); }
+  else { alert("No se pudo abrir la ventana del historial (bloqueada por el navegador)."); }
 }
-document.getElementById("histClose")?.addEventListener("click", ()=>{ document.getElementById("histModal").style.display="none"; });
-document.getElementById("histModal")?.addEventListener("click", (e)=>{ if(e.target.id==="histModal") e.currentTarget.style.display="none"; });
 
 /* ====== Dictado ====== */
 let recognizer=null;
@@ -203,7 +195,7 @@ function toggleDict(){
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado";}
 }
 
-/* ====== Voz femenina + TTS ====== */
+/* ====== Voz (TTS) ====== */
 const PREFERRED_NAMES=[
   "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
   "Google español","Google español de Estados","Google US Español",
@@ -214,8 +206,7 @@ const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","e
 let selectedVoice=null;
 function scoreVoice(v){
   const name=(v.name||"").toLowerCase(), lang=(v.lang||"").toLowerCase();
-  let s=0;
-  if (SP_LANGS.some(l=>lang.startsWith(l.toLowerCase()))) s+=5;
+  let s=0; if (SP_LANGS.some(l=>lang.startsWith(l))) s+=5;
   if (PREFERRED_NAMES.some(n=>name.includes(n.toLowerCase()))) s+=6;
   if (name.includes("female")||name.includes("femenina")||name.includes("mujer")) s+=4;
   if (name.includes("google")) s+=2; if (name.includes("microsoft")) s+=2;
@@ -230,18 +221,16 @@ function chooseFemaleES(){
 function initVoice(){ selectedVoice=chooseFemaleES(); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
 
-/* === Regex corregida (sin escapes inválidos con 'u') === */
+/* === Regex bullets === */
 const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
 
-/* === Convertir texto general a lista numerada (visual) === */
+/* === Numeración visual del texto general (sin tocar diseño) === */
 function generalToOrderedListHTML(g){
   if (!g) return "";
   const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const bulletLike = lines.filter(s=>BULLET_RE.test(s)).length;
-
   const manyPlainLines = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length;
   const shouldNumber = (lines.length>=3) && (bulletLike>0 || manyPlainLines >= Math.ceil(lines.length*0.6));
-
   if (shouldNumber) {
     const items = lines.map(s=>s.replace(BULLET_RE,"")).filter(Boolean);
     return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
@@ -249,11 +238,11 @@ function generalToOrderedListHTML(g){
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* === TTS helpers: LEE TODO (títulos, listas, tablas con números) === */
+/* === TTS: construir texto con TODO (títulos, listas y tablas con números) === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
-  // Títulos
+  // Títulos (h1..h4 y h3 que usas)
   c.querySelectorAll("h1,h2,h3,h4").forEach(h=>{
     const t=h.textContent.trim(); if(t) parts.push(t);
   });
@@ -261,20 +250,21 @@ function buildTTSTextFromOut(){
   c.querySelectorAll("p").forEach(p=>{
     const t=p.textContent.trim(); if(t) parts.push(t);
   });
-  // Listas -> numeradas para voz
+  // Listas
   c.querySelectorAll("ol,ul").forEach(list=>{
-    const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
-    if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); }
+    const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}`).filter(Boolean);
+    if(items.length) parts.push(items.join("\n"));
   });
-  // Tablas -> lee cabeceras y filas con índice
+  // Tablas (lee encabezados y filas con numeración)
   c.querySelectorAll("table").forEach(tbl=>{
+    const title = tbl.previousElementSibling && /^H\d$/i.test(tbl.previousElementSibling.tagName) ? tbl.previousElementSibling.textContent.trim() : "Tabla";
     const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim()).filter(Boolean);
-    if(headers.length){ parts.push(`Tabla: ${headers.join(", ")}`); }
-    const rows=[...tbl.querySelectorAll("tbody tr")];
-    rows.forEach((tr,i)=>{
-      const cols=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim()).filter(Boolean);
-      if(cols.length) parts.push(`${i+1}. ${cols.join(" | ")}.`);
+    const rows=[...tbl.querySelectorAll("tbody tr")].map((tr,i)=>{
+      const cols=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
+      return `${i+1}. ${cols.join(", ")}`;
     });
+    const block = [title, headers.length? ("Encabezados: "+headers.join(", ")): "", ...rows].filter(Boolean).join("\n");
+    if(block) parts.push(block);
   });
   const fallback=(out.textContent||"").trim();
   return parts.join("\n\n") || fallback;
@@ -329,32 +319,46 @@ function normalizeLists(lists){
   });
 }
 
-/* ====== Linkificación + verificación suave ====== */
-function findUrls(str){
-  const re = /\bhttps?:\/\/[^\s<>"']+/g; const m = str.match(re); return m||[];
-}
-async function validateLinksInOut(){
-  const html = out.innerHTML;
-  const urls = findUrls(html);
-  if(!urls.length) return;
-
-  // linkify
-  let linked = html;
-  for(const u of urls){
-    const safe = esc(u);
-    const a = `<a href="${safe}" target="_blank" rel="noopener noreferrer">${safe}</a>`;
-    linked = linked.replaceAll(safe, a);
-  }
-  out.innerHTML = linked;
-
-  // validate (HEAD). Si CORS bloquea, omitimos el warning.
-  for(const u of urls){
-    try{
-      await fetch(u, { method:"HEAD", mode:"no-cors" });
-    }catch{
-      const links = out.querySelectorAll(`a[href="${u}"]`);
-      links.forEach(a=>{ a.textContent = a.textContent + " ⚠️"; a.style.opacity = "0.85"; });
+/* ====== Enlaces: detectar, enlazar y verificar (best-effort) ====== */
+function linkifyAndVerify(container){
+  // Detectar URLs en texto y convertir en <a>
+  const URL_RE = /https?:\/\/[^\s)]+/g;
+  function wrapTextNodes(node){
+    if(node.nodeType===Node.TEXT_NODE){
+      const txt=node.nodeValue;
+      if(URL_RE.test(txt)){
+        const frag=document.createDocumentFragment();
+        let lastIndex=0; URL_RE.lastIndex=0;
+        let m; while((m=URL_RE.exec(txt))){
+          const before=txt.slice(lastIndex,m.index); if(before) frag.appendChild(document.createTextNode(before));
+          const a=document.createElement("a");
+          a.href=m[0]; a.textContent=m[0]; a.target="_blank"; a.rel="noopener noreferrer";
+          a.dataset.linkStatus="checking";
+          const badge=document.createElement("small"); badge.style.marginLeft="6px"; badge.textContent="(verificando…)";
+          const span=document.createElement("span"); span.appendChild(a); span.appendChild(badge);
+          frag.appendChild(span);
+          verifyLink(a, badge); // async
+          lastIndex=URL_RE.lastIndex;
+        }
+        const rest=txt.slice(lastIndex); if(rest) frag.appendChild(document.createTextNode(rest));
+        node.parentNode.replaceChild(frag,node);
+      }
+    }else if(node.nodeType===Node.ELEMENT_NODE){
+      [...node.childNodes].forEach(wrapTextNodes);
     }
+  }
+  wrapTextNodes(container);
+}
+
+// Intento de verificación
+async function verifyLink(a, badge){
+  try{
+    const resp = await fetch(a.href, { method:"HEAD", mode:"no-cors" });
+    // En no-cors no hay status legible: marcamos como desconocido
+    if (!resp || resp.type==="opaque"){ badge.textContent="(estado desconocido)"; return; }
+    badge.textContent = resp.ok ? "(verificado)" : "(no accesible)";
+  }catch{
+    badge.textContent="(no accesible)";
   }
 }
 
@@ -380,18 +384,26 @@ function renderAnswer(data){
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
-  // Hablar TODO
-  TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
+  // Linkificar y (best-effort) verificar
+  linkifyAndVerify(out);
 
-  // Linkificación + verificación
-  validateLinksInOut();
+  // TTS
+  TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 }
 
 /* ====== Backend ====== */
+let inFlight = false;
+let lastQuestion = ""; // para exportar
+
 async function ask(){
   const text=q.value.trim(); if(!text) return;
+  if(inFlight) return; // evita doble disparo
+  inFlight = true;
+
   btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
   setStatusLoading("Consultando…");
+  lastQuestion = text;
+
   try{
     let r = await fetch(`${API_BASE}${GPT_PATH}`, {
       method:"POST", headers:{ "Content-Type":"application/json", "Accept":"application/json" },
@@ -408,29 +420,11 @@ async function ask(){
     out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
     saveSession(text, {});
   }finally{
-    btnSend.disabled=false; btnSend.textContent=old; clearStatus();
+    btnSend.disabled=false; btnSend.textContent=old; clearStatus(); inFlight=false;
   }
 }
 
-/* ====== Exportar: PDF/XLS/DOC incluyendo la PREGUNTA ====== */
-let __lastQuestion = "";
-// Capturamos la pregunta justo ANTES del envío (no toca tu ask())
-document.getElementById("btnSend")?.addEventListener("click", ()=>{
-  if(q) __lastQuestion = (q.value||"").trim();
-}, {capture:true});
-
-function wrapForExport(bodyHTML){
-  const qHtml = __lastQuestion ? `<h2>Pregunta</h2><p>${esc(__lastQuestion)}</p>` : "";
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export</title>
-    <style>
-      body{font:16px/1.5 system-ui;margin:28px;color:#111}
-      h1,h2,h3{margin:12px 0 6px}
-      table{border-collapse:collapse;width:100%; margin:8px 0}
-      td,th{border:1px solid #ddd;padding:6px}
-    </style>
-    </head><body>${qHtml}${bodyHTML}</body></html>`;
-}
-
+/* ====== Exportar: PDF con pregunta incluida ====== */
 function printHTML(html){
   const iframe = document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
@@ -442,19 +436,30 @@ function printHTML(html){
   setTimeout(()=>{ try{ (iframe.contentWindow || iframe).focus(); (iframe.contentWindow || iframe).print(); }catch{} }, 60);
   setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
 }
+
 selExport.addEventListener("change", ()=>{
   const v=selExport.value; selExport.value="";
   if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
-
-  const htmlDoc = wrapForExport(out.innerHTML);
-
+  const pregunta = esc(lastQuestion || q.value.trim() || "(sin pregunta)");
   if(v==="pdf"){
-    try{ printHTML(htmlDoc); }
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
+      <style>
+        body{font:16px/1.5 system-ui;margin:28px;color:#111}
+        h1{margin:0 0 8px 0;font-size:18px}
+        .qbox{padding:10px;border:1px solid #ddd;border-radius:8px;background:#fafafa;margin-bottom:12px}
+        table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}
+      </style>
+      </head><body>
+        <h1>Pregunta</h1>
+        <div class="qbox">${pregunta}</div>
+        ${out.innerHTML}
+      </body></html>`;
+    try{ printHTML(html); }
     catch(_){
       const w=window.open("", "_blank", "noopener,noreferrer");
-      if(w){ w.document.open(); w.document.write(htmlDoc); w.document.close(); w.focus(); w.print(); }
+      if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
       else{
-        const blob=new Blob([htmlDoc],{type:"text/html"});
+        const blob=new Blob([html],{type:"text/html"});
         const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="lexium_export.html"; a.click();
         setTimeout(()=>URL.revokeObjectURL(a.href),500);
       }
@@ -463,13 +468,13 @@ selExport.addEventListener("change", ()=>{
   }
   if(v==="xls"||v==="doc"){
     const mime = v==="xls" ? "application/vnd.ms-excel" : "application/msword";
-    const blob=new Blob([htmlDoc],{type:mime});
+    const blob=new Blob([`<html><body><h2>Pregunta</h2><p>${pregunta}</p>${out.innerHTML}</body></html>`],{type:mime});
     const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`export.${v}`; a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),500);
   }
 });
 
-/* ====== Botones ====== */
+/* ====== Botones / Hotkeys ====== */
 try { btnSend.addEventListener("click", ask); btnSend._wired = true; } catch {}
 btnDict.addEventListener("click", toggleDict);
 btnToggleAV.addEventListener("click", ()=>{
@@ -496,5 +501,3 @@ window.addEventListener("error", (e)=>{
 </script>
 </body>
 </html>
-
-
