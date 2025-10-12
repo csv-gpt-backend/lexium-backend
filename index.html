@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>domingo 1627  Asistente Lexium</title>
+<title>domingo 1716  Asistente Lexium</title>
 
 <!-- Latencia: preconnect / dns-prefetch -->
 <link rel="preconnect" href="https://lexium-gpt5-383217514425.southamerica-west1.run.app" crossorigin>
@@ -157,9 +157,9 @@ const GPT_PATH = "/api/gpt";
 const STATUS_PATH = "/api/gpt/status";   // si tu server lo soporta
 const FALLBACK_PATH = "/api/answer";
 
-/* Timeouts + reintento (evita “Failed to fetch” del navegador) */
-const TIMEOUT_GPT_MS = 125000;      // *** SUBIDO a 125s para no cortar antes de Cloud Run (~120s)
-const TIMEOUT_FALLBACK_MS = 20000;  // 20s (rápido)
+/* Timeouts + reintento (controlados) */
+const TIMEOUT_GPT_MS = 125000;      // 125s: mayor que el límite ~120s de Cloud Run → el cliente NO corta antes
+const TIMEOUT_FALLBACK_MS = 20000;  // 20s
 const JOB_POLL_MAX_MS = 10*60*1000;  // 10 min
 const JOB_POLL_INTERVAL_MS = 2500;   // 2.5s
 
@@ -515,7 +515,7 @@ async function forceTranslateText(text, target, headers, abortSignal){
     lang: target,
     force_lang: true,
     system_hint: sys,
-    mode: "tools" // mantener coherencia: aunque no aplica, enviamos la clave
+    mode: "tools" // coherencia con el backend; no afecta si no aplica
   };
   const { r, data } = await fetchJSON(`${API_BASE}${GPT_PATH}`, {
     method: "POST",
@@ -558,7 +558,7 @@ async function pollJob(jobId, startedAt, langHint){
   throw new Error("Tiempo de espera de job excedido");
 }
 
-/* ====== ASK (Cancelar + idioma fuerte + corrección/ traducción + reintento + fallback + job) ====== */
+/* ====== ASK (con retry controlado y tools forzadas) ====== */
 async function ask(){
   if (isBusy) return;
   const text=q.value.trim(); if(!text) return;
@@ -592,7 +592,7 @@ async function ask(){
       system_hint: langHint === "en"
         ? "Answer strictly in English. Do not include Spanish."
         : "Responde estrictamente en español. No incluyas inglés.",
-      mode: "tools" // *** FORZAR TOOLS PARA CÁLCULO REAL CON CSV ***
+      mode: "tools" // *** OBLIGA A USAR TOOLS Y CALCULAR CON TU CSV ***
     }),
     signal
   });
@@ -646,13 +646,19 @@ async function ask(){
     saveSession(text, finalData);
     const dt = Math.round(performance.now() - t0);
     setStatusText(`✔ ${mode==="gpt"?"GPT":"fallback"} · ${dt} ms`);
-  }catch(e1){
-    const e1Msg = String(e1||"");
-    const aborted = (e1?.name==="AbortError") || /Failed to fetch/i.test(e1Msg);
-    if (aborted && !currentAbortCtrl.signal.aborted){
-      try{
+  } catch (e1) {
+    const e1Msg = String(e1 || "");
+    const elapsed = performance.now() - t0;
+    const isAbort = (e1?.name === "AbortError");
+    const isFetchInterrupt = /Failed to fetch/i.test(e1Msg);
+
+    // 🔒 Si ya pasaron >115s, NO reintentes: evita llegar a ~240s
+    const canRetryFast = (elapsed < 115000) && isFetchInterrupt && !currentAbortCtrl?.signal?.aborted;
+
+    if (canRetryFast) {
+      try {
         const res2 = await runWithMaybeTimeout(doGpt, TIMEOUT_GPT_MS, currentAbortCtrl.signal);
-        if (res2.r.status === 202 || (res2.data && res2.data.job_id)){
+        if (res2.r.status === 202 || (res2.data && res2.data.job_id)) {
           const jobId = res2.data.job_id || res2.data.id || res2.data.jobId;
           setStatusText((langHint==="en"?"Queued. Tracking job ":"En cola. Seguimiento del job ") + jobId);
           await pollJob(jobId, Date.now(), langHint);
@@ -661,10 +667,10 @@ async function ask(){
           return;
         }
         if(!res2.r.ok) throw new Error(res2.data?.error || `HTTP ${res2.r.status}`);
+
         let data2 = res2.data || {};
         if(data2.ok===false) throw new Error(data2.error || data2.general || "Error");
 
-        // Ajuste de idioma para el reintento
         let finalData2 = data2;
         try {
           const rawText = (data2.general || data2.answer || data2.text || "");
@@ -678,10 +684,11 @@ async function ask(){
         const dt2 = Math.round(performance.now() - t0);
         setStatusText(`✔ GPT (retry) · ${dt2} ms`);
         return;
-      }catch(e2){
+      } catch(e2) {
         handleAskError(e2, t0, mode, langHint);
       }
     } else {
+      // No retry (o abort explícito): reporta y termina
       handleAskError(e1, t0, mode, langHint);
     }
   } finally {
@@ -696,8 +703,8 @@ function handleAskError(err, t0, mode, langHint){
   try{ TTS.stopAll(); }catch(_){}
   const isAbort = (err?.name==="AbortError") || /Cancelado por el usuario/.test(String(err));
   let friendly;
-  if (isAbort) friendly = langHint==="en" ? "Tiempo agotado del cliente (AbortController)" : "Tiempo agotado del cliente (AbortController)";
-  else if (/Failed to fetch/i.test(String(err))) friendly = langHint==="en" ? "Connection interrupted by browser or proxy" : "Conexión interrumpida por el navegador o proxy";
+  if (isAbort) friendly = "Tiempo agotado del cliente (AbortController)";
+  else if (/Failed to fetch/i.test(String(err))) friendly = "Conexión interrumpida por el navegador o proxy";
   else friendly = String(err);
   out.innerHTML = `<pre style="color:var(--err)">Error: ${esc(friendly)}\n(${dt} ms)</pre>`;
   saveSession(q.value.trim(), {});
@@ -833,4 +840,3 @@ window.addEventListener("error",(e)=>{
 </script>
 </body>
 </html>
-
