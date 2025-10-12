@@ -110,7 +110,7 @@ const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
 
 const TIMEOUT_ANSWER_MS = 20000; // local rápido
-const TIMEOUT_GPT_MS     = 65000; // GPT (tools)
+const TIMEOUT_GPT_MS     = 110000; // GPT (tools)
 
 (async () => { try { await fetch(`${API_BASE}${FALLBACK_PATH}?q=ping`, { method: "GET" }); } catch(_){} })();
 
@@ -466,3 +466,4 @@ window.addEventListener("error",(e)=>{
 </script>
 </body>
 </html>
+
