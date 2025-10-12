@@ -3,9 +3,8 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>1511 Asistente Lexium</title>
+<title>0927 Asistente Lexium</title>
 
-<!-- Latencia: preconnect / dns-prefetch -->
 <link rel="preconnect" href="https://lexium-gpt5-383217514425.southamerica-west1.run.app" crossorigin>
 <link rel="dns-prefetch" href="//lexium-gpt5-383217514425.southamerica-west1.run.app">
 
@@ -41,7 +40,6 @@
   .hist{position:fixed; right:14px; top:10px; z-index:60}
   .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
-  /* Caja de texto con scroll y resize vertical */
   .query{
     width:100%;
     min-height:48px; max-height:200px;
@@ -51,12 +49,7 @@
     overflow:auto;
   }
 
-  .out{
-    margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px;
-    overflow:auto; white-space:pre-wrap; max-height:65vh;
-    font-size:0.95rem; line-height:1.5; scrollbar-gutter:stable;
-  }
-
+  .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh; font-size:.95rem; line-height:1.5; scrollbar-gutter:stable;}
   .muted{color:var(--muted); font-size:.9rem}
 
   table{width:100%; border-collapse:collapse; margin:10px 0}
@@ -71,25 +64,17 @@
 
   #status { position:fixed; top:8px; left:12px; z-index:70; }
 
-  /* Overlay Historial */
-  .overlay{
-    display:none; position:fixed; inset:0; background:rgba(0,0,0,.25);
-    z-index:80; align-items:center; justify-content:center; padding:24px;
-  }
+  .overlay{display:none; position:fixed; inset:0; background:rgba(0,0,0,.25); z-index:80; align-items:center; justify-content:center; padding:24px;}
   .overlay.show{ display:flex; }
-  .panel{
-    background:#fff; border:1px solid var(--bd); border-radius:12px;
-    width:min(900px, 92vw); max-height:80vh; overflow:auto; padding:16px;
-  }
+  .panel{background:#fff; border:1px solid var(--bd); border-radius:12px; width:min(900px, 92vw); max-height:80vh; overflow:auto; padding:16px;}
   .panel header{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px}
   .panel h2{margin:0; font-size:18px}
   .closeBtn{border:1px solid var(--bd); background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer}
   .session{border-top:1px solid var(--bd); padding:10px 0; display:flex; align-items:center; gap:10px}
   .session .meta{flex:1}
-  .linkBadge{font-size:.82rem; margin-left:6px}
-  .okBadge{color:var(--ok)}
-  .warnBadge{color:#b45309}
   .viewBtn{border:1px solid var(--bd); background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer}
+  .linkBadge{font-size:.82rem; margin-left:6px}
+  .okBadge{color:var(--ok)} .warnBadge{color:#b45309}
 </style>
 </head>
 <body>
@@ -101,22 +86,16 @@
   <div class="mediaBar" aria-label="cabecera">
     <div class="mediaInner">
       <div class="heroGrid">
-        <div class="sideImg left">
-          <img src="left.png" alt="Logo izquierdo"/>
-        </div>
-        <div class="videoBox">
-          <video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
-        </div>
-        <div class="sideImg right">
-          <img src="right.png" alt="Logo derecho"/>
-        </div>
+        <div class="sideImg left"><img src="left.png" alt="Logo izquierdo"/></div>
+        <div class="videoBox"><video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video></div>
+        <div class="sideImg right"><img src="right.png" alt="Logo derecho"/></div>
       </div>
     </div>
   </div>
 
   <div class="contentWrap">
     <div style="margin:10px 0 6px">
-      <textarea id="q" class="query" rows="2" placeholder="ESCRIBE O HABLA PARA PREGUNTAR… (Enter = enviar)"></textarea>
+      <textarea id="q" class="query" rows="2" placeholder="ESCRIBE O HABLA PARA PREGUNTAR… (Shift+Enter = nueva línea, Ctrl/Cmd+Enter = enviar)"></textarea>
     </div>
 
     <div class="toolbar">
@@ -139,13 +118,9 @@
     <div id="status" class="muted"></div>
   </div>
 
-  <!-- Overlay del Historial -->
   <div id="histOverlay" class="overlay" aria-modal="true" role="dialog">
     <div class="panel">
-      <header>
-        <h2>Sesiones</h2>
-        <button class="closeBtn" id="closeHist">Cerrar</button>
-      </header>
+      <header><h2>Sesiones</h2><button class="closeBtn" id="closeHist">Cerrar</button></header>
       <div id="histBody"></div>
     </div>
   </div>
@@ -154,17 +129,20 @@
 /* ====== CONFIG ====== */
 const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app";
 const GPT_PATH = "/api/gpt";
-const STATUS_PATH = "/api/gpt/status";   // si tu server lo soporta
+const STATUS_PATH = "/api/gpt/status";  // si tu server lo soporta
 const FALLBACK_PATH = "/api/answer";
 
-/* Timeouts + reintento (evita “Failed to fetch” del navegador) */
-const TIMEOUT_GPT_MS = 115000;      // 115s
-const TIMEOUT_FALLBACK_MS = 90000;  // 90s
+/* Ahorro de costos (true = respuestas compactas y sin expansión salvo caso extremo) */
+const COST_SAVER = true;
+
+/* Timeouts largos + polling (para evitar “Failed to fetch”) */
+const TIMEOUT_GPT_MS = 240000;      // 4 min
+const TIMEOUT_FALLBACK_MS = 180000; // 3 min
 const JOB_POLL_MAX_MS = 10*60*1000; // 10 min
 const JOB_POLL_INTERVAL_MS = 2500;  // 2.5s
 
-/* Warm-up */
-(async () => { try { await fetch(`${API_BASE}${FALLBACK_PATH}?q=ping`, { method: "GET" }); } catch(_){} })();
+/* Warm-up liviano (HEAD) para no gastar tokens */
+(async()=>{ try{ await fetch(`${API_BASE}${FALLBACK_PATH}?q=ping`,{method:"HEAD"});}catch(_){}})();
 
 /* ====== UI refs ====== */
 const q = document.getElementById("q");
@@ -184,90 +162,46 @@ const histOverlay = document.getElementById("histOverlay");
 const histBody = document.getElementById("histBody");
 const closeHist = document.getElementById("closeHist");
 
-let isBusy = false;
-let currentAbortCtrl = null;       // para Cancelar
-let jobPollAbort = false;          // corta el polling
+let isBusy=false, currentAbortCtrl=null, jobPollAbort=false;
 
 /* ====== Utils ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
 function setStatusLoading(msg="Generando…"){
-  statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
-    <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
+  statusEl.innerHTML = `<span class="loader" role="status" aria-busy="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
 }
-function clearStatus(){ statusEl.textContent = ""; }
-function setStatusText(msg=""){ statusEl.textContent = msg ? String(msg) : ""; }
+function clearStatus(){ statusEl.textContent=""; }
+function setStatusText(msg=""){ statusEl.textContent = msg? String(msg):""; }
+function detectLang(t){ t=(t||"").toLowerCase(); if(/\b(the|and|you|your|please|could|would)\b/.test(t)) return "en"; if(/[áéíóúñü]/.test(t)||/\b(el|la|de|que|para)\b/.test(t)) return "es"; return (navigator.language||"es").startsWith("en")?"en":"es"; }
+function detectTextLang(s){ s=(s||"").toLowerCase(); const en=/( the | and | with | result | summary )/i.test(s); const es=/[áéíóúñü]/.test(s)||/\b(el|la|de|que|para|promedio)\b/.test(s); return en&&!es?"en":es?"es":"unknown"; }
 
-/* Detectar idioma (ES/EN) agresivo para la entrada */
-function detectLang(text){
-  const t=(text||"").trim().toLowerCase();
-  if(!t) return (navigator.language||"es").startsWith("en") ? "en":"es";
-  const enHits=(t.match(/\b(the|and|you|your|please|could|would|with|from|to|of|in|on|are|is|can|help|explain|summary|benefits)\b/g)||[]).length;
-  const esHits=(t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por favor|podría|sería|ayuda|explica|resumen|beneficios)\b/g)||[]).length;
-  if(enHits>esHits) return "en";
-  if(esHits>enHits) return "es";
-  const nonASCII=(t.match(/[^\x00-\x7F]/g)||[]).length;
-  return nonASCII>0 ? "es":"en";
-}
+const URL_RE=/\bhttps?:\/\/[^\s<>"']+/gi;
+function linkifyHTML(html){ return html.replace(URL_RE,(u)=>{ const s=esc(u); return `<a href="${s}" target="_blank" rel="noopener">${s}</a><span class="linkBadge" data-url="${s}">⏳</span>`; }); }
+async function verifyLinks(){ for(const b of document.querySelectorAll('.linkBadge[data-url]')){ const url=b.getAttribute('data-url'); try{ let ok=false; try{ok=(await fetch(url,{method:"HEAD"})).ok;}catch{ok=(await fetch(url,{method:"GET",mode:"cors"})).ok;} b.textContent=ok?"✅":"⚠️"; b.classList.add(ok?"okBadge":"warnBadge"); }catch{ b.textContent="⚠️"; b.classList.add("warnBadge"); } } }
+const idle=window.requestIdleCallback||((fn)=>setTimeout(fn,120));
 
-/* Heurística de idioma para el texto de salida */
-function detectTextLang(s){
-  const t = (s||"").toLowerCase();
-  if (!t.trim()) return "unknown";
-  const enHits = (t.match(/\b(the|and|with|from|to|of|in|on|are|is|can|please|could|would|analysis|summary|result|average|benefits)\b/g)||[]).length;
-  const esHits = (t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por|promedio|beneficios|resultado|análisis|resumen)\b/g)||[]).length;
-  if (enHits > esHits) return "en";
-  if (esHits > enHits) return "es";
-  const nonASCII = (t.match(/[áéíóúñü]/g)||[]).length;
-  if (nonASCII > 0) return "es";
-  return "en";
+function friendlyApiError(status, bodyText){
+  if(status===402) return "Saldo agotado o método de pago requerido (OpenAI API 402)";
+  if(status===429) return "Cuota/velocidad alcanzada (429)";
+  if(status===401) return "API key inválida o sin permisos (401)";
+  return bodyText||`HTTP ${status}`;
 }
 
-/* Linkify + verificación en idle */
-const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
-function linkifyHTML(html){
-  return html.replace(URL_RE, (u)=>{
-    const safe = esc(u);
-    return `<a href="${safe}" target="_blank" rel="noopener">${safe}</a><span class="linkBadge" data-url="${safe}">⏳</span>`;
-  });
-}
-async function verifyLinks(){
-  const badges = document.querySelectorAll('.linkBadge[data-url]');
-  for (const b of badges){
-    const url = b.getAttribute('data-url');
-    try{
-      let ok=false;
-      try { const r=await fetch(url,{method:"HEAD"}); ok=r.ok; }
-      catch { const r2=await fetch(url,{method:"GET",mode:"cors"}); ok=r2.ok; }
-      b.textContent = ok ? "✅" : "⚠️";
-      b.classList.add(ok ? "okBadge" : "warnBadge");
-      b.title = ok ? "Verificado" : "No se pudo verificar";
-    }catch(_){
-      b.textContent="⚠️"; b.classList.add("warnBadge"); b.title="No se pudo verificar (CORS o red)";
-    }
-  }
-}
-const idle = window.requestIdleCallback || ((fn)=>setTimeout(fn,120));
+/* ====== Historial robusto ====== */
+const SESS_KEY="lexium_sessions_v4"; const SESS_FBK="lexium_sessions_v4_fb";
+const lsGet=k=>{try{return JSON.parse(localStorage.getItem(k)||"[]")}catch{return[]}};
+const lsSet=(k,a)=>{try{localStorage.setItem(k,JSON.stringify(a));return true}catch{return false}};
+const ssGet=k=>{try{return JSON.parse(sessionStorage.getItem(k)||"[]")}catch{return[]}};
+const ssSet=(k,a)=>{try{sessionStorage.setItem(k,JSON.stringify(a));return true}catch{return false}};
 
-/* ====== Historial (guardar) ====== */
-const SESS_KEY="lexium_sessions_v4";
-function saveSession(question, data){
-  const html=(document.getElementById('out')?.innerHTML||"").trim();
-  const text=(document.getElementById('out')?.textContent||"").trim();
-  const entry={
-    id:new Date().toISOString(),
-    question:question||"(sin pregunta)",
-    html,
-    text,
-    payload: data || null,   // guardamos el payload
-    when:Date.now()
-  };
-  try{
-    const all=JSON.parse(localStorage.getItem(SESS_KEY)||"[]");
-    all.unshift(entry); localStorage.setItem(SESS_KEY, JSON.stringify(all.slice(0,50)));
-  }catch(_){}
+function saveSession(question,data){
+  const html=(out?.innerHTML||"").trim(), text=(out?.textContent||"").trim();
+  const entry={id:new Date().toISOString(),question:question||"(sin pregunta)",html,text,payload:data||null,when:Date.now()};
+  const cur=lsGet(SESS_KEY); if(!lsSet(SESS_KEY,[entry,...cur].slice(0,50))){ const fb=ssGet(SESS_FBK); ssSet(SESS_FBK,[entry,...fb].slice(0,50)); }
 }
 function readSessions(){
-  try{ return JSON.parse(localStorage.getItem(SESS_KEY)||"[]"); }catch(_){ return []; }
+  let all=lsGet(SESS_KEY); if(!all.length) all=ssGet(SESS_FBK);
+  try{ const a=JSON.parse(localStorage.getItem("lexium_sessions")||"[]"); const b=JSON.parse(sessionStorage.getItem("lexium_sessions_fallback")||"[]"); const m=[...all,...a,...b]; if(m.length) return m.slice(0,50);}catch{}
+  return all;
 }
 function renderHistory(){
   const all=readSessions();
@@ -280,8 +214,7 @@ function renderHistory(){
         <div class="muted">${esc((s.text||"").slice(0,160))}${(s.text||"").length>160?"…":""}</div>
       </div>
       <button class="viewBtn" data-id="${esc(s.id)}">Ver</button>
-    </div>
-  `).join("");
+    </div>`).join("");
 }
 function openHistory(){ renderHistory(); histOverlay.classList.add("show"); }
 function closeHistoryOverlay(){ histOverlay.classList.remove("show"); }
@@ -289,52 +222,19 @@ btnHist.addEventListener("click", openHistory);
 closeHist.addEventListener("click", closeHistoryOverlay);
 histOverlay.addEventListener("click",(e)=>{ if(e.target===histOverlay) closeHistoryOverlay(); });
 
-/* “Ver” → mostrar sin tocar audio/video; si no hay HTML, reconstruye desde payload */
 histBody.addEventListener("click",(e)=>{
-  const btn = e.target.closest(".viewBtn");
-  if(!btn) return;
-  e.preventDefault();
-  e.stopPropagation();
-  const id = btn.getAttribute("data-id");
-  const match = readSessions().find(x=>x.id===id);
-  if(!match){ return; }
-
-  if (match.html && match.html.trim()){
-    out.innerHTML = match.html;
-    out.scrollTop = 0;
-    clearStatus();
-    closeHistoryOverlay();
-    return;
+  const btn=e.target.closest(".viewBtn"); if(!btn) return; e.preventDefault(); e.stopPropagation();
+  const id=btn.getAttribute("data-id"); const sessions=readSessions(); if(!sessions.length){ alert("No hay sesiones guardadas."); return; }
+  const match=sessions.find(x=>x.id===id); if(!match){ alert("No se encontró la sesión."); return; }
+  let html=(match.html||"").trim();
+  if(!html && match.payload){
+    const d=match.payload, qst=match.question||""; if(qst) html+=`<h3>Pregunta</h3><p>${esc(qst)}</p>`;
+    const g=d.general||d.answer||d.text||match.text||""; if(g) html+=generalToOrderedListHTML(g);
+    (normalizeLists(d.lists||[])).forEach(l=>{ html+=`<h3>${esc(l.title||"Lista")}</h3><ol>${l.items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`; });
+    (d.tables||[]).forEach(t=>{ const cols=t.columns||[], rows=t.rows||[]; html+=`<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(x=>`<td>${esc(x)}</td>`).join("")}</tr>`).join("")}</tbody></table>`; });
   }
-
-  // reconstrucción básica desde payload
-  let html="";
-  if (match.payload){
-    try{
-      const data = match.payload;
-      const qst = match.question || "";
-      if (qst) html += `<h3>Pregunta</h3><p>${esc(qst)}</p>`;
-      const generalTxt = data.general || data.answer || data.text || match.text || "";
-      if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
-      const lists = normalizeLists(data.lists||[]);
-      lists.forEach(l=>{
-        html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
-      });
-      (data.tables||[]).forEach(t=>{
-        const cols=t.columns||[]; const rows=t.rows||[];
-        html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
-        html += cols.map(c=>`<th>${esc(c)}</th>`).join("");
-        html += `</tr></thead><tbody>`;
-        rows.forEach(r=>{ html += `<tr>` + r.map(x=>`<td>${esc(x)}</td>`).join("") + `</tr>`; });
-        html += `</tbody></table>`;
-      });
-    }catch(_){}
-  }
-  if (!html && match.text){ html = `<pre>${esc(match.text)}</pre>`; }
-  out.innerHTML = html || "<em>Vacío</em>";
-  out.scrollTop = 0;
-  clearStatus();
-  closeHistoryOverlay();
+  if(!html && match.text) html=`<pre>${esc(match.text)}</pre>`;
+  out.innerHTML=html||"<em>Vacío</em>"; out.scrollTop=0; clearStatus(); closeHistoryOverlay();
 });
 
 /* ====== Dictado ====== */
@@ -342,137 +242,48 @@ let recognizer=null;
 function toggleDict(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){ alert("Dictado no soportado en este navegador."); return; }
-  if(!recognizer){
-    recognizer=new SR(); recognizer.lang="es-ES"; recognizer.continuous=false; recognizer.interimResults=false;
-    recognizer.onresult=e=>{
-      const t=Array.from(e.results).map(r=>r[0].transcript).join(" ");
-      q.value=(q.value? q.value+" " : "") + t;
-    };
-  }
+  if(!recognizer){ recognizer=new SR(); recognizer.lang="es-ES"; recognizer.continuous=false; recognizer.interimResults=false; recognizer.onresult=e=>{ const t=Array.from(e.results).map(r=>r[0].transcript).join(" "); q.value=(q.value? q.value+" " : "")+t; }; }
   if(recognizer.listening){ recognizer.stop(); recognizer.listening=false; btnDict.textContent="🎤 Dictar"; }
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
 }
 
-/* ====== Voz + Video ====== */
+/* ====== Voz/Video ====== */
 const PREFERRED_NAMES_ES=["Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Maria","Microsoft Lucia","Monica","Paulina","Camila","Sofia","Elena","Lucia","Maria","Carla","Google español","Google español de Estados","Google US Español"];
 const PREFERRED_NAMES_EN=["Microsoft Jenny","Microsoft Aria","Microsoft Zira","Microsoft Sara","Google US English","Google UK English"];
-const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
-const EN_LANGS=["en","en-US","en-GB","en-CA","en-AU","en-IN"];
+const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"]; const EN_LANGS=["en","en-US","en-GB","en-CA","en-AU","en-IN"];
+function pickVoice(lang){ const vs=(speechSynthesis.getVoices()||[]); const pref=lang==="en"?PREFERRED_NAMES_EN:PREFERRED_NAMES_ES; const langs=lang==="en"?EN_LANGS:SP_LANGS; for(const n of pref){ const m=vs.find(v=>v.name?.toLowerCase().includes(n.toLowerCase())); if(m) return m; } return vs.find(v=>langs.some(l=>(v.lang||"").toLowerCase().startsWith(l)))||vs[0]||null; }
 
-function pickVoice(langHint){
-  if(typeof speechSynthesis==="undefined") return null;
-  const vs=speechSynthesis.getVoices()||[];
-  const prefList = langHint==="en" ? PREFERRED_NAMES_EN : PREFERRED_NAMES_ES;
-  const langList = langHint==="en" ? EN_LANGS : SP_LANGS;
-  for(const name of prefList){
-    const m=vs.find(v=>v.name && v.name.toLowerCase().includes(name.toLowerCase()));
-    if(m) return m;
-  }
-  const byLang = vs.find(v=>langList.some(l=>(v.lang||"").toLowerCase().startsWith(l.toLowerCase())));
-  return byLang || vs[0] || null;
-}
-
-/* === bullets === */
-const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
+const BULLET_RE=/^(?:[•\-–*]|\d+\.)\s+/u;
 function generalToOrderedListHTML(g){
-  if (!g) return "";
-  const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-  const bulletLike = lines.filter(s=>BULLET_RE.test(s)).length;
-  const manyPlainLines = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length;
-  const shouldNumber = (lines.length>=3) && (bulletLike>0 || manyPlainLines >= Math.ceil(lines.length*0.6));
-  if (shouldNumber) {
-    const items = lines.map(s=>s.replace(BULLET_RE,"")).filter(Boolean);
-    return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
-  }
+  if(!g) return "";
+  const lines=g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const bulletLike=lines.filter(s=>BULLET_RE.test(s)).length;
+  const manyPlain=lines.filter(s=>!/[.!?;:]\s*$/.test(s)&&s.length<=80).length;
+  const should=(lines.length>=3)&&(bulletLike>0||manyPlain>=Math.ceil(lines.length*0.6));
+  if(should){ const items=lines.map(s=>s.replace(BULLET_RE,"")).filter(Boolean); return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`; }
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* === TTS helpers === */
 function buildTTSTextFromOut(){
-  const c=document.createElement("div"); c.innerHTML=out.innerHTML;
-  const parts=[];
+  const c=document.createElement("div"); c.innerHTML=out.innerHTML; const parts=[];
   c.querySelectorAll("h1,h2,h3,h4").forEach(h=>{ const t=h.textContent.trim(); if(t) parts.push(t); });
   c.querySelectorAll("p").forEach(p=>{ const t=p.textContent.trim(); if(t) parts.push(t); });
-  c.querySelectorAll("ol,ul").forEach(list=>{
-    const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean);
-    if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); }
-  });
-  c.querySelectorAll("table").forEach(tbl=>{
-    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim()).filter(Boolean);
-    if(headers.length) parts.push(`Tabla: ${headers.join(", ")}`);
-    const rows=[...tbl.querySelectorAll("tbody tr")];
-    rows.forEach((tr,ri)=>{
-      const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
-      parts.push(`${ri+1}. ${cells.join(" | ")}`);
-    });
-  });
-  const fallback=(out.textContent||"").trim();
-  return (parts.join("\n\n") || fallback).trim();
+  c.querySelectorAll("ol,ul").forEach(list=>{ const items=[...list.querySelectorAll("li")].map(li=>li.textContent.trim()).filter(Boolean); if(items.length){ parts.push(items.map((t,i)=>`${i+1}. ${t}.`).join("\n")); } });
+  c.querySelectorAll("table").forEach(tbl=>{ const hh=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim()).filter(Boolean); if(hh.length) parts.push(`Tabla: ${hh.join(", ")}`); const rows=[...tbl.querySelectorAll("tbody tr")]; rows.forEach((tr,ri)=>{ const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim()); parts.push(`${ri+1}. ${cells.join(" | ")}`); }); });
+  return (parts.join("\n\n")||(out.textContent||"").trim()).trim();
 }
+function fixSpanishDiacritics(s){ if(!s) return s; return s.replace(/\bdecimo(s|a|as)?\b/gi,(m)=>m.replace(/decimo/i,'décimo')).replace(/\bseptimo(s|a|as)?\b/gi,(m)=>m.replace(/septimo/i,'séptimo')).replace(/\bundecimo(s|a|as)?\b/gi,(m)=>m.replace(/undecimo/i,'undécimo')); }
 
-/* ====== Corrección de tildes comunes en español (solo TTS) ====== */
-function fixSpanishDiacritics(s){
-  if(!s) return s;
-  const repl = [
-    [/\bdecimo(s|a|as)?\b/gi, (m)=>m.replace(/decimo/i,'décimo')],
-    [/\bseptimo(s|a|as)?\b/gi, (m)=>m.replace(/septimo/i,'séptimo')],
-    [/\bundecimo(s|a|as)?\b/gi, (m)=>m.replace(/undecimo/i,'undécimo')],
-    [/\bultimo(s|a|as)?\b/gi, (m)=>m.replace(/ultimo/i,'último')],
-    [/\bpenultimo(s|a|as)?\b/gi, (m)=>m.replace(/penultimo/i,'penúltimo')],
-    [/\bproximo(s|a|as)?\b/gi, (m)=>m.replace(/proximo/i,'próximo')],
-    [/\bnumero(s)?\b/gi, (m)=>m.replace(/numero/i,'número')],
-    [/\bmedico(s|a|as)?\b/gi, (m)=>m.replace(/medico/i,'médico')],
-    [/\btecnico(s|a|as)?\b/gi, (m)=>m.replace(/tecnico/i,'técnico')],
-    [/\blogico(s|a|as)?\b/gi, (m)=>m.replace(/logico/i,'lógico')],
-    [/\bacademico(s|a|as)?\b/gi, (m)=>m.replace(/academico/i,'académico')],
-  ];
-  let out=s;
-  for(const [re,fn] of repl) out=out.replace(re,fn);
-  return out;
-}
-
-/* ====== TTS + Video ====== */
-const TTS={
-  enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"", lang:"es",
-  makeChunks(text,maxLen=360){
-    const res=[]; const parts=String(text).split(/(\.|\?|!|\n)/);
-    let buf=""; for(let i=0;i<parts.length;i+=2){ const seg=(parts[i]||"")+(parts[i+1]||"");
-      if((buf+seg).length<=maxLen) buf+=seg; else{ if(buf.trim()) res.push(buf.trim()); buf=seg; } }
-    if(buf.trim()) res.push(buf.trim()); return res;
-  },
-  loadFromOut(){
-    let t = buildTTSTextFromOut();
-    if ((this.lang||"es").startsWith("es")) t = fixSpanishDiacritics(t);
-    this.textCache = t;
-    this.chunks = this.makeChunks(this.textCache);
-    this.i = 0;
-  },
-  speakNext(){
-    if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
-    const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
-    const v=pickVoice(this.lang||"es"); if(v) u.voice=v;
-    u.lang=(v?.lang)|| (this.lang==="en"?"en-US":"es-ES");
-    u.rate=0.98; u.pitch=1.08; u.volume=1;
-    u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.muted=true; vid.play().catch(()=>{});} };
-    u.onend =()=>{ this.speakNext(); };
-    u.onerror=()=>{ this.speakNext(); };
-    this.utter=u; speechSynthesis.speak(u);
-  },
-  start(fromIndex=0, langHint="es"){
-    if(typeof speechSynthesis==="undefined") return;
-    this.lang = langHint || "es";
-    if(!this.chunks.length) this.loadFromOut();
-    this.enabled=true; if(fromIndex>=0) this.i=fromIndex;
-    speechSynthesis.cancel(); this.speakNext();
-  },
-  pause(){ if(this.speaking && !this.paused){ speechSynthesis.pause(); this.paused=true; if(vid) vid.pause(); } },
-  resume(){ if(this.paused){ speechSynthesis.resume(); this.paused=false; if(vid) vid.play().catch(()=>{}); }
-           else if(!this.speaking && this.enabled){ this.speakNext(); } },
-  restartFromStart(langHint){ this.enabled=true; this.loadFromOut(); this.start(0, langHint||this.lang); },
+const TTS={enabled:false,chunks:[],i:0,utter:null,paused:false,speaking:false,textCache:"",lang:"es",
+  makeChunks(t,maxLen=360){const res=[];const parts=String(t).split(/(\.|\?|!|\n)/);let buf="";for(let i=0;i<parts.length;i+=2){const seg=(parts[i]||"")+(parts[i+1]||""); if((buf+seg).length<=maxLen) buf+=seg; else{ if(buf.trim()) res.push(buf.trim()); buf=seg; }} if(buf.trim()) res.push(buf.trim()); return res;},
+  loadFromOut(){ let t=buildTTSTextFromOut(); if((this.lang||"es").startsWith("es")) t=fixSpanishDiacritics(t); this.textCache=t; this.chunks=this.makeChunks(t); this.i=0; },
+  speakNext(){ if(!this.enabled||this.i>=this.chunks.length){ this.finish(); return; } const u=new SpeechSynthesisUtterance(this.chunks[this.i++]); const v=pickVoice(this.lang||"es"); if(v) u.voice=v; u.lang=(v?.lang)||(this.lang==="en"?"en-US":"es-ES"); u.rate=.98; u.pitch=1.08; u.volume=1; u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.muted=true; vid.play().catch(()=>{});} }; u.onend =()=>{ this.speakNext(); }; u.onerror=()=>{ this.speakNext(); }; this.utter=u; speechSynthesis.speak(u); },
+  start(from=0,lang="es"){ if(typeof speechSynthesis==="undefined") return; this.lang=lang||"es"; if(!this.chunks.length) this.loadFromOut(); this.enabled=true; if(from>=0) this.i=from; speechSynthesis.cancel(); this.speakNext(); },
+  pause(){ if(this.speaking&&!this.paused){ speechSynthesis.pause(); this.paused=true; if(vid) vid.pause(); } },
+  resume(){ if(this.paused){ speechSynthesis.resume(); this.paused=false; if(vid) vid.play().catch(()=>{});} else if(!this.speaking&&this.enabled){ this.speakNext(); } },
+  restartFromStart(lang){ this.enabled=true; this.loadFromOut(); this.start(0,lang||this.lang); },
   finish(){ this.speaking=false; this.paused=false; this.utter=null; if(vid){ vid.loop=false; vid.pause(); } },
-  stopAll(){ this.enabled=false; this.paused=false; this.speaking=false; this.utter=null;
-             if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel();
-             if(vid){ vid.loop=false; vid.pause(); } }
+  stopAll(){ this.enabled=false; this.paused=false; this.speaking=false; this.utter=null; if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel(); if(vid){ vid.loop=false; vid.pause(); } }
 };
 
 /* ====== Normalizar listas/tablas ====== */
@@ -492,476 +303,192 @@ function normalizeLists(lists){
 
 /* ====== Render ====== */
 function renderAnswer(data, userQuestion, langHint){
-  let html="";
-  if (userQuestion) { html += `<h3>Pregunta</h3><p>${esc(userQuestion)}</p>`; }
-
-  const generalTxt = data.general || data.answer || data.text || "";
-  if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
-
-  const lists=normalizeLists(data.lists||[]);
-  lists.forEach(l=>{
-    html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
-  });
-
-  (data.tables||[]).forEach(t=>{
-    const cols=t.columns||[]; const rows=t.rows||[];
-    html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
-    html += cols.map(c=>`<th>${esc(c)}</th>`).join("");
-    html += `</tr></thead><tbody>`;
-    rows.forEach(r=>{ html += `<tr>` + r.map(x=>`<td>${esc(x)}</td>`).join("") + `</tr>`; });
-    html += `</tbody></table>`;
-  });
-
-  out.innerHTML = linkifyHTML(html || "<em>Sin contenido.</em>");
-  idle(()=>verifyLinks());
-
-  // Narración: solo cuando se genera (no en “Ver”)
-  TTS.enabled = true; TTS.loadFromOut(); TTS.start(0, langHint||"es");
+  let html=""; if(userQuestion){ html+=`<h3>Pregunta</h3><p>${esc(userQuestion)}</p>`; }
+  const g=data.general||data.answer||data.text||""; if(g) html+=generalToOrderedListHTML(g);
+  (normalizeLists(data.lists||[])).forEach(l=>{ html+=`<h3>${esc(l.title||"Lista")}</h3><ol>${l.items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`; });
+  (data.tables||[]).forEach(t=>{ const cols=t.columns||[], rows=t.rows||[]; html+=`<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>${cols.map(c=>`<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${rows.map(r=>`<tr>${r.map(x=>`<td>${esc(x)}</td>`).join("")}</tr>`).join("")}</tbody></table>`; });
+  out.innerHTML=linkifyHTML(html||"<em>Sin contenido.</em>"); idle(()=>verifyLinks());
+  TTS.enabled=true; TTS.loadFromOut(); TTS.start(0, langHint||"es");
 }
 
-/* ====== fetch helpers (con cancel y timeout) ====== */
-async function fetchJSON(url, opts = {}){
-  const r = await fetch(url, opts);
-  const data = await r.json().catch(()=>({}));
-  return { r, data };
-}
+/* ====== fetch helpers ====== */
+async function fetchJSON(url, opts={}){ const r=await fetch(url,opts); let data={}; try{ data=await r.json(); }catch{} return {r,data}; }
 function runWithMaybeTimeout(factory, ms, externalSignal){
-  if (!ms || ms <= 0){
-    return factory(externalSignal);
-  }
-  const ctrl = new AbortController();
-  const linkAbort = () => { try{ ctrl.abort(); }catch(_){} };
-  if (externalSignal){
-    if (externalSignal.aborted) ctrl.abort();
-    else externalSignal.addEventListener("abort", linkAbort, { once:true });
-  }
-  const t = setTimeout(()=>ctrl.abort(), ms);
-  return factory(ctrl.signal).finally(()=>{
-    clearTimeout(t);
-    if (externalSignal) externalSignal.removeEventListener?.("abort", linkAbort);
-  });
+  if(!ms||ms<=0) return factory(externalSignal);
+  const ctrl=new AbortController(); const link=()=>{try{ctrl.abort();}catch{}}; if(externalSignal){ if(externalSignal.aborted) ctrl.abort(); else externalSignal.addEventListener("abort",link,{once:true}); }
+  const t=setTimeout(()=>ctrl.abort(),ms);
+  return factory(ctrl.signal).finally(()=>{ clearTimeout(t); externalSignal?.removeEventListener?.("abort",link); });
 }
 
-/* ====== Traducción de último recurso ====== */
-async function forceTranslateText(text, target, headers, abortSignal){
-  const sys = target==="en"
-    ? "Translate the following to English. Output English only. No Spanish."
-    : "Traduce lo siguiente al español. Solo español. No incluyas inglés.";
-  const body = {
-    q: (target==="en" ? "Translate to English:\n\n" : "Traduce al español:\n\n") + String(text),
-    lang: target,
-    force_lang: true,
-    system_hint: sys
-  };
-  const { r, data } = await fetchJSON(`${API_BASE}${GPT_PATH}`, {
-    method: "POST",
-    headers: {
-      ...headers,
-      "Accept-Language": target==="en" ? "en-US,en;q=0.9" : "es-ES,es;q=0.9",
-      "X-Force-Language": target,
-      "Prefer": `respond-language=${target}`
-    },
-    body: JSON.stringify(body),
-    signal: abortSignal
-  });
-  if (!r.ok) throw new Error(data?.error || `HTTP ${r.status} in translation`);
-  return data;
+/* ====== Traducción (último recurso, cost-saver: desactivada salvo fuerza mayor) ====== */
+async function forceTranslateText(text,target,headers,signal){
+  if (COST_SAVER) return { general: text }; // no gastar tokens si estamos ahorrando
+  const sys=target==="en"?"Translate to English only.":"Traduce al español únicamente.";
+  const body={ q:(target==="en"?"Translate to English:\n\n":"Traduce al español:\n\n")+String(text), lang:target, force_lang:true, system_hint:sys };
+  const {r,data}=await fetchJSON(`${API_BASE}${GPT_PATH}`,{method:"POST",headers:{...headers,"Accept-Language":target==="en"?"en-US,en;q=0.9":"es-ES,es;q=0.9","X-Force-Language":target,"Prefer":`respond-language=${target};low_cost=1`},body:JSON.stringify(body),signal});
+  if(!r.ok) throw new Error(data?.error||`HTTP ${r.status} in translation`); return data;
 }
 
-/* ====== Expansión si la respuesta quedó corta ====== */
-async function expandIfTooShort(originalText, userQuestion, langHint, headers, abortSignal){
-  const minWords = 180; // umbral de detalle
-  const words = String(originalText||"").trim().split(/\s+/).filter(Boolean);
-  if (words.length >= minWords) return null; // suficiente
-
-  const sys = (langHint==="en")
-    ? "Expand and elaborate substantially. Keep the same language (English). Provide thorough explanations, examples, and—when natural—concise bullet points and a short concluding summary. Avoid filler."
-    : "Amplía y elabora de forma sustancial. Mantén el mismo idioma (español). Proporciona explicaciones completas, ejemplos y—cuando sea natural—viñetas concisas y un breve cierre. Evita paja.";
-  const prompt = (langHint==="en")
-    ? `User question:\n${userQuestion}\n\nShort answer to expand:\n${originalText}\n\nPlease deliver a detailed, thorough answer in English.`
-    : `Pregunta del usuario:\n${userQuestion}\n\nRespuesta corta a ampliar:\n${originalText}\n\nPor favor entrega una respuesta detallada y completa en español.`;
-
-  const { r, data } = await fetchJSON(`${API_BASE}${GPT_PATH}`, {
+/* ====== Expansión si quedó MUY corto (una sola vez y moderada) ====== */
+async function expandIfTooShort(originalText, userQuestion, langHint, headers, signal){
+  const words=String(originalText||"").trim().split(/\s+/).filter(Boolean);
+  const minWords = COST_SAVER ? 80 : 200;          // umbral
+  if(words.length>=minWords) return null;
+  if (COST_SAVER) return null; // no expandir en modo ahorro
+  const sys=(langHint==="en")?"Expand substantially in English; keep it concise but complete.":"Amplía en español; conciso pero completo.";
+  const {r,data}=await fetchJSON(`${API_BASE}${GPT_PATH}`,{
     method:"POST",
-    headers: {
-      ...headers,
-      "Accept-Language": langHint==="en" ? "en-US,en;q=0.9" : "es-ES,es;q=0.9",
-      "X-Force-Language": langHint,
-      "Prefer": `respond-language=${langHint}`
-    },
-    body: JSON.stringify({
-      q: prompt,
-      lang: langHint,
-      force_lang: true,
-      system_hint: sys,
-      detail_level: "high",
-      response_size: "full",
-      min_words: 300,
-      max_words: 1200
-    }),
-    signal: abortSignal
+    headers:{...headers,"Accept-Language":langHint==="en"?"en-US,en;q=0.9":"es-ES,es;q=0.9","X-Force-Language":langHint,"Prefer":`respond-language=${langHint};low_cost=1`},
+    body:JSON.stringify({ q:(langHint==="en"?`User question:\n${userQuestion}\n\nShort answer to expand:\n${originalText}\n\nDeliver a more complete answer.`:`Pregunta:\n${userQuestion}\n\nRespuesta breve a ampliar:\n${originalText}\n\nEntrega una respuesta más completa.`), lang:langHint, force_lang:true, system_hint:sys, detail_level:"medium", response_size:"short", min_words:180, max_words:450 }),
+    signal
   });
-  if (!r.ok) return null;
-  return data;
+  if(!r.ok) return null; return data;
 }
 
-/* ====== Polling de job (cancelable) ====== */
+/* ====== Polling async job ====== */
 async function pollJob(jobId, startedAt, langHint){
-  const deadline = startedAt + JOB_POLL_MAX_MS;
-  let lastMsg = "Procesando…";
-  jobPollAbort = false;
-  while (Date.now() < deadline){
-    if (jobPollAbort) throw new Error("Cancelado por el usuario");
-    await new Promise(r=>setTimeout(r, JOB_POLL_INTERVAL_MS));
-    try{
-      const { r, data } = await fetchJSON(`${API_BASE}${STATUS_PATH}?id=${encodeURIComponent(jobId)}`, { method:"GET", signal: currentAbortCtrl?.signal });
-      if(r.ok && data && (data.done || data.status==="done" || data.result)){
-        const payload = data.result || data;
-        renderAnswer(payload, payload.question || "", langHint);
-        saveSession(payload.question || "", payload);
-        setStatusText(`✔ Respuesta por job ${jobId}`);
-        return true;
-      }
-      const msg = (data?.statusText || data?.status || "Procesando…");
-      if (msg !== lastMsg){ setStatusText(`⏳ ${msg}`); lastMsg = msg; }
-    }catch(e){
-      if (e?.name==="AbortError") throw e;
-    }
+  const deadline=startedAt+JOB_POLL_MAX_MS; jobPollAbort=false;
+  while(Date.now()<deadline){ if(jobPollAbort) throw new Error("Cancelado por el usuario"); await new Promise(r=>setTimeout(r,JOB_POLL_INTERVAL_MS));
+    try{ const {r,data}=await fetchJSON(`${API_BASE}${STATUS_PATH}?id=${encodeURIComponent(jobId)}`,{method:"GET",signal:currentAbortCtrl?.signal});
+      if(r.ok && (data?.done||data?.status==="done"||data?.result)){ const payload=data.result||data; renderAnswer(payload,payload.question||"",langHint); saveSession(payload.question||"",payload); return true; }
+    }catch(e){ if(e?.name==="AbortError") throw e; }
   }
   throw new Error("Tiempo de espera de job excedido");
 }
 
-/* ====== ASK (Cancelar + idioma fuerte + corrección/ traducción + expansión + reintentos) ====== */
+/* ====== ASK ====== */
 async function ask(){
-  if (isBusy) return;
+  if(isBusy) return;
   const text=q.value.trim(); if(!text) return;
+  const langHint=detectLang(text); isBusy=true; currentAbortCtrl=new AbortController(); jobPollAbort=false;
 
-  const langHint = detectLang(text);  // ES/EN
-  isBusy = true;
-  currentAbortCtrl = new AbortController();
-  jobPollAbort = false;
+  btnSend.disabled=true; btnCancel.disabled=false; const old=btnSend.textContent; btnSend.textContent="Enviando…";
+  setStatusLoading(langHint==="en"?"Consulting…":"Consultando…");
+  const t0=performance.now(); let mode="gpt";
 
-  btnSend.disabled=true; btnCancel.disabled=false;
-  const old=btnSend.textContent; btnSend.textContent="Enviando…";
-  setStatusLoading(langHint==="en" ? "Consulting…" : "Consultando…");
-  const t0 = performance.now();
-  let mode = "gpt";
-
-  const commonHeaders = {
+  const commonHeaders={
     "Content-Type":"application/json",
     "Accept":"application/json",
-    "Accept-Language": langHint === "en" ? "en-US,en;q=0.9" : "es-ES,es;q=0.9",
+    "Accept-Language": langHint==="en"?"en-US,en;q=0.9":"es-ES,es;q=0.9",
     "X-Force-Language": langHint,
-    "Prefer": `respond-language=${langHint}`
+    "Prefer": `respond-language=${langHint};respond-async=1;low_cost=1` // señales de ahorro + async
   };
 
-  const doGpt = (signal) => fetchJSON(`${API_BASE}${GPT_PATH}`, {
-    method:"POST",
-    headers: commonHeaders,
-    body: JSON.stringify({
-      q: text,
-      lang: langHint,
-      force_lang: true,
-      system_hint: langHint === "en"
-        ? "Answer strictly in English. Do not include Spanish."
-        : "Responde estrictamente en español. No incluyas inglés.",
-      // Señales de detalle
-      detail_level: "high",
-      response_size: "full",
-      min_words: 250,
-      max_words: 1200,
-      style_hint: langHint === "en"
-        ? "Thorough, structured, with examples and clear takeaways."
-        : "Detallado, estructurado, con ejemplos y conclusiones claras."
-    }),
-    signal
-  });
+  const bodyBase={
+    q:text, lang:langHint, force_lang:true,
+    system_hint: langHint==="en" ? "Answer strictly in English." : "Responde estrictamente en español.",
+    detail_level: COST_SAVER ? "medium" : "high",
+    response_size: COST_SAVER ? "short" : "full",
+    min_words: COST_SAVER ? 120 : 250,
+    max_words: COST_SAVER ? 450 : 800,   // tope prudente para costo
+    temperature: 0.2                      // más estable y barato en tokens repetidos
+  };
+
+  const doGpt=(signal)=>fetchJSON(`${API_BASE}${GPT_PATH}`,{method:"POST",headers:commonHeaders,body:JSON.stringify(bodyBase),signal});
 
   try{
-    // 1) intento 1 a /api/gpt
-    let res = await runWithMaybeTimeout(doGpt, TIMEOUT_GPT_MS, currentAbortCtrl.signal);
+    let res=await runWithMaybeTimeout(doGpt, TIMEOUT_GPT_MS, currentAbortCtrl.signal);
 
-    // 1.a) modo job async si el server devuelve 202 o job_id
-    if ((res.r.status === 202) || (res.data && res.data.job_id)){
-      const jobId = res.data.job_id || res.data.id || res.data.jobId;
-      setStatusText((langHint==="en"?"Queued. Tracking job ":"En cola. Seguimiento del job ") + jobId);
-      await pollJob(jobId, Date.now(), langHint);
-      const dt = Math.round(performance.now() - t0);
-      setStatusText((langHint==="en"?"✔ Answer via job in ":"✔ Respuesta por job en ") + dt + " ms");
+    // job por header
+    const jobIdHeader=res.r.headers?.get?.("x-job-id");
+    if(jobIdHeader && STATUS_PATH){ setStatusText((langHint==="en"?"Queued. Tracking ":"En cola. Seguimiento ")+jobIdHeader); await pollJob(jobIdHeader,Date.now(),langHint); setStatusText("✔ via job"); return; }
+
+    // job por body o 202
+    if(res.r.status===202 || (res.data && res.data.job_id)){ const jobId=res.data.job_id||res.data.id||res.data.jobId; setStatusText((langHint==="en"?"Queued. Tracking ":"En cola. Seguimiento ")+jobId); await pollJob(jobId,Date.now(),langHint); setStatusText("✔ via job"); return; }
+
+    // fallback si 404/405
+    if(res.r.status===404 || res.r.status===405){
+      mode="fallback";
+      const doFb=(signal)=>fetchJSON(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}&lang=${langHint}&force_lang=1`,{headers:{"Accept":"application/json","Accept-Language":commonHeaders["Accept-Language"],"X-Force-Language":langHint,"Prefer":`respond-language=${langHint};low_cost=1`},signal});
+      res=await runWithMaybeTimeout(doFb,TIMEOUT_FALLBACK_MS,currentAbortCtrl.signal);
+    }
+
+    // errores HTTP con mensaje amable
+    if(!res.r.ok){
+      let raw=""; try{ raw=await res.r.text(); }catch{}
+      throw new Error(friendlyApiError(res.r.status, raw || (res.data && JSON.stringify(res.data))));
+    }
+
+    let data=res.data||{}; if(data.ok===false) throw new Error(data.error||data.general||"Error");
+
+    // idioma de salida erróneo → solo traducimos si NO hay cost_saver
+    try{
+      const txt=(data.general||data.answer||data.text||""); const outLang=detectTextLang(txt);
+      if(langHint==="en" && outLang!=="en"){ data = await forceTranslateText(txt,"en",commonHeaders,currentAbortCtrl?.signal); }
+      else if(langHint==="es" && outLang!=="es"){ data = await forceTranslateText(txt,"es",commonHeaders,currentAbortCtrl?.signal); }
+    }catch{ /* ignore in ahorro */ }
+
+    // expansión moderada (si muy corto y cost_saver=false)
+    try{
+      const raw=(data.general||data.answer||data.text||"");
+      const expanded=await expandIfTooShort(raw,text,langHint,commonHeaders,currentAbortCtrl?.signal);
+      if(expanded && (expanded.general||expanded.answer||expanded.text)) data=expanded;
+    }catch{}
+
+    renderAnswer(data,text,langHint); saveSession(text,data);
+    setStatusText(`✔ ${mode==="gpt"?"GPT":"fallback"} · ${Math.round(performance.now()-t0)} ms`);
+  }catch(e1){
+    const msg=String(e1||""); const isAbort=(e1?.name==="AbortError"); const looksTimeout=isAbort||/timed\s?out|user aborted|network\s?timeout/i.test(msg);
+    if(looksTimeout && !currentAbortCtrl?.signal?.aborted){
+      setStatusText(langHint==="en"?"Slow network, single retry…":"Red lenta, reintento único…");
+      try{
+        const res2=await runWithMaybeTimeout(doGpt,TIMEOUT_GPT_MS,currentAbortCtrl.signal);
+        if(res2.r.status===202 || res2.data?.job_id){ const jobId=res2.data.job_id||res2.data.id||res2.data.jobId; await pollJob(jobId,Date.now(),langHint); setStatusText("✔ via job"); return; }
+        if(!res2.r.ok){ let raw=""; try{ raw=await res2.r.text(); }catch{}; throw new Error(friendlyApiError(res2.r.status, raw || (res2.data && JSON.stringify(res2.data)))); }
+        let d2=res2.data||{}; // sin expansión/traducción adicional en reintento para ahorrar
+        renderAnswer(d2,text,langHint); saveSession(text,d2); setStatusText(`✔ retry · ${Math.round(performance.now()-t0)} ms`); return;
+      }catch(e2){ handleAskError(e2,t0,mode,langHint); }
       return;
     }
-
-    // 1.b) fallback si 404/405 → también con señales fuertes
-    if (res.r.status === 404 || res.r.status === 405) {
-      mode="fallback";
-      const doFallback = (signal)=>fetchJSON(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}&lang=${langHint}&force_lang=1`, {
-        headers: {
-          "Accept":"application/json",
-          "Accept-Language": commonHeaders["Accept-Language"],
-          "X-Force-Language": langHint,
-          "Prefer": `respond-language=${langHint}`
-        },
-        signal
-      });
-      res = await runWithMaybeTimeout(doFallback, TIMEOUT_FALLBACK_MS, currentAbortCtrl.signal);
-    }
-
-    if(!res.r.ok) throw new Error(res.data?.error || `HTTP ${res.r.status}`);
-    let data = res.data || {};
-    if(data.ok===false) throw new Error(data.error || data.general || "Error");
-
-    /* --- Ajuste de idioma del resultado: reintento duro y traducción si hace falta --- */
-    let finalData = data;
-    try {
-      const rawText = (data.general || data.answer || data.text || "");
-      const outLang = detectTextLang(rawText);
-      if (langHint === "en" && outLang !== "en") {
-        const retryBody = {
-          q: text, lang: "en", force_lang: true,
-          system_hint: "Answer strictly in English. No Spanish. If your prior answer was Spanish, regenerate in English only.",
-          detail_level: "high", response_size: "full", min_words: 250, max_words: 1200,
-          style_hint: "Thorough, structured, with examples and clear takeaways."
-        };
-        const { r: rRetry, data: dRetry } = await fetchJSON(`${API_BASE}${GPT_PATH}`, {
-          method: "POST",
-          headers: { ...commonHeaders, "Accept-Language": "en-US,en;q=0.9", "X-Force-Language": "en", "Prefer": "respond-language=en" },
-          body: JSON.stringify(retryBody),
-          signal: currentAbortCtrl?.signal
-        });
-        if (rRetry.ok && dRetry && (detectTextLang(dRetry.general || dRetry.answer || dRetry.text || "") === "en")) {
-          finalData = dRetry;
-        } else {
-          finalData = await forceTranslateText(rawText || " ", "en", commonHeaders, currentAbortCtrl?.signal);
-        }
-      } else if (langHint === "es" && outLang !== "es") {
-        const retryBody = {
-          q: text, lang: "es", force_lang: true,
-          system_hint: "Responde estrictamente en español. No inglés. Si tu respuesta previa fue en inglés, regénérala solo en español.",
-          detail_level: "high", response_size: "full", min_words: 250, max_words: 1200,
-          style_hint: "Detallado, estructurado, con ejemplos y conclusiones claras."
-        };
-        const { r: rRetry, data: dRetry } = await fetchJSON(`${API_BASE}${GPT_PATH}`, {
-          method: "POST",
-          headers: { ...commonHeaders, "Accept-Language": "es-ES,es;q=0.9", "X-Force-Language": "es", "Prefer": "respond-language=es" },
-          body: JSON.stringify(retryBody),
-          signal: currentAbortCtrl?.signal
-        });
-        if (rRetry.ok && dRetry && (detectTextLang(dRetry.general || dRetry.answer || dRetry.text || "") === "es")) {
-          finalData = dRetry;
-        } else {
-          finalData = await forceTranslateText(rawText || " ", "es", commonHeaders, currentAbortCtrl?.signal);
-        }
-      }
-    } catch(_e) {
-      /* si falla la corrección, seguimos con data original */
-    }
-
-    /* --- Expansión si quedó corto --- */
-    try {
-      const rawFinal = (finalData.general || finalData.answer || finalData.text || "");
-      const expanded = await expandIfTooShort(rawFinal, text, langHint, commonHeaders, currentAbortCtrl?.signal);
-      if (expanded && (expanded.general || expanded.answer || expanded.text)) {
-        finalData = expanded;
-      }
-    } catch(_e){}
-
-    renderAnswer(finalData, text, langHint);
-    saveSession(text, finalData);
-    const dt = Math.round(performance.now() - t0);
-    setStatusText(`✔ ${mode==="gpt"?"GPT":"fallback"} · ${dt} ms`);
-  }catch(e1){
-    const e1Msg = String(e1||"");
-    const aborted = (e1?.name==="AbortError") || /Failed to fetch/i.test(e1Msg);
-    if (aborted && !currentAbortCtrl.signal.aborted){
-      try{
-        const res2 = await runWithMaybeTimeout(doGpt, TIMEOUT_GPT_MS, currentAbortCtrl.signal);
-        if (res2.r.status === 202 || (res2.data && res2.data.job_id)){
-          const jobId = res2.data.job_id || res2.data.id || res2.data.jobId;
-          setStatusText((langHint==="en"?"Queued. Tracking job ":"En cola. Seguimiento del job ") + jobId);
-          await pollJob(jobId, Date.now(), langHint);
-          const dt2 = Math.round(performance.now() - t0);
-          setStatusText(`✔ GPT (retry via job) · ${dt2} ms`);
-          return;
-        }
-        if(!res2.r.ok) throw new Error(res2.data?.error || `HTTP ${res2.r.status}`);
-        let data2 = res2.data || {};
-        if(data2.ok===false) throw new Error(data2.error || data2.general || "Error");
-
-        // Ajuste de idioma para el reintento
-        let finalData2 = data2;
-        try {
-          const rawText = (data2.general || data2.answer || data2.text || "");
-          const outLang = detectTextLang(rawText);
-          if (langHint === "en" && outLang !== "en") {
-            finalData2 = await forceTranslateText(rawText || " ", "en", commonHeaders, currentAbortCtrl?.signal);
-          } else if (langHint === "es" && outLang !== "es") {
-            finalData2 = await forceTranslateText(rawText || " ", "es", commonHeaders, currentAbortCtrl?.signal);
-          }
-          // expansión post-reintento
-          const expanded2 = await expandIfTooShort((finalData2.general||finalData2.answer||finalData2.text||""), text, langHint, commonHeaders, currentAbortCtrl?.signal);
-          if (expanded2 && (expanded2.general || expanded2.answer || expanded2.text)) {
-            finalData2 = expanded2;
-          }
-        } catch(_e){}
-
-        renderAnswer(finalData2, text, langHint);
-        saveSession(text, finalData2);
-        const dt2 = Math.round(performance.now() - t0);
-        setStatusText(`✔ GPT (retry) · ${dt2} ms`);
-        return;
-      }catch(e2){
-        handleAskError(e2, t0, mode, langHint);
-      }
-    } else {
-      handleAskError(e1, t0, mode, langHint);
-    }
-  } finally {
-    isBusy=false;
-    btnSend.disabled=false; btnCancel.disabled=true; btnSend.textContent=old;
-    currentAbortCtrl = null; jobPollAbort=false;
+    handleAskError(e1,t0,mode,langHint);
+  }finally{
+    isBusy=false; btnSend.disabled=false; btnCancel.disabled=true; btnSend.textContent="Enviar"; currentAbortCtrl=null; jobPollAbort=false;
   }
 }
 
-function handleAskError(err, t0, mode, langHint){
-  const dt = Math.round(performance.now() - t0);
-  try{ TTS.stopAll(); }catch(_){}
-  const isAbort = (err?.name==="AbortError") || /Cancelado por el usuario/.test(String(err));
+function handleAskError(err,t0,mode,langHint){
+  const dt=Math.round(performance.now()-t0); try{ TTS.stopAll(); }catch{}
+  const msg=String(err||""); const isAbort=(err?.name==="AbortError");
+  const looksTimeout=isAbort||/network\s?timeout|timed\s?out|user aborted request/i.test(msg);
   let friendly;
-  if (isAbort) friendly = langHint==="en" ? "Canceled by user" : "Cancelado por el usuario";
-  else if (/Failed to fetch/i.test(String(err))) friendly = langHint==="en" ? "Connection interrupted by browser or proxy" : "Conexión interrumpida por el navegador o proxy";
-  else friendly = String(err);
-  out.innerHTML = `<pre style="color:var(--err)">Error: ${esc(friendly)}\n(${dt} ms)</pre>`;
-  saveSession(q.value.trim(), {});
-  setStatusText(`${friendly} · ${dt} ms`);
+  if(currentAbortCtrl?.signal?.aborted && !looksTimeout) friendly=langHint==="en"?"Canceled by user":"Cancelado por el usuario";
+  else if(looksTimeout) friendly=langHint==="en"?"Timeout: browser/proxy cut the connection.":"Tiempo de espera agotado: el navegador/proxy cortó la conexión.";
+  else if(/Failed to fetch/i.test(msg)) friendly=langHint==="en"?"Connection interrupted":"Conexión interrumpida";
+  else friendly=msg;
+  out.innerHTML=`<pre style="color:var(--err)">Error: ${esc(friendly)}\n(${dt} ms)</pre>`; saveSession(q.value.trim(),{}); setStatusText(`${friendly} · ${dt} ms`);
 }
 
 /* ====== Exportar ====== */
 function htmlToCSV(includeQuestion=true){
-  const rows=[];
-  if(includeQuestion){
-    const pq=(document.querySelector("h3+ p")?.textContent||"").trim();
-    if(pq) rows.push(["PREGUNTA", pq]);
-  }
-  out.querySelectorAll("p").forEach(p=>{
-    const t=p.textContent.trim(); if(t) rows.push(["TEXTO", t]);
-  });
-  out.querySelectorAll("ol,ul").forEach(list=>{
-    const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}`);
-    if(items.length){ rows.push(["LISTA", items.join(" \\ ")]); }
-  });
-  out.querySelectorAll("table").forEach(tbl=>{
-    const head=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
-    if(head.length) rows.push(["TABLA CABECERAS", ...head]);
-    const trs=[...tbl.querySelectorAll("tbody tr")];
-    trs.forEach((tr,ri)=>{
-      const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
-      rows.push([`FILA ${ri+1}`, ...cells]);
-    });
-  });
-  return rows.map(r => r.map(cell=>{
-    const v=String(cell??"");
-    if (/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`;
-    return v;
-  }).join(",")).join("\n");
+  const rows=[]; if(includeQuestion){ const pq=(document.querySelector("h3+ p")?.textContent||"").trim(); if(pq) rows.push(["PREGUNTA",pq]); }
+  out.querySelectorAll("p").forEach(p=>{ const t=p.textContent.trim(); if(t) rows.push(["TEXTO",t]); });
+  out.querySelectorAll("ol,ul").forEach(list=>{ const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}`); if(items.length){ rows.push(["LISTA",items.join(" \\ ")]); } });
+  out.querySelectorAll("table").forEach(tbl=>{ const head=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim()); if(head.length) rows.push(["TABLA CABECERAS",...head]); const trs=[...tbl.querySelectorAll("tbody tr")]; trs.forEach((tr,ri)=>{ const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim()); rows.push([`FILA ${ri+1}`,...cells]); }); });
+  return rows.map(r=>r.map(c=>{const v=String(c??""); return /[",\n]/.test(v)?`"${v.replace(/"/g,'""')}"`:v;}).join(",")).join("\n");
 }
-
-function download(filename, blob){
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download=filename;
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
-}
-
-function printHTML(html){
-  const iframe=document.createElement('iframe');
-  iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
-  iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0';
-  document.body.appendChild(iframe);
-  const doc=iframe.contentWindow||iframe.contentDocument;
-  const idoc=doc.document||doc;
-  idoc.open(); idoc.write(html); idoc.close();
-  setTimeout(()=>{ try{ (iframe.contentWindow||iframe).focus(); (iframe.contentWindow||iframe).print(); }catch{} }, 60);
-  setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
-}
+function download(filename,blob){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=filename; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },500); }
+function printHTML(html){ const iframe=document.createElement('iframe'); Object.assign(iframe.style,{position:'fixed',right:'0',bottom:'0',width:'0',height:'0',border:'0'}); document.body.appendChild(iframe); const idoc=(iframe.contentWindow||iframe.contentDocument); const d=idoc.document||idoc; d.open(); d.write(html); d.close(); setTimeout(()=>{ try{ (iframe.contentWindow||iframe).focus(); (iframe.contentWindow||iframe).print(); }catch{} },60); setTimeout(()=>{ try{ document.body.removeChild(iframe);}catch{} },30000); }
 
 /* ====== Botones ====== */
 btnSend.addEventListener("click", ask);
-btnCancel.disabled = true;
-btnCancel.addEventListener("click", ()=>{
-  if (currentAbortCtrl) { try{ currentAbortCtrl.abort(); }catch{} }
-  jobPollAbort = true;
-  try{ TTS.stopAll(); }catch(_){}
-  setStatusText("Cancelado");
-});
+btnCancel.disabled=true;
+btnCancel.addEventListener("click",()=>{ if(currentAbortCtrl) try{currentAbortCtrl.abort();}catch{} jobPollAbort=true; try{TTS.stopAll();}catch{} setStatusText("Cancelado"); });
 btnDict.addEventListener("click", toggleDict);
-btnToggleAV.addEventListener("click", ()=>{
-  if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i, TTS.lang); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
-  if(TTS.paused){ TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
-  else if(TTS.speaking){ TTS.pause(); btnToggleAV.textContent="▶ Reanudar voz"; }
-  else { TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
-});
-btnReplay.addEventListener("click", ()=>{
-  const langHint = detectLang((document.querySelector("h3+ p")?.textContent || q.value || "").trim());
-  TTS.restartFromStart(langHint); btnToggleAV.textContent="⏸ Silenciar voz";
-});
+btnToggleAV.addEventListener("click", ()=>{ if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); TTS.start(TTS.i, TTS.lang); btnToggleAV.textContent="⏸ Silenciar voz"; return;} if(TTS.paused){ TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; } else if(TTS.speaking){ TTS.pause(); btnToggleAV.textContent="▶ Reanudar voz"; } else { TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; } });
+btnReplay.addEventListener("click", ()=>{ const lang=detectLang((document.querySelector("h3+ p")?.textContent||q.value||"").trim()); TTS.restartFromStart(lang); btnToggleAV.textContent="⏸ Silenciar voz"; });
 btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
-btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunta)", {}); TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus(); });
+btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunta)",{}); TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus(); });
 
-/* ====== UX ====== */
-q.addEventListener("keydown",(e)=>{
-  if ((e.ctrlKey||e.metaKey) && e.key==="Enter"){
-    e.preventDefault(); if(!isBusy) ask();
-  }
-});
+q.addEventListener("keydown",(e)=>{ if((e.ctrlKey||e.metaKey) && e.key==="Enter"){ e.preventDefault(); if(!isBusy) ask(); } });
 
-/* ====== Exportar ====== */
-selExport.addEventListener("change", ()=>{
-  const v=selExport.value; selExport.value="";
-  if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
-  const questionText=(document.querySelector("h3+ p")?.textContent||"").trim();
-
-  if(v==="pdf"){
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
-      <style>body{font:16px/1.5 system-ui;margin:28px;color:#111}
-             h3{margin-top:0}
-             table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
-      </head><body>
-      ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
-      ${out.innerHTML}
-      </body></html>`;
-    try{ printHTML(html); }catch(_){
-      const w=window.open("", "_blank", "noopener,noreferrer");
-      if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
-    }
-    return;
-  }
-  if(v==="csv"){
-    const csv=htmlToCSV(true);
-    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
-    download("export.csv", blob);
-    return;
-  }
-  if(v==="doc"){
-    const html = `<!doctype html><html><head><meta charset="utf-8"></head><body>
-      ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
-      ${out.innerHTML}
-    </body></html>`;
-    const blob=new Blob([html],{type:"application/msword"});
-    download("export.doc", blob);
-    return;
-  }
+selExport.addEventListener("change", ()=>{ const v=selExport.value; selExport.value=""; if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; } const question=(document.querySelector("h3+ p")?.textContent||"").trim();
+  if(v==="pdf"){ const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title><style>body{font:16px/1.5 system-ui;margin:28px;color:#111} h3{margin-top:0} table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style></head><body>${question?`<h3>Pregunta</h3><p>${esc(question)}</p>`:""}${out.innerHTML}</body></html>`; try{ printHTML(html);}catch{ const w=window.open("", "_blank","noopener,noreferrer"); if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); } } return; }
+  if(v==="csv"){ const csv=htmlToCSV(true); download("export.csv", new Blob([csv],{type:"text/csv;charset=utf-8"})); return; }
+  if(v==="doc"){ const html = `<!doctype html><html><head><meta charset="utf-8"></head><body>${question?`<h3>Pregunta</h3><p>${esc(question)}</p>`:""}${out.innerHTML}</body></html>`; download("export.doc", new Blob([html],{type:"application/msword"})); return; }
 });
 
 /* ====== Errores JS ====== */
-window.addEventListener("error",(e)=>{
-  const msg=(e?.error?.stack||e?.message||String(e)).slice(0,600);
-  statusEl.innerHTML = '<span class="loader" role="status" aria-busy="true">'
-    + '<span class="dot"></span><span class="dot"></span><span class="dot"></span>'
-    + esc('JS error: ' + msg) + '</span>';
-},{once:false});
+window.addEventListener("error",(e)=>{ const msg=(e?.error?.stack||e?.message||String(e)).slice(0,600); statusEl.innerHTML='<span class="loader" role="status" aria-busy="true"><span class="dot"></span><span class="dot"></span><span class="dot"></span>'+esc('JS error: '+msg)+'</span>'; },{once:false});
 </script>
 </body>
 </html>
-
