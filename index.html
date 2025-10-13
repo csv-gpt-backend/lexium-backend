@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>kun 1052 Asistente Lexium</title>
+<title>SSSSSAsistente Lexium</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -28,8 +28,8 @@
 
   .contentWrap{
     max-width:var(--wrapW); margin:0 auto; padding:12px;
-    /* bajamos un pelín el contenido para que no toque el video */
-    padding-top:calc(var(--heroH) + 16px);
+    /* un poco más espacio para despegar la caja del video */
+    padding-top:calc(var(--heroH) + 20px);
   }
 
   .toolbar{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:8px 0}
@@ -40,14 +40,15 @@
   .hist{position:fixed; right:14px; top:10px; z-index:60}
   .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
-  /* Caja de texto: una sola línea y un poco más abajo */
+  /* === Caja de texto: una sola línea real === */
   .query{
     width:100%;
-    height:42px; min-height:42px; max-height:42px;
-    margin-top:6px;
-    resize:none;
+    box-sizing:border-box;
+    height:38px; min-height:38px; max-height:38px;
+    margin-top:8px;
+    resize:none; overflow:auto;
     border:1px solid var(--bd); border-radius:10px;
-    padding:10px 12px; font-size:16px; line-height:1.4;
+    padding:8px 12px; font-size:16px; line-height:1.4;
   }
 
   .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
@@ -63,7 +64,7 @@
   .dot:nth-child(3){animation-delay:.3s}
   @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
 
-  /* Overlay Historial (sin pop-ups) */
+  /* === Overlay Historial (sin popups) === */
   .overlay{
     display:none; position:fixed; inset:0; background:rgba(0,0,0,.25);
     z-index:80; align-items:center; justify-content:center; padding:24px;
@@ -71,14 +72,22 @@
   .overlay.show{ display:flex; }
   .panel{
     background:#fff; border:1px solid var(--bd); border-radius:12px;
-    width:min(900px, 92vw); max-height:80vh; overflow:auto; padding:16px;
+    width:min(1000px, 94vw); max-height:84vh; overflow:hidden; display:flex; flex-direction:column;
   }
-  .panel header{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px}
+  .panel header{display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--bd)}
   .panel h2{margin:0; font-size:18px}
-  .closeBtn{border:1px solid var(--bd); background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer}
+  .closeBtn, .backBtn{border:1px solid var(--bd); background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer}
+  .panelBody{padding:12px 16px; overflow:auto}
+
   .session{border-top:1px solid var(--bd); padding:10px 0; display:flex; align-items:center; gap:10px}
   .session .meta{flex:1}
   .viewBtn{border:1px solid var(--bd); background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer}
+
+  /* Vista de detalle dentro del overlay */
+  #histListView{} /* lista */
+  #histDetailView{display:none;} /* detalle */
+  .histQuestion{margin:0 0 8px 0}
+  .histContent{border:1px solid var(--bd); border-radius:10px; padding:12px; overflow:auto}
 </style>
 </head>
 <body>
@@ -127,20 +136,32 @@
     <div id="status" class="muted"></div>
   </div>
 
-  <!-- Overlay del Historial (sin pop-ups) -->
+  <!-- === Overlay del Historial (lista y detalle en el mismo panel) === -->
   <div id="histOverlay" class="overlay" aria-modal="true" role="dialog">
     <div class="panel">
       <header>
         <h2>Sesiones</h2>
-        <button class="closeBtn" id="closeHist">Cerrar</button>
+        <div style="display:flex; gap:8px">
+          <button class="backBtn" id="backHist" style="display:none">← Volver</button>
+          <button class="closeBtn" id="closeHist">Cerrar</button>
+        </div>
       </header>
-      <div id="histBody"></div>
+      <div class="panelBody">
+        <!-- vista de lista -->
+        <div id="histListView">
+          <div id="histBody"></div>
+        </div>
+        <!-- vista de detalle -->
+        <div id="histDetailView">
+          <h3 class="histQuestion"></h3>
+          <div class="histContent" id="histContent"></div>
+        </div>
+      </div>
     </div>
   </div>
 
 <script>
 /* ====== CONFIG ====== */
-/* Usa el mismo endpoint que ya tienes funcionando; no toco el modelo. */
 const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app";
 const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
@@ -158,26 +179,32 @@ const btnNew = document.getElementById("btnNew");
 const btnClear = document.getElementById("btnClear");
 const selExport = document.getElementById("selExport");
 const btnHist = document.getElementById("btnHist");
+
 const histOverlay = document.getElementById("histOverlay");
 const histBody = document.getElementById("histBody");
 const closeHist = document.getElementById("closeHist");
+const backHist = document.getElementById("backHist");
+const histListView = document.getElementById("histListView");
+const histDetailView = document.getElementById("histDetailView");
+const histQuestion = document.querySelector(".histQuestion");
+const histContent = document.getElementById("histContent");
 
 /* ====== Utils ====== */
-function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;","&gt;":"&gt;"}[m])); }
 function setStatusLoading(msg="Generando…"){
   statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
     <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
 }
 function clearStatus(){ statusEl.textContent = ""; }
 
-/* ====== Historial (en overlay, sin popups) ====== */
+/* ====== Historial (overlay interno, sin popups) ====== */
 const SESS_KEY="lexium_sessions";
 function saveSession(question, data){
   const visible = (document.getElementById('out')?.innerHTML || "").trim();
   const entry = {
     id:new Date().toISOString(),
     question: question || "(sin pregunta)",
-    html: visible, // guardamos el HTML completo de salida
+    html: visible,
     when: Date.now()
   };
   try{
@@ -189,7 +216,7 @@ function saveSession(question, data){
 function readSessions(){
   try{ return JSON.parse(localStorage.getItem(SESS_KEY)||"[]"); }catch(_){ return []; }
 }
-function renderHistory(){
+function renderHistoryList(){
   const all=readSessions();
   if(!all.length){ histBody.innerHTML="<p class='muted'>Sin historial.</p>"; return; }
   histBody.innerHTML = all.map(s=>`
@@ -202,34 +229,36 @@ function renderHistory(){
     </div>
   `).join("");
 }
-function openHistory(){ renderHistory(); histOverlay.classList.add("show"); }
+function openHistory(){
+  // mostrar lista
+  histListView.style.display="block";
+  histDetailView.style.display="none";
+  backHist.style.display="none";
+  renderHistoryList();
+  histOverlay.classList.add("show");
+}
 function closeHistoryOverlay(){ histOverlay.classList.remove("show"); }
 btnHist.addEventListener("click", openHistory);
 closeHist.addEventListener("click", closeHistoryOverlay);
 histOverlay.addEventListener("click",(e)=>{ if(e.target===histOverlay) closeHistoryOverlay(); });
+backHist.addEventListener("click", ()=>{
+  histListView.style.display="block";
+  histDetailView.style.display="none";
+  backHist.style.display="none";
+});
 
-/* “Ver” → muestra el contenido guardado en el overlay (no en out) */
 histBody.addEventListener("click",(e)=>{
   const btn = e.target.closest(".viewBtn");
   if(!btn) return;
   const id = btn.getAttribute("data-id");
   const match = readSessions().find(x=>x.id===id);
   if(match){
-    // Mostramos en un panel nuevo dentro del overlay (no tocamos out)
-    const w = window.open("", "_blank", "noopener,noreferrer"); // por si el usuario quiere imprimir
-    if (w){
-      w.document.open();
-      w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Sesión</title>
-        <style>body{font:16px/1.5 system-ui;margin:18px;color:#111}
-               table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
-      </head><body>
-        <h3>Pregunta</h3><p>${esc(match.question)}</p>
-        ${match.html || "<em>Vacío</em>"}
-      </body></html>`);
-      w.document.close();
-    } else {
-      alert("El navegador bloqueó abrir la vista. Activa pop-ups o copia/pega el contenido.");
-    }
+    // mostrar contenido dentro del overlay (detalle)
+    histQuestion.textContent = `Pregunta: ${match.question}`;
+    histContent.innerHTML = match.html || "<em>Vacío</em>";
+    histListView.style.display="none";
+    histDetailView.style.display="block";
+    backHist.style.display="inline-block";
   }
 });
 
@@ -249,7 +278,7 @@ function toggleDict(){
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
 }
 
-/* ====== Voz femenina estable + pausas entre ítems ====== */
+/* ====== Voz (idéntico a la versión previa con pausas) ====== */
 const PREFERRED_NAMES=[
   "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
   "Google español","Google español de Estados","Google US Español",
@@ -276,7 +305,6 @@ function pickVoice(lang){
 function initVoice(){ selectedVoice=pickVoice(langHint||"es"); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=()=>{ if(!selectedVoice){ initVoice(); } }; setTimeout(initVoice,150); }
 
-/* === Para voz: hacemos pausas claras entre ítems === */
 const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
 
 function generalToOrderedListHTML(g){
@@ -292,24 +320,18 @@ function generalToOrderedListHTML(g){
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* === TTS helpers (pausas entre items) === */
+/* === TTS helpers (pausas) === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
-
-  // párrafos
   c.querySelectorAll("p").forEach(p=>{ const t=p.textContent.trim(); if(t) parts.push(t); });
-
-  // listas → “1. — item” + doble salto de línea entre ítems para pausa
   c.querySelectorAll("ol,ul").forEach(list=>{
     const items=[...list.querySelectorAll("li")].map((li,i)=>{
       const txt = li.textContent.trim();
-      return `${i+1}. — ${txt}`; // “—” fuerza pausa natural
+      return `${i+1}. — ${txt}`;
     }).filter(Boolean);
-    if(items.length){ parts.push(items.join("\n\n")); } // doble salto = pausa
+    if(items.length){ parts.push(items.join("\n\n")); }
   });
-
-  // tablas → anunciamos filas (con pausa entre cada una)
   c.querySelectorAll("table").forEach(tbl=>{
     const rows=[...tbl.querySelectorAll("tbody tr")];
     if(!rows.length) return;
@@ -321,14 +343,11 @@ function buildTTSTextFromOut(){
     }).join("\n\n");
     if(items) parts.push(items);
   });
-
-  const fallback=(out.textContent||"").trim();
   return parts.join("\n\n");
 }
 
 const TTS={
   enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
-  // separa por doble salto de línea primero (pausas entre ítems)
   makeChunks(text,maxLen=360){
     const blockParts = String(text).split(/\n{2,}/);
     const res=[];
@@ -375,7 +394,7 @@ const TTS={
              if(vid){ vid.loop=false; vid.pause(); } }
 };
 
-/* ====== Normalizar listas/tablas del backend ====== */
+/* ====== Normalizar listas/tablas ====== */
 function normalizeLists(lists){
   if(!Array.isArray(lists)) return [];
   return lists.map((entry,i)=>{
@@ -412,7 +431,6 @@ function renderAnswer(data){
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
-  // Narración: empezar siempre con la voz ya elegida, con pausas entre ítems
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 }
 
@@ -422,7 +440,7 @@ async function ask(){
   btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
   setStatusLoading("Consultando…");
 
-  // fijamos idioma de voz según la pregunta (solo TTS, no afecta al modelo)
+  // solo afecta TTS (no al modelo)
   const t=text.toLowerCase();
   const enHits=(t.match(/\b(the|and|you|your|please|could|would|with|from|to|of|in|on|are|is|can|help|explain|summary|benefits)\b/g)||[]).length;
   const esHits=(t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por favor|podría|sería|ayuda|explica|resumen|beneficios)\b/g)||[]).length;
@@ -442,7 +460,7 @@ async function ask(){
     renderAnswer(data);
     saveSession(text, data);
   }catch(e){
-    out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
+    out.innerHTML = `<pre style="color:var(--err)">${String(e)}</pre>`;
     saveSession(text, {});
   }finally{
     btnSend.disabled=false; btnSend.textContent=old; clearStatus();
@@ -475,27 +493,20 @@ selExport.addEventListener("change", ()=>{
       ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
       ${out.innerHTML}
       </body></html>`;
-    try{ printHTML(html); }catch(_){
-      const w=window.open("", "_blank", "noopener,noreferrer");
-      if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
-    }
+    try{ printHTML(html); }catch(_){}
     return;
   }
 
   if(v==="csv"){
-    // CSV simple: incluye pregunta una sola vez y filas de tablas
     let rows=[];
     if(questionText){ rows.push(["PREGUNTA", questionText]); }
-    // texto plano
     out.querySelectorAll("p").forEach(p=>{
       const t=p.textContent.trim(); if(t) rows.push(["TEXTO", t]);
     });
-    // listas
     out.querySelectorAll("ol,ul").forEach(list=>{
       const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}`);
       if(items.length){ rows.push(["LISTA", items.join(" \\ ")]); }
     });
-    // tablas
     out.querySelectorAll("table").forEach(tbl=>{
       const head=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
       if(head.length) rows.push(["TABLA CABECERAS", ...head]);
@@ -543,13 +554,15 @@ btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunt
 
 /* ====== UX ====== */
 q.addEventListener("keydown",(e)=>{ if((e.ctrlKey||e.metaKey) && e.key==="Enter") ask(); });
+/* Fuerza altura 1 línea en navegadores “rebeldes” */
+q.addEventListener("input", ()=>{ q.style.height="38px"; });
 
 /* Mostrar errores JS en pantalla */
 window.addEventListener("error",(e)=>{
   const msg=(e?.error?.stack||e?.message||String(e)).slice(0,600);
   statusEl.innerHTML = '<span class="loader" role="status" aria-busy="true">'
     + '<span class="dot"></span><span class="dot"></span><span class="dot"></span>'
-    + esc('JS error: ' + msg) + '</span>';
+    + ('JS error: ' + msg) + '</span>';
 },{once:false});
 </script>
 </body>
