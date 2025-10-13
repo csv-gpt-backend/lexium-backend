@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>CCCAsistente Lexium</title>
+<title>JJJJAsistente Lexium</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -104,6 +104,7 @@
 
     <div class="toolbar">
       <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
+      <button id="btnCancel" title="Cancelar consulta en curso" disabled>✖ Cancelar</button>
       <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
       <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
       <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
@@ -134,7 +135,7 @@
 
 <script>
 /* ====== CONFIG ====== */
-const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app"; // SIN tocar modelo ni backend
+const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app"; // modelo/backend intactos
 const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
 
@@ -144,6 +145,7 @@ const out = document.getElementById("out");
 const statusEl = document.getElementById("status");
 const vid = document.getElementById("vid");
 const btnSend = document.getElementById("btnSend");
+const btnCancel = document.getElementById("btnCancel");
 const btnDict = document.getElementById("btnDict");
 const btnToggleAV = document.getElementById("btnToggleAV");
 const btnReplay = document.getElementById("btnReplay");
@@ -155,12 +157,12 @@ const histOverlay = document.getElementById("histOverlay");
 const histBody = document.getElementById("histBody");
 const closeHist = document.getElementById("closeHist");
 
-/* ====== Estado para evitar doble disparo ====== */
+/* ====== Estado ====== */
 let isBusy = false;
 let currentAbortCtrl = null;
 let requestId = 0;
 
-/* ====== Utilidades ====== */
+/* ====== Utils ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
 function setStatusLoading(msg="Generando…"){
   statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
@@ -169,7 +171,7 @@ function setStatusLoading(msg="Generando…"){
 function clearStatus(){ statusEl.textContent = ""; }
 function setStatusText(msg=""){ statusEl.textContent = msg? String(msg):""; }
 
-/* Detectar idioma entrada/salida */
+/* Idioma */
 function detectLang(text){
   const t=(text||"").trim().toLowerCase();
   if(!t) return "es";
@@ -192,10 +194,9 @@ function detectTextLang(s){
   return "en";
 }
 
-/* Limpiar disclaimers automáticos del LLM */
+/* Quitar disclaimers */
 function stripDisclaimers(htmlText){
   if(!htmlText) return htmlText;
-  // Variantes ES y EN
   const re = new RegExp(
     "(no\\s+constituye\\s+un\\s+diagn[oó]stico\\s+cl[ií]nic[oa]|psicol[oó]gic[oa])|" +
     "(does\\s+not\\s+constitute\\s+(a\\s+)?(clinical|psychological)\\s+diagnosis)",
@@ -204,7 +205,7 @@ function stripDisclaimers(htmlText){
   return htmlText.replace(re, "").replace(/\n{2,}/g,"\n").replace(/\s{2,}/g," ");
 }
 
-/* Linkify + verificación */
+/* Linkify + check */
 const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
 function linkifyHTML(html){
   return html.replace(URL_RE, (u)=>{
@@ -229,7 +230,7 @@ async function verifyLinks(){
   }
 }
 
-/* ====== Historial (overlay con VER) ====== */
+/* ====== Historial ====== */
 const SESS_KEY="lexium_sessions_v5";
 function saveSession(question, data){
   const html=(document.getElementById('out')?.innerHTML||"").trim();
@@ -272,7 +273,6 @@ histBody.addEventListener("click",(e)=>{
     out.innerHTML = match.html || "<em>Vacío</em>";
     out.scrollTop = 0;
     clearStatus();
-    // NO iniciar/pausar voz ni video aquí
     closeHistoryOverlay();
   }
 });
@@ -374,11 +374,11 @@ function normalizeLists(lists){
   });
 }
 
-/* bullets para generalToOrderedListHTML */
+/* Bullets */
 const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
 function generalToOrderedListHTML(g){
   if (!g) return "";
-  const clean = stripDisclaimers(g); // quitar disclaimers ANTES de pintar
+  const clean = stripDisclaimers(g);
   const lines = clean.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const bulletLike = lines.filter(s=>BULLET_RE.test(s)).length;
   const manyPlainLines = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length;
@@ -415,7 +415,6 @@ function renderAnswer(data, langHintForTTS){
   out.innerHTML = linkifyHTML(html || "<em>Sin contenido.</em>");
   setTimeout(verifyLinks, 120);
 
-  // Narración
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0, langHintForTTS||"es");
 }
 
@@ -454,7 +453,8 @@ async function ask(){
 
   if (currentAbortCtrl) { try{ currentAbortCtrl.abort(); }catch{} }
 
-  btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
+  btnSend.disabled=true; btnCancel.disabled=false;
+  const old=btnSend.textContent; btnSend.textContent="Enviando…";
   setStatusLoading("Consultando…");
 
   const langHint = detectLang(text);
@@ -463,7 +463,6 @@ async function ask(){
     let { ok, data, status } = await doFetch({ q: text }, langHint, true);
     if (!ok) throw new Error(data?.error || data?.general || `HTTP ${status}`);
 
-    // Si idioma no coincide, reintento con instrucción fuerte
     const rawTxt = (data.general || data.answer || data.text || "");
     const outLang = detectTextLang(rawTxt);
     if ((langHint==="en" && outLang!=="en") || (langHint==="es" && outLang!=="es")) {
@@ -481,15 +480,25 @@ async function ask(){
     setStatusText("✔ Listo");
   }catch(e){
     if (myId !== requestId) return;
-    out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
+    const msg = String(e && e.name==="AbortError" ? "Cancelado" : e);
+    out.innerHTML = `<pre style="color:var(--err)">${esc(msg)}</pre>`;
     saveSession(text, {});
-    setStatusText(String(e));
+    setStatusText(msg);
   }finally{
     if (myId === requestId){
-      btnSend.disabled=false; btnSend.textContent=old; isBusy=false; currentAbortCtrl=null;
+      btnSend.disabled=false; btnCancel.disabled=true; btnSend.textContent=old; isBusy=false; currentAbortCtrl=null;
     }
   }
 }
+
+/* ====== Cancelar ====== */
+btnCancel.addEventListener("click", ()=>{
+  try{ if(currentAbortCtrl) currentAbortCtrl.abort(); }catch(_){}
+  try{ TTS.stopAll(); }catch(_){}
+  setStatusText("Cancelado");
+  btnCancel.disabled = true;
+  isBusy = false;
+});
 
 /* ====== Exportar ====== */
 function getQuestionBlockOnce(){
@@ -497,22 +506,17 @@ function getQuestionBlockOnce(){
   if(!pq) return "";
   return `<h3>Pregunta</h3><p>${esc(pq)}</p>`;
 }
-
 function htmlToCSV(){
   const rows=[];
   const question=(q.value||"").trim();
   if(question) rows.push(["PREGUNTA", question]);
-
-  // Párrafos
   out.querySelectorAll("p").forEach(p=>{
     const t=p.textContent.trim(); if(t) rows.push(["PARRAFO", t]);
   });
-  // Listas
   out.querySelectorAll("ol,ul").forEach(list=>{
     const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}`);
     if(items.length){ rows.push(["LISTA", items.join(" \\ ")]); }
   });
-  // Tablas
   out.querySelectorAll("table").forEach(tbl=>{
     const head=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
     if(head.length) rows.push(["TABLA CABECERAS", ...head]);
@@ -522,15 +526,12 @@ function htmlToCSV(){
       rows.push([`FILA ${ri+1}`, ...cells]);
     });
   });
-
-  // CSV safe quoting
   return rows.map(r => r.map(cell=>{
     const v=String(cell??"");
     if (/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`;
     return v;
   }).join(",")).join("\n");
 }
-
 function printHTML(html){
   const iframe = document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
@@ -542,7 +543,6 @@ function printHTML(html){
   setTimeout(()=>{ try{ (iframe.contentWindow||iframe).focus(); (iframe.contentWindow||iframe).print(); }catch{} }, 60);
   setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
 }
-
 selExport.addEventListener("change", ()=>{
   const v=selExport.value; selExport.value="";
   if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
@@ -607,7 +607,6 @@ if(!btnSend._wired){
   btnSend.addEventListener("click", ask);
   btnSend._wired = true;
 }
-btnDict.addEventListener("click", toggleDict);
 btnToggleAV.addEventListener("click", ()=>{
   if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); const langHint=detectLang(q.value); TTS.start(TTS.i, langHint); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
   if(TTS.paused){ TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
@@ -617,6 +616,7 @@ btnToggleAV.addEventListener("click", ()=>{
 btnReplay.addEventListener("click", ()=>{ const langHint=detectLang(q.value); TTS.restartFromStart(langHint); btnToggleAV.textContent="⏸ Silenciar voz"; });
 btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
 btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunta)", {}); TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus(); });
+btnDict.addEventListener("click", toggleDict);
 
 /* Tecla rápida */
 q.addEventListener("keydown",(e)=>{
