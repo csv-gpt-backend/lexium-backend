@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title> DOM 1843Asistente Lexium</title>
+<title>Asistente Lexium</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -99,8 +99,7 @@
 
 <script>
 /* ====== CONFIG ====== */
-/* REEMPLAZA abajo por la URL exacta que devuelve:
-gcloud run services describe lexium-gpt5 --format='value(status.url)' */
+/*const API_BASE = "https://lexium-api-383217514425.southamerica-west1.run.app";*/
 const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app";
 const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
@@ -120,7 +119,7 @@ const selExport = document.getElementById("selExport");
 const btnHist = document.getElementById("btnHist");
 
 /* ====== Utilidades ====== */
-function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;","&gt;":"&gt;"}[m])); }
+function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
 function setStatusLoading(msg="Generando…"){
   statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
     <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
@@ -210,16 +209,18 @@ function chooseFemaleES(){
 function initVoice(){ selectedVoice=chooseFemaleES(); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=initVoice; setTimeout(initVoice,150); }
 
-/* Regex para bullets */
+/* === Regex corregida (sin escapes inválidos con 'u') === */
 const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
 
-/* Convertir texto general a lista numerada (visual) */
+/* === Convertir texto general a lista numerada (visual) === */
 function generalToOrderedListHTML(g){
   if (!g) return "";
   const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
   const bulletLike = lines.filter(s=>BULLET_RE.test(s)).length;
+
   const manyPlainLines = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length;
   const shouldNumber = (lines.length>=3) && (bulletLike>0 || manyPlainLines >= Math.ceil(lines.length*0.6));
+
   if (shouldNumber) {
     const items = lines.map(s=>s.replace(BULLET_RE,"")).filter(Boolean);
     return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
@@ -227,7 +228,7 @@ function generalToOrderedListHTML(g){
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
 
-/* TTS helpers */
+/* === TTS helpers === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
@@ -284,7 +285,7 @@ const TTS={
              if(vid){ vid.loop=false; vid.pause(); } }
 };
 
-/* Normalizar listas/tablas del backend */
+/* ====== Normalizar listas/tablas del backend ====== */
 function normalizeLists(lists){
   if(!Array.isArray(lists)) return [];
   return lists.map((entry,i)=>{
@@ -299,7 +300,7 @@ function normalizeLists(lists){
   });
 }
 
-/* Render */
+/* ====== Render ====== */
 function renderAnswer(data){
   let html="";
   const generalTxt = data.general || data.answer || data.text || "";
@@ -324,7 +325,7 @@ function renderAnswer(data){
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 }
 
-/* Backend (síncrono como el lunes) */
+/* ====== Backend ====== */
 async function ask(){
   const text=q.value.trim(); if(!text) return;
   btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
@@ -349,7 +350,7 @@ async function ask(){
   }
 }
 
-/* Exportar: PDF / XLS / DOC */
+/* ====== Exportar: PDF con vista previa sin pop-up ====== */
 function printHTML(html){
   const iframe = document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
@@ -389,7 +390,7 @@ selExport.addEventListener("change", ()=>{
   }
 });
 
-/* Botones */
+/* ====== Botones ====== */
 try { btnSend.addEventListener("click", ask); btnSend._wired = true; } catch {}
 btnDict.addEventListener("click", toggleDict);
 btnToggleAV.addEventListener("click", ()=>{
@@ -403,7 +404,7 @@ btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStat
 btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunta)", {}); TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus(); });
 btnHist.addEventListener("click", openHistory);
 
-/* UX */
+/* ====== UX ====== */
 q.addEventListener("keydown",(e)=>{ if(e.key==="Enter" && (e.ctrlKey||e.metaKey)) ask(); });
 
 /* Mostrar errores JS en pantalla */
@@ -416,5 +417,3 @@ window.addEventListener("error", (e)=>{
 </script>
 </body>
 </html>
-
-
