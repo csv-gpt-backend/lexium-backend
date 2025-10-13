@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Asistente Lexium Sudamérica</title>
+<title>SSSSSAsistente Lexium</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -190,36 +190,16 @@ const histQuestion = document.querySelector(".histQuestion");
 const histContent = document.getElementById("histContent");
 
 /* ====== Utils ====== */
-function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;","&gt;":"&gt;"}[m])); }
 function setStatusLoading(msg="Generando…"){
   statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
     <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
 }
 function clearStatus(){ statusEl.textContent = ""; }
 
-/* ====== Memoria de conversación (por sesión/pestaña) ====== */
-let historyTurns = []; // [{role:"user"|"assistant", content:"texto"}]
-const HS_KEY = "lexium_sess_history_v1";
-
-/* Cargar si existiera (misma pestaña) */
-try{
-  const h = JSON.parse(sessionStorage.getItem(HS_KEY) || "[]");
-  if (Array.isArray(h)) historyTurns = h;
-}catch{}
-
-/* Compactar últimos turnos para enviar como contexto corto */
-function summarizeHistoryCompact(h, maxTurns=6){
-  const tail = h.slice(-maxTurns);
-  return tail.map((t,i)=>{
-    const r = t.role === "user" ? "Q" : "R";
-    const txt = String(t.content||"").replace(/\s+/g," ").trim().slice(0, 400);
-    return `${r}${i+1}: ${txt}`;
-  }).join("\n");
-}
-
-/* ====== Historial (overlay interno) ====== */
+/* ====== Historial (overlay interno, sin popups) ====== */
 const SESS_KEY="lexium_sessions";
-function saveSession(question, _data){
+function saveSession(question, data){
   const visible = (document.getElementById('out')?.innerHTML || "").trim();
   const entry = {
     id:new Date().toISOString(),
@@ -250,6 +230,7 @@ function renderHistoryList(){
   `).join("");
 }
 function openHistory(){
+  // mostrar lista
   histListView.style.display="block";
   histDetailView.style.display="none";
   backHist.style.display="none";
@@ -265,12 +246,14 @@ backHist.addEventListener("click", ()=>{
   histDetailView.style.display="none";
   backHist.style.display="none";
 });
+
 histBody.addEventListener("click",(e)=>{
   const btn = e.target.closest(".viewBtn");
   if(!btn) return;
   const id = btn.getAttribute("data-id");
   const match = readSessions().find(x=>x.id===id);
   if(match){
+    // mostrar contenido dentro del overlay (detalle)
     histQuestion.textContent = `Pregunta: ${match.question}`;
     histContent.innerHTML = match.html || "<em>Vacío</em>";
     histListView.style.display="none";
@@ -295,7 +278,7 @@ function toggleDict(){
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
 }
 
-/* ====== Voz (igual a tu versión, con pausas) ====== */
+/* ====== Voz (idéntico a la versión previa con pausas) ====== */
 const PREFERRED_NAMES=[
   "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
   "Google español","Google español de Estados","Google US Español",
@@ -427,7 +410,7 @@ function normalizeLists(lists){
 }
 
 /* ====== Render ====== */
-function renderAnswer(data, originalUserQuestionForMemory){
+function renderAnswer(data){
   let html="";
   const generalTxt = data.general || data.answer || data.text || "";
   if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
@@ -448,73 +431,36 @@ function renderAnswer(data, originalUserQuestionForMemory){
 
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
-  // === Memoria de sesión: guardamos respuesta (texto plano) ===
-  if (originalUserQuestionForMemory) {
-    const plainParts = [];
-    if (generalTxt) plainParts.push(generalTxt);
-    lists.forEach(l=>{
-      const block = l.items.map((it,i)=>`${i+1}. ${it}`).join("\n");
-      if(block) plainParts.push(block);
-    });
-    (data.tables||[]).forEach(t=>{
-      const head = (t.columns||[]).join(" | ");
-      const rows = (t.rows||[]).map(r=>r.join(" | ")).join("\n");
-      const tblTxt = [head, rows].filter(Boolean).join("\n");
-      if(tblTxt) plainParts.push(tblTxt);
-    });
-    const answerPlain = plainParts.join("\n\n").trim() || "[respuesta]";
-
-    historyTurns.push({ role:"assistant", content: answerPlain });
-    sessionStorage.setItem(HS_KEY, JSON.stringify(historyTurns.slice(-20)));
-  }
-
-  // Narración
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 }
 
-/* ====== Backend (con contexto de sesión) ====== */
+/* ====== Backend ====== */
 async function ask(){
   const text=q.value.trim(); if(!text) return;
   btnSend.disabled=true; const old=btnSend.textContent; btnSend.textContent="Enviando…";
   setStatusLoading("Consultando…");
 
-  // Detectar inglés/español solo para voz (no toca backend)
+  // solo afecta TTS (no al modelo)
   const t=text.toLowerCase();
   const enHits=(t.match(/\b(the|and|you|your|please|could|would|with|from|to|of|in|on|are|is|can|help|explain|summary|benefits)\b/g)||[]).length;
   const esHits=(t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por favor|podría|sería|ayuda|explica|resumen|beneficios)\b/g)||[]).length;
   langHint = (enHits>esHits) ? "en" : "es";
   selectedVoice = pickVoice(langHint);
 
-  // === Memoria: agregamos el turno de usuario y generamos un resumen corto del contexto previo
-  historyTurns.push({ role:"user", content: text });
-  sessionStorage.setItem(HS_KEY, JSON.stringify(historyTurns.slice(-20)));
-
-  const compact = summarizeHistoryCompact(historyTurns.slice(0, -1), 6);
-  const prompt = compact
-    ? ((langHint==="en")
-        ? `PREVIOUS CONVERSATION (brief summary, keep coherence):\n${compact}\n\nCURRENT QUESTION:\n${text}`
-        : `CONVERSACIÓN ANTERIOR (resumen breve, mantén coherencia):\n${compact}\n\nPREGUNTA ACTUAL:\n${text}`)
-    : text;
-
   try{
     let r = await fetch(`${API_BASE}${GPT_PATH}`, {
-      method:"POST",
-      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
-      body: JSON.stringify({ q: prompt })
+      method:"POST", headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({ q: text })
     });
     if(r.status===404 || r.status===405){
-      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(prompt)}`, { headers:{ "Accept":"application/json" } });
+      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, { headers:{ "Accept":"application/json" } });
     }
     const data = await r.json().catch(()=>({}));
     if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
-
-    renderAnswer(data, /*for memory*/ text);
+    renderAnswer(data);
     saveSession(text, data);
   }catch(e){
     out.innerHTML = `<pre style="color:var(--err)">${String(e)}</pre>`;
-    // si falla, revertimos el último turno de usuario en memoria
-    historyTurns.pop();
-    sessionStorage.setItem(HS_KEY, JSON.stringify(historyTurns.slice(-20)));
     saveSession(text, {});
   }finally{
     btnSend.disabled=false; btnSend.textContent=old; clearStatus();
@@ -604,19 +550,11 @@ btnToggleAV.addEventListener("click", ()=>{
 });
 btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
 btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
-btnNew.addEventListener("click", ()=>{
-  // snapshot simple y limpieza de sesión actual
-  saveSession(q.value.trim()||"(sin pregunta)", {});
-  TTS.stopAll();
-  q.value="";
-  out.innerHTML="";
-  clearStatus();
-  historyTurns = [];
-  sessionStorage.removeItem(HS_KEY);
-});
+btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunta)", {}); TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus(); });
 
 /* ====== UX ====== */
 q.addEventListener("keydown",(e)=>{ if((e.ctrlKey||e.metaKey) && e.key==="Enter") ask(); });
+/* Fuerza altura 1 línea en navegadores “rebeldes” */
 q.addEventListener("input", ()=>{ q.style.height="38px"; });
 
 /* Mostrar errores JS en pantalla */
