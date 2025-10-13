@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>JJJJAsistente Lexium</title>
+<title>LUN 1036Asistente Lexium</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -13,12 +13,7 @@
   }
   html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,Segoe UI,Roboto,Helvetica,Arial;}
 
-  .mediaBar{
-    position:fixed; top:0; left:0; width:100vw; z-index:50;
-    background:#fff; border-bottom:none; padding:0; margin:0;
-    pointer-events:none;
-  }
-  .mediaBar *{ pointer-events:none; }
+  .mediaBar{position:fixed; top:0; left:0; width:100vw; z-index:50; background:#fff;}
   .mediaInner{max-width:var(--wrapW); margin:0 auto; padding:12px;}
   .heroGrid{display:grid; grid-template-columns:1fr 3fr 1.16fr; align-items:center; gap:8px;}
   .sideImg{display:flex; justify-content:center; height:var(--heroH); margin:0;}
@@ -49,30 +44,6 @@
   .dot:nth-child(2){animation-delay:.15s}
   .dot:nth-child(3){animation-delay:.3s}
   @keyframes bounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
-
-  /* “Procesando…” fijo arriba-izquierda */
-  #status { position:fixed; top:8px; left:12px; z-index:70; }
-
-  /* Overlay Historial */
-  .overlay{
-    display:none; position:fixed; inset:0; background:rgba(0,0,0,.25);
-    z-index:80; align-items:center; justify-content:center; padding:24px;
-  }
-  .overlay.show{ display:flex; }
-  .panel{
-    background:#fff; border:1px solid var(--bd); border-radius:12px;
-    width:min(900px, 92vw); max-height:80vh; overflow:auto; padding:16px;
-  }
-  .panel header{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px}
-  .panel h2{margin:0; font-size:18px}
-  .closeBtn{border:1px solid var(--bd); background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer}
-  .session{border-top:1px solid var(--bd); padding:10px 0; display:flex; align-items:center; gap:10px}
-  .session .meta{flex:1}
-  .viewBtn{border:1px solid var(--bd); background:#fff; border-radius:10px; padding:6px 10px; cursor:pointer}
-
-  .linkBadge{font-size:.82rem; margin-left:6px}
-  .okBadge{color:var(--ok)}
-  .warnBadge{color:#b45309}
 </style>
 </head>
 <body>
@@ -99,12 +70,12 @@
 
   <div class="contentWrap">
     <div style="margin:10px 0 6px">
-      <textarea id="q" class="query" rows="2" placeholder="ESCRIBE O HABLA PARA PREGUNTAR…"></textarea>
+      <textarea id="q" class="query" rows="2" placeholder="ESCRIBE O HABLA PARA PREGUNTAR… (Ctrl/Cmd+Enter = enviar)"></textarea>
     </div>
 
     <div class="toolbar">
       <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
-      <button id="btnCancel" title="Cancelar consulta en curso" disabled>✖ Cancelar</button>
+      <button id="btnCancel" title="Cancelar consulta en curso">✖ Cancelar</button>
       <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
       <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
       <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
@@ -122,22 +93,15 @@
     <div id="status" class="muted"></div>
   </div>
 
-  <!-- Overlay del Historial -->
-  <div id="histOverlay" class="overlay" aria-modal="true" role="dialog">
-    <div class="panel">
-      <header>
-        <h2>Sesiones</h2>
-        <button class="closeBtn" id="closeHist">Cerrar</button>
-      </header>
-      <div id="histBody"></div>
-    </div>
-  </div>
-
 <script>
 /* ====== CONFIG ====== */
-const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app"; // modelo/backend intactos
+const API_BASE = "https://lexium-gpt5-383217514425.southamerica-west1.run.app";
 const GPT_PATH = "/api/gpt";
 const FALLBACK_PATH = "/api/answer";
+
+/* ====== Estado ====== */
+let isBusy = false;
+let currentAbortCtrl = null;
 
 /* ====== UI refs ====== */
 const q = document.getElementById("q");
@@ -153,438 +117,93 @@ const btnNew = document.getElementById("btnNew");
 const btnClear = document.getElementById("btnClear");
 const selExport = document.getElementById("selExport");
 const btnHist = document.getElementById("btnHist");
-const histOverlay = document.getElementById("histOverlay");
-const histBody = document.getElementById("histBody");
-const closeHist = document.getElementById("closeHist");
-
-/* ====== Estado ====== */
-let isBusy = false;
-let currentAbortCtrl = null;
-let requestId = 0;
 
 /* ====== Utils ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
-function setStatusLoading(msg="Generando…"){
+function setStatusLoading(msg="Consultando…"){
   statusEl.innerHTML = `<span class="loader" role="status" aria-live="polite" aria-busy="true">
     <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}</span>`;
 }
 function clearStatus(){ statusEl.textContent = ""; }
-function setStatusText(msg=""){ statusEl.textContent = msg? String(msg):""; }
 
-/* Idioma */
+/* ====== Detect idioma agresivo ====== */
 function detectLang(text){
   const t=(text||"").trim().toLowerCase();
   if(!t) return "es";
   const enHits=(t.match(/\b(the|and|you|your|please|could|would|with|from|to|of|in|on|are|is|can|help|explain|summary|benefits)\b/g)||[]).length;
   const esHits=(t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por favor|podría|sería|ayuda|explica|resumen|beneficios)\b/g)||[]).length;
-  if(enHits>esHits) return "en";
-  if(esHits>enHits) return "es";
-  const nonASCII=(t.match(/[áéíóúñü]/g)||[]).length;
-  return nonASCII>0 ? "es":"en";
-}
-function detectTextLang(s){
-  const t = (s||"").toLowerCase();
-  if (!t.trim()) return "unknown";
-  const enHits = (t.match(/\b(the|and|with|from|to|of|in|on|are|is|can|please|could|would|analysis|summary|result|average|benefits)\b/g)||[]).length;
-  const esHits = (t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por|promedio|beneficios|resultado|análisis|resumen)\b/g)||[]).length;
-  if (enHits > esHits) return "en";
-  if (esHits > enHits) return "es";
-  const nonASCII = (t.match(/[áéíóúñü]/g)||[]).length;
-  if (nonASCII > 0) return "es";
-  return "en";
+  if(enHits > esHits*1.2) return "en";
+  if(esHits > enHits*1.2) return "es";
+  return "es"; // por defecto
 }
 
-/* Quitar disclaimers */
-function stripDisclaimers(htmlText){
-  if(!htmlText) return htmlText;
-  const re = new RegExp(
-    "(no\\s+constituye\\s+un\\s+diagn[oó]stico\\s+cl[ií]nic[oa]|psicol[oó]gic[oa])|" +
-    "(does\\s+not\\s+constitute\\s+(a\\s+)?(clinical|psychological)\\s+diagnosis)",
-    "ig"
-  );
-  return htmlText.replace(re, "").replace(/\n{2,}/g,"\n").replace(/\s{2,}/g," ");
-}
-
-/* Linkify + check */
-const URL_RE = /\bhttps?:\/\/[^\s<>"']+/gi;
-function linkifyHTML(html){
-  return html.replace(URL_RE, (u)=>{
-    const safe = esc(u);
-    return `<a href="${safe}" target="_blank" rel="noopener">${safe}</a><span class="linkBadge" data-url="${safe}">⏳</span>`;
-  });
-}
-async function verifyLinks(){
-  const badges = document.querySelectorAll('.linkBadge[data-url]');
-  for (const b of badges){
-    const url = b.getAttribute('data-url');
-    try{
-      let ok=false;
-      try { const r=await fetch(url,{method:"HEAD"}); ok=r.ok; }
-      catch { const r2=await fetch(url,{method:"GET",mode:"cors"}); ok=r2.ok; }
-      b.textContent = ok ? "✅" : "⚠️";
-      b.classList.add(ok ? "okBadge" : "warnBadge");
-      b.title = ok ? "Verificado" : "No se pudo verificar";
-    }catch(_){
-      b.textContent="⚠️"; b.classList.add("warnBadge"); b.title="No se pudo verificar (CORS o red)";
-    }
-  }
-}
-
-/* ====== Historial ====== */
+/* ====== HISTORIAL ====== */
 const SESS_KEY="lexium_sessions_v5";
 function saveSession(question, data){
   const html=(document.getElementById('out')?.innerHTML||"").trim();
-  const entry={id:new Date().toISOString(),question:question||"(sin pregunta)",html,when:Date.now()};
+  const text=(document.getElementById('out')?.textContent||"").trim();
+  const entry={id:new Date().toISOString(),question:question||"(sin pregunta)",html,text,when:Date.now()};
   try{
     const all=JSON.parse(localStorage.getItem(SESS_KEY)||"[]");
-    all.unshift(entry); localStorage.setItem(SESS_KEY, JSON.stringify(all.slice(0,50)));
+    all.unshift(entry); localStorage.setItem(SESS_KEY, JSON.stringify(all.slice(0,100)));
   }catch(_){}
 }
 function readSessions(){
   try{ return JSON.parse(localStorage.getItem(SESS_KEY)||"[]"); }catch(_){ return []; }
 }
-function renderHistory(){
+function openHistory(){
   const all=readSessions();
-  if(!all.length){ histBody.innerHTML="<p class='muted'>Sin historial.</p>"; return; }
-  histBody.innerHTML = all.map(s=>`
-    <div class="session">
-      <div class="meta">
-        <b>${new Date(s.when).toLocaleString()}</b>
-        <div><i>Pregunta:</i> ${esc(s.question)}</div>
-      </div>
-      <button class="viewBtn" data-id="${esc(s.id)}">Ver</button>
-    </div>
+  if(!all.length){ alert("Sin historial."); return; }
+  const w=window.open("", "_blank", "noopener,noreferrer");
+  if(!w){ alert("El navegador bloqueó la ventana. Habilita pop-ups para este sitio."); return; }
+  const rows = all.map((s,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td>${esc(new Date(s.when).toLocaleString())}</td>
+      <td>${esc(s.question)}</td>
+      <td><button data-id="${esc(s.id)}" class="viewBtn">Ver</button></td>
+    </tr>
   `).join("");
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Historial</title>
+    <style>
+      body{font:14px system-ui;margin:16px;color:#111}
+      table{border-collapse:collapse;width:100%} th,td{border:1px solid #ddd;padding:6px;text-align:left}
+      th{background:#f8fafc}
+      #viewer{border:1px solid #ddd;margin-top:12px;padding:10px;border-radius:8px;max-height:65vh;overflow:auto;}
+      .topbar{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+      .closeBtn{border:1px solid #ddd;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
+      .muted{color:#6b7280}
+      .viewBtn{padding:4px 10px;border:1px solid #ddd;background:#fff;border-radius:8px;cursor:pointer}
+    </style>
+  </head><body>
+    <div class="topbar">
+      <button class="closeBtn" onclick="window.close()">❌ Cerrar</button>
+      <div class="muted">Haz clic en “Ver” para abrir una sesión</div>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>Fecha</th><th>Pregunta</th><th>Acción</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <h3>Vista previa</h3>
+    <div id="viewer" class="muted">Sin selección.</div>
+    <script>
+      const data = ${JSON.stringify(all)};
+      const viewer = document.getElementById('viewer');
+      document.body.addEventListener('click', (e)=>{
+        const btn = e.target.closest('.viewBtn');
+        if(!btn) return;
+        const id = btn.getAttribute('data-id');
+        const s = data.find(x=>x.id===id);
+        if(!s){ viewer.textContent='No encontrado'; return; }
+        viewer.innerHTML = '<h4>Pregunta</h4><p>'+escapeHtml(s.question)+'</p>' + (s.html||'<em>Vacío</em>');
+        viewer.scrollTop = 0;
+      });
+      function escapeHtml(x){ return String(x).replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+    <\/script>
+  </body></html>`;
+  w.document.open(); w.document.write(html); w.document.close();
 }
-function openHistory(){ renderHistory(); histOverlay.classList.add("show"); }
-function closeHistoryOverlay(){ histOverlay.classList.remove("show"); }
 btnHist.addEventListener("click", openHistory);
-closeHist.addEventListener("click", closeHistoryOverlay);
-histOverlay.addEventListener("click",(e)=>{ if(e.target===histOverlay) closeHistoryOverlay(); });
-
-histBody.addEventListener("click",(e)=>{
-  const btn = e.target.closest(".viewBtn");
-  if(!btn) return;
-  e.preventDefault();
-  e.stopPropagation();
-  const id = btn.getAttribute("data-id");
-  const match = readSessions().find(x=>x.id===id);
-  if(match){
-    out.innerHTML = match.html || "<em>Vacío</em>";
-    out.scrollTop = 0;
-    clearStatus();
-    closeHistoryOverlay();
-  }
-});
-
-/* ====== TTS + Video ====== */
-const PREFERRED_NAMES_ES=["Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Maria","Microsoft Lucia","Monica","Paulina","Camila","Sofia","Elena","Lucia","Maria","Carla","Google español","Google US Español"];
-const PREFERRED_NAMES_EN=["Microsoft Jenny","Microsoft Aria","Microsoft Zira","Microsoft Sara","Google US English","Google UK English"];
-const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
-const EN_LANGS=["en","en-US","en-GB","en-CA","en-AU","en-IN"];
-
-function pickVoice(langHint){
-  if(typeof speechSynthesis==="undefined") return null;
-  const vs=speechSynthesis.getVoices()||[];
-  const prefList = langHint==="en" ? PREFERRED_NAMES_EN : PREFERRED_NAMES_ES;
-  const langList = langHint==="en" ? EN_LANGS : SP_LANGS;
-  for(const name of prefList){
-    const m=vs.find(v=>v.name && v.name.toLowerCase().includes(name.toLowerCase()));
-    if(m) return m;
-  }
-  const byLang = vs.find(v=>langList.some(l=>(v.lang||"").toLowerCase().startsWith(l.toLowerCase())));
-  return byLang || vs[0] || null;
-}
-
-function buildTTSTextFromOut(){
-  const c=document.createElement("div"); c.innerHTML=out.innerHTML;
-  const parts=[];
-  c.querySelectorAll("h1,h2,h3,h4").forEach(h=>{ const t=h.textContent.trim(); if(t) parts.push(t); });
-  c.querySelectorAll("p").forEach(p=>{ const t=p.textContent.trim(); if(t) parts.push(t); });
-  c.querySelectorAll("ol,ul").forEach(list=>{
-    const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}.`).filter(Boolean);
-    if(items.length){ parts.push(items.join("\n")); }
-  });
-  c.querySelectorAll("table").forEach(tbl=>{
-    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim()).filter(Boolean);
-    if(headers.length) parts.push(`Tabla: ${headers.join(", ")}`);
-    const rows=[...tbl.querySelectorAll("tbody tr")];
-    rows.forEach((tr,ri)=>{
-      const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
-      parts.push(`${ri+1}. ${cells.join(" | ")}`);
-    });
-  });
-  const fallback=(out.textContent||"").trim();
-  return (parts.join("\n\n") || fallback).trim();
-}
-
-const TTS={
-  enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"", lang:"es",
-  makeChunks(text,maxLen=360){
-    const res=[]; const parts=String(text).split(/(\.|\?|!|\n)/);
-    let buf=""; for(let i=0;i<parts.length;i+=2){ const seg=(parts[i]||"")+(parts[i+1]||"");
-      if((buf+seg).length<=maxLen) buf+=seg; else{ if(buf.trim()) res.push(buf.trim()); buf=seg; } }
-    if(buf.trim()) res.push(buf.trim()); return res;
-  },
-  loadFromOut(){
-    this.textCache = buildTTSTextFromOut();
-    this.chunks = this.makeChunks(this.textCache);
-    this.i = 0;
-  },
-  speakNext(){
-    if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
-    const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
-    const v=pickVoice(this.lang||"es"); if(v) u.voice=v;
-    u.lang=(v?.lang)|| (this.lang==="en"?"en-US":"es-ES");
-    u.rate=0.98; u.pitch=1.08; u.volume=1;
-    u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.play().catch(()=>{});} };
-    u.onend =()=>{ this.speakNext(); };
-    u.onerror=()=>{ this.speakNext(); };
-    this.utter=u; speechSynthesis.speak(u);
-  },
-  start(fromIndex=0, langHint="es"){
-    if(typeof speechSynthesis==="undefined") return;
-    this.lang = langHint || "es";
-    if(!this.chunks.length) this.loadFromOut();
-    this.enabled=true; if(fromIndex>=0) this.i=fromIndex;
-    speechSynthesis.cancel(); this.speakNext();
-  },
-  pause(){ if(this.speaking && !this.paused){ speechSynthesis.pause(); this.paused=true; if(vid) vid.pause(); } },
-  resume(){ if(this.paused){ speechSynthesis.resume(); this.paused=false; if(vid) vid.play().catch(()=>{}); }
-           else if(!this.speaking && this.enabled){ this.speakNext(); } },
-  restartFromStart(langHint){ this.enabled=true; this.loadFromOut(); this.start(0, langHint||this.lang); },
-  finish(){ this.speaking=false; this.paused=false; this.utter=null; if(vid){ vid.loop=false; vid.pause(); } },
-  stopAll(){ this.enabled=false; this.paused=false; this.speaking=false; this.utter=null;
-             if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel();
-             if(vid){ vid.loop=false; vid.pause(); } }
-};
-
-/* ====== Normalizar listas/tablas ====== */
-function normalizeLists(lists){
-  if(!Array.isArray(lists)) return [];
-  return lists.map((entry,i)=>{
-    if(Array.isArray(entry)){
-      const flat=entry.every(x=>typeof x==="string"||typeof x==="number");
-      return {title:`Lista ${i+1}`, items: flat? entry : entry.map(x=>Array.isArray(x)? x.join(" ") : String(x))};
-    }else if(entry && typeof entry==="object"){
-      return {title: entry.title||`Lista ${i+1}`, items: Array.isArray(entry.items)? entry.items: []};
-    }else{
-      return {title:`Lista ${i+1}`, items:[String(entry)]};
-    }
-  });
-}
-
-/* Bullets */
-const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
-function generalToOrderedListHTML(g){
-  if (!g) return "";
-  const clean = stripDisclaimers(g);
-  const lines = clean.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-  const bulletLike = lines.filter(s=>BULLET_RE.test(s)).length;
-  const manyPlainLines = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length;
-  const shouldNumber = (lines.length>=3) && (bulletLike>0 || manyPlainLines >= Math.ceil(lines.length*0.6));
-  if (shouldNumber) {
-    const items = lines.map(s=>s.replace(BULLET_RE,"")).filter(Boolean);
-    return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
-  }
-  return `<p>${esc(clean).replace(/\n/g,"<br>")}</p>`;
-}
-
-/* ====== Render ====== */
-function renderAnswer(data, langHintForTTS){
-  let html="";
-  const generalTxt = data.general || data.answer || data.text || "";
-  if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
-
-  const lists=normalizeLists(data.lists||[]);
-  lists.forEach(l=>{
-    html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(stripDisclaimers(it))}</li>`).join("") + `</ol>`;
-  });
-
-  (data.tables||[]).forEach(t=>{
-    const cols=t.columns||[]; const rows=t.rows||[];
-    html += `<h3>${esc(stripDisclaimers(t.title||"Tabla"))}</h3><table><thead><tr>`;
-    html += cols.map(c=>`<th>${esc(stripDisclaimers(c))}</th>`).join("");
-    html += `</tr></thead><tbody>`;
-    rows.forEach(r=>{
-      html += `<tr>` + r.map(x=>`<td>${esc(stripDisclaimers(String(x)))}</td>`).join("") + `</tr>`;
-    });
-    html += `</tbody></table>`;
-  });
-
-  out.innerHTML = linkifyHTML(html || "<em>Sin contenido.</em>");
-  setTimeout(verifyLinks, 120);
-
-  TTS.enabled = true; TTS.loadFromOut(); TTS.start(0, langHintForTTS||"es");
-}
-
-/* ====== Backend ====== */
-async function doFetch(jsonBody, langHint, allowFallback=true){
-  const ctrl = currentAbortCtrl = new AbortController();
-  const headers = {
-    "Content-Type":"application/json",
-    "Accept":"application/json",
-    "Accept-Language": langHint==="en" ? "en-US,en;q=0.9" : "es-ES,es;q=0.9",
-    "X-Force-Language": langHint,
-    "Prefer": `respond-language=${langHint}`
-  };
-  let r = await fetch(`${API_BASE}${GPT_PATH}`, {
-    method:"POST",
-    headers,
-    body: JSON.stringify(jsonBody),
-    signal: ctrl.signal
-  });
-  if (allowFallback && (r.status===404 || r.status===405)) {
-    r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(jsonBody.q)}`, {
-      headers: { "Accept":"application/json" },
-      signal: ctrl.signal
-    });
-  }
-  const data = await r.json().catch(()=>({}));
-  return { ok: r.ok && data.ok!==false, status:r.status, data };
-}
-
-async function ask(){
-  if(isBusy) return;
-  const text=q.value.trim(); if(!text) return;
-
-  isBusy = true;
-  requestId++; const myId = requestId;
-
-  if (currentAbortCtrl) { try{ currentAbortCtrl.abort(); }catch{} }
-
-  btnSend.disabled=true; btnCancel.disabled=false;
-  const old=btnSend.textContent; btnSend.textContent="Enviando…";
-  setStatusLoading("Consultando…");
-
-  const langHint = detectLang(text);
-
-  try{
-    let { ok, data, status } = await doFetch({ q: text }, langHint, true);
-    if (!ok) throw new Error(data?.error || data?.general || `HTTP ${status}`);
-
-    const rawTxt = (data.general || data.answer || data.text || "");
-    const outLang = detectTextLang(rawTxt);
-    if ((langHint==="en" && outLang!=="en") || (langHint==="es" && outLang!=="es")) {
-      const forcePrefix = langHint==="en"
-        ? "RESPOND STRICTLY IN ENGLISH. NO SPANISH. Answer as JSON only.\n\n"
-        : "RESPONDE ESTRICTAMENTE EN ESPAÑOL. SIN INGLÉS. Responde solo JSON.\n\n";
-      ({ ok, data, status } = await doFetch({ q: forcePrefix + text }, langHint, true));
-      if (!ok) throw new Error(data?.error || data?.general || `HTTP ${status}`);
-    }
-
-    if (myId !== requestId) return;
-
-    renderAnswer(data, langHint);
-    saveSession(text, data);
-    setStatusText("✔ Listo");
-  }catch(e){
-    if (myId !== requestId) return;
-    const msg = String(e && e.name==="AbortError" ? "Cancelado" : e);
-    out.innerHTML = `<pre style="color:var(--err)">${esc(msg)}</pre>`;
-    saveSession(text, {});
-    setStatusText(msg);
-  }finally{
-    if (myId === requestId){
-      btnSend.disabled=false; btnCancel.disabled=true; btnSend.textContent=old; isBusy=false; currentAbortCtrl=null;
-    }
-  }
-}
-
-/* ====== Cancelar ====== */
-btnCancel.addEventListener("click", ()=>{
-  try{ if(currentAbortCtrl) currentAbortCtrl.abort(); }catch(_){}
-  try{ TTS.stopAll(); }catch(_){}
-  setStatusText("Cancelado");
-  btnCancel.disabled = true;
-  isBusy = false;
-});
-
-/* ====== Exportar ====== */
-function getQuestionBlockOnce(){
-  const pq = q.value.trim();
-  if(!pq) return "";
-  return `<h3>Pregunta</h3><p>${esc(pq)}</p>`;
-}
-function htmlToCSV(){
-  const rows=[];
-  const question=(q.value||"").trim();
-  if(question) rows.push(["PREGUNTA", question]);
-  out.querySelectorAll("p").forEach(p=>{
-    const t=p.textContent.trim(); if(t) rows.push(["PARRAFO", t]);
-  });
-  out.querySelectorAll("ol,ul").forEach(list=>{
-    const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}`);
-    if(items.length){ rows.push(["LISTA", items.join(" \\ ")]); }
-  });
-  out.querySelectorAll("table").forEach(tbl=>{
-    const head=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
-    if(head.length) rows.push(["TABLA CABECERAS", ...head]);
-    const trs=[...tbl.querySelectorAll("tbody tr")];
-    trs.forEach((tr,ri)=>{
-      const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
-      rows.push([`FILA ${ri+1}`, ...cells]);
-    });
-  });
-  return rows.map(r => r.map(cell=>{
-    const v=String(cell??"");
-    if (/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`;
-    return v;
-  }).join(",")).join("\n");
-}
-function printHTML(html){
-  const iframe = document.createElement('iframe');
-  iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
-  iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0';
-  document.body.appendChild(iframe);
-  const doc=iframe.contentWindow||iframe.contentDocument;
-  const idoc=doc.document||doc;
-  idoc.open(); idoc.write(html); idoc.close();
-  setTimeout(()=>{ try{ (iframe.contentWindow||iframe).focus(); (iframe.contentWindow||iframe).print(); }catch{} }, 60);
-  setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
-}
-selExport.addEventListener("change", ()=>{
-  const v=selExport.value; selExport.value="";
-  if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
-
-  const questionBlock = getQuestionBlockOnce();
-  const content = out.innerHTML;
-
-  if(v==="pdf"){
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
-      <style>body{font:16px/1.5 system-ui;margin:28px;color:#111}
-             table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
-      </head><body>
-      ${questionBlock}
-      ${content}
-      </body></html>`;
-    try{ printHTML(html); }
-    catch(_){
-      const w=window.open("", "_blank", "noopener,noreferrer");
-      if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
-    }
-    return;
-  }
-  if(v==="csv"){
-    const csv=htmlToCSV();
-    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
-    a.download="lexium_export.csv";
-    a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),500);
-    return;
-  }
-  if(v==="doc"){
-    const html = `<!doctype html><html><head><meta charset="utf-8"></head><body>
-      ${questionBlock}
-      ${content}
-    </body></html>`;
-    const blob=new Blob([html],{type:"application/msword"});
-    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="export.doc"; a.click();
-    setTimeout(()=>URL.revokeObjectURL(a.href),500);
-  }
-});
 
 /* ====== Dictado ====== */
 let recognizer=null;
@@ -601,37 +220,332 @@ function toggleDict(){
   if(recognizer.listening){ recognizer.stop(); recognizer.listening=false; btnDict.textContent="🎤 Dictar";}
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado";}
 }
+btnDict.addEventListener("click", toggleDict);
 
-/* ====== Botones ====== */
-if(!btnSend._wired){
-  btnSend.addEventListener("click", ask);
-  btnSend._wired = true;
+/* ====== TTS + Video ====== */
+const PREFERRED_ES = ["Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Maria","Microsoft Lucia","Monica","Paulina","Camila","Sofia","Elena","Lucia","Maria","Carla","Google español","Google US Español"];
+const PREFERRED_EN = ["Microsoft Jenny","Microsoft Aria","Microsoft Zira","Microsoft Sara","Google US English"];
+function pickVoice(lang){
+  const vs = speechSynthesis.getVoices()||[];
+  const prefs = lang==="en" ? PREFERRED_EN : PREFERRED_ES;
+  for(const name of prefs){
+    const v = vs.find(x => (x.name||"").toLowerCase().includes(name.toLowerCase()));
+    if(v) return v;
+  }
+  const byLang = vs.find(v => (v.lang||"").toLowerCase().startsWith(lang==="en"?"en":"es"));
+  return byLang || vs[0] || null;
 }
+function waitForVoices(){
+  return new Promise((resolve)=>{
+    let tries=0;
+    function check(){
+      const vs=speechSynthesis.getVoices();
+      if(vs && vs.length){ resolve(); }
+      else if(++tries>50){ resolve(); } // ~5s máx
+      else setTimeout(check,100);
+    }
+    check();
+  });
+}
+const TTS={
+  enabled:true, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"", voice:null, lang:"es",
+  makeChunks(text,maxLen=360){
+    const res=[]; const parts=String(text).split(/(\.|\?|!|\n)/);
+    let buf=""; for(let i=0;i<parts.length;i+=2){ const seg=(parts[i]||"")+(parts[i+1]||"");
+      if((buf+seg).length<=maxLen) buf+=seg; else{ if(buf.trim()) res.push(buf.trim()); buf=seg; } }
+    if(buf.trim()) res.push(buf.trim()); return res;
+  },
+  async ensureVoice(){
+    await waitForVoices();
+    this.voice = pickVoice(this.lang) || null;
+  },
+  buildTTSTextFromOut(){
+    const c=document.createElement("div"); c.innerHTML=out.innerHTML;
+    const parts=[];
+    // títulos y párrafos
+    c.querySelectorAll("h1,h2,h3,h4,p").forEach(node=>{
+      const t=(node.textContent||"").trim();
+      if(t) parts.push(t);
+    });
+    // listas: evitar doble numeración
+    c.querySelectorAll("ol,ul").forEach(list=>{
+      const items=[...list.querySelectorAll("li")].map(li=>(li.textContent||"").trim()).filter(Boolean);
+      if(items.length){
+        const spoken = items.map((t,i)=>{
+          if(/^\d+\.\s/.test(t)) return t;      // ya viene numerado → no duplicar
+          return `${i+1}. ${t}`;
+        }).join("\n");
+        parts.push(spoken);
+      }
+    });
+    // tablas: leer cabeceras y filas (con números)
+    c.querySelectorAll("table").forEach(tbl=>{
+      const headers=[...tbl.querySelectorAll("thead th")].map(th=>(th.textContent||"").trim()).filter(Boolean);
+      if(headers.length) parts.push(`Tabla: ${headers.join(", ")}`);
+      const rows=[...tbl.querySelectorAll("tbody tr")];
+      rows.forEach((tr,ri)=>{
+        const cells=[...tr.querySelectorAll("td")].map(td=>(td.textContent||"").trim());
+        if(cells.length) parts.push(`${ri+1}. ${cells.join(" | ")}`);
+      });
+    });
+    const fallback=(out.textContent||"").trim();
+    this.textCache = (parts.join("\n\n") || fallback).replace(/\s+/g,' ').trim();
+    this.chunks = this.makeChunks(this.textCache);
+    this.i = 0;
+  },
+  async start(fromIndex=0){
+    if(typeof speechSynthesis==="undefined") return;
+    this.enabled = true;
+    await this.ensureVoice();        // ← garantiza que arrancamos con la voz correcta (evita voz de hombre → mujer)
+    if(!this.chunks.length) this.buildTTSTextFromOut();
+    if(fromIndex>=0) this.i=fromIndex;
+    speechSynthesis.cancel();
+    this.speakNext();
+  },
+  speakNext(){
+    if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
+    const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
+    if(this.voice) u.voice=this.voice;
+    u.lang = this.voice?.lang || (this.lang==="en"?"en-US":"es-ES");
+    u.rate=0.98; u.pitch=1.05; u.volume=1;
+    u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.play().catch(()=>{});} };
+    u.onend =()=>{ this.speakNext(); };
+    u.onerror=()=>{ this.speakNext(); };
+    this.utter=u; speechSynthesis.speak(u);
+  },
+  pause(){ if(this.speaking && !this.paused){ speechSynthesis.pause(); this.paused=true; if(vid) vid.pause(); } },
+  resume(){ if(this.paused){ speechSynthesis.resume(); this.paused=false; if(vid) vid.play().catch(()=>{}); }
+           else if(!this.speaking && this.enabled){ this.speakNext(); } },
+  async restartFromStart(){ this.enabled=true; this.buildTTSTextFromOut(); await this.start(0); },
+  finish(){ this.speaking=false; this.paused=false; this.utter=null; if(vid){ vid.loop=false; vid.pause(); } },
+  stopAll(){ this.enabled=false; this.paused=false; this.speaking=false; this.utter=null;
+             if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel();
+             if(vid){ vid.loop=false; vid.pause(); } }
+};
 btnToggleAV.addEventListener("click", ()=>{
-  if(!TTS.enabled){ TTS.enabled=true; TTS.loadFromOut(); const langHint=detectLang(q.value); TTS.start(TTS.i, langHint); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
+  if(!TTS.enabled){ TTS.enabled=true; TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; return; }
   if(TTS.paused){ TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
   else if(TTS.speaking){ TTS.pause(); btnToggleAV.textContent="▶ Reanudar voz"; }
   else { TTS.resume(); btnToggleAV.textContent="⏸ Silenciar voz"; }
 });
-btnReplay.addEventListener("click", ()=>{ const langHint=detectLang(q.value); TTS.restartFromStart(langHint); btnToggleAV.textContent="⏸ Silenciar voz"; });
-btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
-btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunta)", {}); TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus(); });
-btnDict.addEventListener("click", toggleDict);
+btnReplay.addEventListener("click", ()=>{ TTS.restartFromStart(); btnToggleAV.textContent="⏸ Silenciar voz"; });
 
-/* Tecla rápida */
-q.addEventListener("keydown",(e)=>{
-  if ((e.ctrlKey||e.metaKey) && e.key==="Enter" && !isBusy){
-    ask();
+/* ====== Render ====== */
+function generalToOrderedListHTML(g){
+  if (!g) return "";
+  const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const bulletRe = /^(?:[•\-–*]|\d+\.)\s+/u;
+  const hasBullets = lines.filter(s=>bulletRe.test(s)).length>0;
+  const manyPlain = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length >= Math.ceil(lines.length*0.6);
+  if (lines.length>=3 && (hasBullets || manyPlain)) {
+    const items = lines.map(s=>s.replace(bulletRe,"")).filter(Boolean);
+    return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
+  }
+  return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
+}
+function stripDisclaimers(html){
+  return html.replace(/no constituye un diagnóstico (clínico|psicológico)[^.<]*[.\n]?/gi, "");
+}
+function renderAnswer(data, langHint){
+  let html="";
+  const generalTxt = data.general || data.answer || data.text || "";
+  if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
+
+  (data.lists||[]).forEach((l,i)=>{
+    const title = l.title || `Lista ${i+1}`;
+    const items = Array.isArray(l.items) ? l.items : (Array.isArray(l) ? l : []);
+    if(items && items.length){
+      html += `<h3>${esc(title)}</h3><ol>${items.map(it=>`<li>${esc(String(it))}</li>`).join("")}</ol>`;
+    }
+  });
+
+  (data.tables||[]).forEach(t=>{
+    const cols=t.columns||[]; const rows=t.rows||[];
+    html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>`;
+    html += cols.map(c=>`<th>${esc(c)}</th>`).join("");
+    html += `</tr></thead><tbody>`;
+    rows.forEach(r=>{ html += `<tr>` + r.map(x=>`<td>${esc(x)}</td>`).join("") + `</tr>`; });
+    html += `</tbody></table>`;
+  });
+
+  // Limpia disclaimers
+  html = stripDisclaimers(html);
+
+  out.innerHTML = html || "<em>Sin contenido.</em>";
+
+  // TTS con idioma correcto
+  TTS.lang = (langHint==="en" ? "en" : "es");
+  TTS.restartFromStart();
+}
+
+/* ====== Backend ====== */
+function detectTextLang(s){
+  const t=(s||"").toLowerCase();
+  if(!t.trim()) return "unknown";
+  const enHits=(t.match(/\b(the|and|with|from|to|of|in|on|are|is|can|please|could|would|analysis|summary|result|average|benefits)\b/g)||[]).length;
+  const esHits=(t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por|promedio|beneficios|resultado|análisis|resumen)\b/g)||[]).length;
+  if(enHits>esHits) return "en"; if(esHits>enHits) return "es";
+  const nonASCII=(t.match(/[áéíóúñü]/g)||[]).length; if(nonASCII>0) return "es";
+  return "en";
+}
+
+async function ask(){
+  const text=q.value.trim(); if(!text || isBusy) return;
+  isBusy = true;
+  btnSend.disabled = true;
+  btnCancel.disabled = false;
+  const prev = btnSend.textContent;
+  btnSend.textContent = "Enviando…";
+  setStatusLoading("Consultando…");
+
+  // cancelar petición anterior si la hubiera
+  if(currentAbortCtrl){ try{ currentAbortCtrl.abort(); }catch{} }
+  currentAbortCtrl = new AbortController();
+
+  const langHint = detectLang(text); // "es" | "en"
+  const headers = {
+    "Content-Type":"application/json",
+    "Accept":"application/json",
+    "Accept-Language": langHint==="en" ? "en-US,en;q=0.9" : "es-ES,es;q=0.9",
+    "Prefer": `respond-language=${langHint}`
+  };
+
+  try{
+    let r = await fetch(`${API_BASE}${GPT_PATH}`, {
+      method:"POST", headers, body: JSON.stringify({ q: text }),
+      signal: currentAbortCtrl.signal
+    });
+    if(r.status===404 || r.status===405){
+      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(text)}`, { headers:{ "Accept":"application/json" }, signal: currentAbortCtrl.signal });
+    }
+    const data = await r.json().catch(()=>({}));
+    if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
+
+    // Si mezcló idiomas, intento “forzar”: si langHint es EN y detecto ES, muestro igual pero TTS en EN
+    const rawTxt = (data.general || data.answer || data.text || "");
+    const outLang = detectTextLang(rawTxt);
+    renderAnswer(data, outLang || langHint);
+
+    // Guarda historial
+    saveSession(text, data);
+  }catch(e){
+    out.innerHTML = `<pre style="color:var(--err)">${esc(String(e))}</pre>`;
+  }finally{
+    isBusy = false;
+    btnSend.disabled = false;
+    btnCancel.disabled = true;
+    btnSend.textContent = prev;
+    clearStatus();
+    currentAbortCtrl = null;
+  }
+}
+
+/* ====== Cancelar ====== */
+btnCancel.disabled = true;
+btnCancel.addEventListener("click", ()=>{
+  try{ currentAbortCtrl?.abort(); }catch{}
+  TTS.stopAll();
+  clearStatus();
+  statusEl.textContent = "Cancelado";
+});
+
+/* ====== Exportar ====== */
+function htmlToCSV(includeQuestion=true){
+  const rows=[];
+  if(includeQuestion){
+    const pq=(document.querySelector("h3+ p")?.textContent || "").trim();
+    const fromHist = (document.querySelector(".questionHeader")?.textContent || "");
+    const qText = pq || fromHist || (document.querySelector("#q")?.value || "");
+    if(qText) rows.push(["PREGUNTA", qText]);
+  }
+  out.querySelectorAll("p").forEach(p=>{ const t=p.textContent.trim(); if(t) rows.push(["TEXTO", t]); });
+  out.querySelectorAll("ol,ul").forEach(list=>{
+    const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}`);
+    if(items.length) rows.push(["LISTA", items.join(" \\ ")]);
+  });
+  out.querySelectorAll("table").forEach(tbl=>{
+    const head=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
+    if(head.length) rows.push(["TABLA CABECERAS", ...head]);
+    const trs=[...tbl.querySelectorAll("tbody tr")];
+    trs.forEach((tr,ri)=>{
+      const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
+      rows.push([`FILA ${ri+1}`, ...cells]);
+    });
+  });
+  return rows.map(r => r.map(cell=>{
+    const v=String(cell??"");
+    if (/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`;
+    return v;
+  }).join(",")).join("\n");
+}
+function download(filename, blob){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function printHTML(html){
+  const iframe=document.createElement('iframe');
+  iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
+  iframe.style.width='0'; iframe.style.height='0'; iframe.style.border='0';
+  document.body.appendChild(iframe);
+  const doc=iframe.contentWindow||iframe.contentDocument;
+  const idoc=doc.document||doc;
+  idoc.open(); idoc.write(html); idoc.close();
+  setTimeout(()=>{ try{ (iframe.contentWindow||iframe).focus(); (iframe.contentWindow||iframe).print(); }catch{} }, 60);
+  setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
+}
+selExport.addEventListener("change", ()=>{
+  const v=selExport.value; selExport.value="";
+  if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
+  const questionText=(q.value||"").trim();
+  if(v==="pdf"){
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
+      <style>body{font:16px/1.5 system-ui;margin:28px;color:#111}
+             h3{margin-top:0}
+             table{border-collapse:collapse;width:100%} td,th{border:1px solid #ddd;padding:6px}</style>
+      </head><body>
+      ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
+      ${out.innerHTML}
+      </body></html>`;
+    try{ printHTML(html); }catch(_){
+      const w=window.open("", "_blank", "noopener,noreferrer");
+      if(w){ w.document.open(); w.document.write(html); w.document.close(); w.focus(); w.print(); }
+    }
+    return;
+  }
+  if(v==="csv"){
+    const csv=htmlToCSV(true);
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+    download("lexium_export.csv", blob);
+    return;
+  }
+  if(v==="doc"){
+    const html = `<!doctype html><html><head><meta charset="utf-8"></head><body>
+      ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
+      ${out.innerHTML}
+    </body></html>`;
+    const blob=new Blob([html],{type:"application/msword"});
+    download("lexium_export.doc", blob);
+    return;
   }
 });
 
-/* Mostrar errores JS en pantalla */
-window.addEventListener("error", (e)=>{
-  const msg = (e?.error?.stack || e?.message || String(e)).slice(0, 600);
-  const box = document.getElementById("status");
-  if (box) box.innerHTML = '<pre style="color:#b91c1c;background:#fff5f5;border:1px solid #fecaca;border-radius:8px;padding:8px;white-space:pre-wrap">JS error: '
-    + msg + '</pre>';
-}, {once:false});
+/* ====== Botones ====== */
+btnSend.addEventListener("click", ask);
+q.addEventListener("keydown",(e)=>{ if ((e.ctrlKey||e.metaKey) && e.key==="Enter") ask(); });
+btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStatus(); TTS.stopAll(); });
+btnNew.addEventListener("click", ()=>{ saveSession(q.value.trim()||"(sin pregunta)", {}); TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus(); });
+
+/* Mostrar errores JS */
+window.addEventListener("error",(e)=>{
+  const msg=(e?.error?.stack||e?.message||String(e)).slice(0,600);
+  statusEl.innerHTML = '<span class="loader" role="status" aria-busy="true">'
+    + '<span class="dot"></span><span class="dot"></span><span class="dot"></span>'
+    + 'JS error: '+esc(msg) + '</span>';
+},{once:false});
 </script>
 </body>
 </html>
