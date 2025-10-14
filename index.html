@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Lexium Sudamérica</title>
+<title>Asistente Lexium Sudamérica</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -98,10 +98,10 @@
 <body>
 
   <div class="hist">
-    <button id="btnHist" title="Ver sesiones guardadas">Historial</button>
+    <button id="btnHist" title="Ver sesiones guardadas">Biblioteca</button>
   </div>
 
-  <!-- ÚNICO indicador de estado (esquina sup-izq) -->
+  <!-- badge superior izquierda -->
   <div id="statusTop" class="statusTop" aria-live="polite"></div>
 
   <div class="mediaBar" aria-label="cabecera">
@@ -122,15 +122,15 @@
 
   <div class="contentWrap">
     <div style="margin:10px 0 6px">
-      <textarea id="q" class="query" rows="1" placeholder="ESCRIBE O HABLA PARA PREGUNTAR… (Ctrl/Cmd+Enter = enviar)"></textarea>
+      <textarea id="q" class="query" rows="1" placeholder="ESCRIBE O HABLA PARA PREGUNTAR......"></textarea>
     </div>
 
     <div class="toolbar">
       <button id="btnSend" title="Enviar consulta al backend">Enviar</button>
       <button id="btnCancel" title="Cancelar consulta en curso" disabled>✖ Cancelar</button>
       <button id="btnDict" title="Dictar por voz (empieza / detiene)">🎤 Dictar</button>
-      <button id="btnToggleAV" title="Parar/Activar voz">⏯ Activar voz</button>
-      <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir</button>
+      <button id="btnToggleAV" title="Parar/Activar voz">⏯ Parar Voz</button>
+      <button id="btnReplay" title="Reproducir nuevamente la voz desde el principio">⟳ Reproducir Nuevamente</button>
       <button id="btnNew" title="Nueva sesión (limpia y guarda la actual)">＋ Nueva sesión</button>
       <button id="btnClear" title="Limpiar pregunta y respuesta">🧹 Limpiar</button>
       <select id="selExport" title="Exportar lo generado">
@@ -142,8 +142,7 @@
     </div>
 
     <div id="out" class="out" aria-live="polite"></div>
-    <!-- status inferior eliminado: se conserva el nodo pero no se usa -->
-    <div id="status" class="muted" style="display:none"></div>
+    <div id="status" class="muted"></div>
   </div>
 
   <!-- Overlay Historial -->
@@ -175,6 +174,7 @@ const FALLBACK_PATH = "/api/answer";
 /* ====== UI refs ====== */
 const q = document.getElementById("q");
 const out = document.getElementById("out");
+const statusEl = document.getElementById("status");
 const statusTop = document.getElementById("statusTop");
 const vid = document.getElementById("vid");
 const btnSend = document.getElementById("btnSend");
@@ -208,24 +208,19 @@ try{
 }catch{}
 
 /* ====== Utils ====== */
-function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;","&gt;":"&gt;"}[m])); }
 function setStatusLoading(msg="Generando…"){
-  const html = `<span class="loader" role="status" aria-busy="true" aria-live="polite">
+  const html = `<span class="loader" role="status" aria-busy="true">
       <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}
     </span>`;
+  statusEl.innerHTML = html;
   statusTop.innerHTML = html;
   statusTop.classList.add("show");
 }
 function clearStatus(){
+  statusEl.textContent = "";
   statusTop.textContent = "";
   statusTop.classList.remove("show");
-}
-
-/* — Limpia frases de descargo si aparecen — */
-function stripDisclaimers(txt){
-  if(!txt) return txt;
-  const re = /(no\s+constituye\s+un\s+diagn[oó]stico\s+cl[ií]nico\s+ni\s+psicol[oó]gico.*)$/gmi;
-  return txt.replace(re, "").replace(/\n{3,}/g, "\n\n").trim();
 }
 
 /* ====== Historial (overlay) ====== */
@@ -292,6 +287,9 @@ const PREFERRED_NAMES=[
 const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
 const EN_LANGS=["en","en-US","en-GB","en-CA","en-AU","en-IN"];
 let selectedVoice=null; let langHint="es";
+/* ►► AJUSTE #1: recuperar idioma de la sesión si ya existe */
+langHint = sessionStorage.getItem('lex_lang') || langHint;
+
 function pickVoice(lang){
   if(typeof speechSynthesis==="undefined") return null;
   const vs = speechSynthesis.getVoices()||[];
@@ -317,39 +315,6 @@ function generalToOrderedListHTML(g){
   }
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
-
-/* ====== Linkificación + verificación ====== */
-const URL_RE = /\bhttps?:\/\/[^\s<>"')]+/gi;
-function linkifyHTML(html){
-  return html.replace(URL_RE, (u)=>{
-    const safe = esc(u);
-    return `<a href="${safe}" target="_blank" rel="noopener noreferrer" data-pending-link="1">${safe}</a>`;
-  });
-}
-async function verifyLinks(container, timeoutMs=3500){
-  const anchors = Array.from(container.querySelectorAll('a[data-pending-link="1"]'));
-  const checks = anchors.map(a=>{
-    const url = a.getAttribute('href');
-    return new Promise((resolve)=>{
-      const ctl = new AbortController();
-      const to = setTimeout(()=>{ ctl.abort(); resolve({a, ok:false}); }, timeoutMs);
-      fetch(url, {method:"HEAD", mode:"no-cors", signal: ctl.signal})
-        .then(()=>{ clearTimeout(to); resolve({a, ok:true}); })
-        .catch(()=>{ clearTimeout(to); resolve({a, ok:false}); });
-    });
-  });
-  const results = await Promise.all(checks);
-  results.forEach(({a, ok})=>{
-    if(!ok){
-      // Omitir enlaces no disponibles
-      a.replaceWith(document.createTextNode(a.getAttribute('href')));
-    }else{
-      a.removeAttribute('data-pending-link');
-    }
-  });
-}
-
-/* === TTS helpers === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
@@ -427,50 +392,20 @@ function normalizeLists(lists){
 
 /* ====== Render ====== */
 function renderAnswer(data, originalUserForMemory){
-  // 1) limpiar descargos
-  if (data && typeof data === "object"){
-    if (typeof data.general === "string") data.general = stripDisclaimers(data.general);
-    if (Array.isArray(data.lists)){
-      data.lists = data.lists.map(x=>{
-        if (Array.isArray(x)) return x.map(s=>typeof s==="string"? stripDisclaimers(s):s);
-        if (x && typeof x==="object" && Array.isArray(x.items))
-          x.items = x.items.map(s=>typeof s==="string"? stripDisclaimers(s):s);
-        return x;
-      });
-    }
-    if (Array.isArray(data.tables)){
-      data.tables = data.tables.map(t=>{
-        if (Array.isArray(t.columns)) t.columns = t.columns.map(c=>typeof c==="string"? stripDisclaimers(c):c);
-        if (Array.isArray(t.rows)) t.rows = t.rows.map(r=> r.map(c=>typeof c==="string"? stripDisclaimers(c):c));
-        return t;
-      });
-    }
-  }
-
   let html="";
   const generalTxt = data.general || data.answer || data.text || "";
   if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
-
   const lists=normalizeLists(data.lists||[]);
-  lists.forEach(l=>{
-    html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`;
-  });
-
+  lists.forEach(l=>{ html += `<h3>${esc(l.title||"Lista")}</h3><ol>` + l.items.map(it=>`<li>${esc(it)}</li>`).join("") + `</ol>`; });
   (data.tables||[]).forEach(t=>{
     const cols=t.columns||[]; const rows=t.rows||[];
     html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>` + cols.map(c=>`<th>${esc(c)}</th>`).join("") + `</tr></thead><tbody>`;
     rows.forEach(r=>{ html += `<tr>` + r.map(x=>`<td>${esc(x)}</td>`).join("") + `</tr>`; });
     html += `</tbody></table>`;
   });
-
-  // 2) linkificar (y luego verificar)
-  html = linkifyHTML(html);
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
-  // 3) verificar enlaces y omitir no disponibles
-  verifyLinks(out).catch(()=>{});
-
-  // 4) memoria (sin cambios)
+  // Guardar respuesta plana p/memoria
   if (originalUserForMemory){
     const plainParts=[generalTxt].filter(Boolean);
     lists.forEach(l=>{ const block = l.items.map((it,i)=>`${i+1}. ${it}`).join("\n"); if(block) plainParts.push(block); });
@@ -484,11 +419,11 @@ function renderAnswer(data, originalUserForMemory){
     sessionStorage.setItem(HS_KEY, JSON.stringify(historyTurns.slice(-20)));
   }
 
-  // 5) Narración + video (sin cambios)
+  // Narración + video
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 }
 
-/* ====== Compactador de contexto (sin cambios) ====== */
+/* ====== Compactador de contexto ====== */
 function summarizeHistoryCompact(h, maxTurns=6){
   const tail = h.slice(-maxTurns);
   return tail.map((t,i)=>{
@@ -498,77 +433,64 @@ function summarizeHistoryCompact(h, maxTurns=6){
   }).join("\n");
 }
 
-/* ====== Detección de idioma fuerte ====== */
-function detectLangStrong(text){
-  const t=(text||"").toLowerCase();
-  const enHits=(t.match(/\b(the|and|you|your|please|could|would|with|from|to|of|in|on|are|is|can|help|explain|summary|benefits|analysis|report|for|about)\b/g)||[]).length;
-  const esHits=(t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por favor|podría|sería|ayuda|explica|resumen|beneficios|informe|sobre)\b/g)||[]).length;
-  if(enHits>esHits) return "en";
-  if(esHits>enHits) return "es";
-  const nonASCII=(t.match(/[áéíóúñü]/g)||[]).length;
-  return nonASCII>0 ? "es":"en";
-}
-
-/* ====== Backend (con memoria, cancelación y forzar idioma) ====== */
+/* ====== Backend (con memoria y cancelación) ====== */
 async function ask(){
   if(isBusy) return;
   const text=q.value.trim(); if(!text) return;
 
-  // detectar idioma → forzar respuesta SOLO en ese idioma
-  langHint = detectLangStrong(text);
+  // detectar idioma SOLO p/voz
+  const t=text.toLowerCase();
+  const enHits=(t.match(/\b(the|and|you|your|please|could|would|with|from|to|of|in|on|are|is|can|help|explain|summary|benefits)\b/g)||[]).length;
+  const esHits=(t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por favor|podría|sería|ayuda|explica|resumen|beneficios)\b/g)||[]).length;
+  langHint = (enHits>esHits) ? "en" : "es";
   selectedVoice = pickVoice(langHint);
+  /* ►► AJUSTE #2: guardar idioma de sesión */
+  sessionStorage.setItem('lex_lang', langHint);
 
+  // preparar estado UI
   isBusy = true;
   btnSend.disabled = true;
   btnCancel.disabled = false;
   const old=btnSend.textContent; btnSend.textContent="Enviando…";
-  setStatusLoading(langHint==="en" ? "Processing…" : "Consultando…");
+  setStatusLoading("Consultando…");
 
-  // memoria: turno del usuario (provisional)
+  // memoria: agrego turno de usuario (provisional)
   historyTurns.push({ role:"user", content: text });
   sessionStorage.setItem(HS_KEY, JSON.stringify(historyTurns.slice(-20)));
 
-  // contexto compacto
+  // resumen + últimos 2 turnos crudos
   const compact = summarizeHistoryCompact(historyTurns.slice(0,-1), 6);
   const recentRaw = historyTurns.slice(-3, -1)
-    .map(t => `${t.role === "user" ? (langHint==="en"?"Last user:":"Usuario:") : (langHint==="en"?"Last reply:":"Respuesta:")} ${t.content.slice(0,1200)}`)
+    .map(t => `${t.role === "user" ? "Usuario:" : "Respuesta:"} ${t.content.slice(0,1200)}`)
     .join("\n");
 
-  const forceHint = langHint==="en"
-    ? "Answer strictly in English. Do not include Spanish words."
-    : "Responde estrictamente en español. No incluyas palabras en inglés.";
+  const hasCarryWords = /\b(tambi[eé]n|adem[aá]s|igual|la misma|el mismo|como antes|otra vez)\b/i.test(text);
+  const carryHintES = "Si la pregunta usa 'también/además' o pronombres, conserva el mismo estudiante/variable del turno anterior salvo que se indique otro explícitamente.";
 
   const prompt = [
-    compact ? (langHint==="en" ? `PREVIOUS CONVERSATION (brief):\n${compact}` : `CONVERSACIÓN ANTERIOR (breve):\n${compact}`) : "",
-    recentRaw ? (langHint==="en" ? `RECENT CONTEXT (raw):\n${recentRaw}` : `CONTEXTO RECIENTE (crudo):\n${recentRaw}`) : "",
-    forceHint,
-    langHint==="en" ? `CURRENT QUESTION:\n${text}` : `PREGUNTA ACTUAL:\n${text}`
+    compact ? `CONVERSACIÓN ANTERIOR (breve):\n${compact}` : "",
+    recentRaw ? `CONTEXTO RECIENTE (crudo):\n${recentRaw}` : "",
+    hasCarryWords ? carryHintES : "",
+    `PREGUNTA ACTUAL:\n${text}`
   ].filter(Boolean).join("\n\n");
 
   // controlador para cancelar
   inFlightController = new AbortController();
 
-  // headers que sugieren el idioma al backend (no rompen nada)
-  const headers = {
-    "Content-Type":"application/json",
-    "Accept":"application/json",
-    "Accept-Language": langHint==="en" ? "en-US,en;q=0.9" : "es-ES,es;q=0.9",
-    "X-Force-Language": langHint,
-    "Prefer": `respond-language=${langHint}`
-  };
-
   try{
+    /* ►► AJUSTE #3: si la sesión es EN, inyectar instrucción para forzar inglés */
+    const payloadQ = (langHint==='en'
+      ? "Answer strictly in English. Do not use Spanish.\n\n" + prompt
+      : prompt);
+
     let r = await fetch(`${API_BASE}${GPT_PATH}`, {
       method:"POST",
-      headers,
-      body: JSON.stringify({ q: prompt, force_lang:true, system_hint: forceHint }),
+      headers:{ "Content-Type":"application/json", "Accept":"application/json" },
+      body: JSON.stringify({ q: payloadQ }),
       signal: inFlightController.signal
     });
     if(r.status===404 || r.status===405){
-      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(prompt)}`, {
-        headers:{ "Accept":"application/json" },
-        signal: inFlightController.signal
-      });
+      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(payloadQ)}`, { headers:{ "Accept":"application/json" }, signal: inFlightController.signal });
     }
     const data = await r.json().catch(()=>({}));
     if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
@@ -580,7 +502,7 @@ async function ask(){
       out.innerHTML = `<pre style="color:#b45309">Consulta cancelada.</pre>`;
     } else {
       out.innerHTML = `<pre style="color:var(--err)">${String(e)}</pre>`;
-      // revertir último user en memoria si falló
+      // si falla, quito el último user de memoria
       historyTurns.pop();
       sessionStorage.setItem(HS_KEY, JSON.stringify(historyTurns.slice(-20)));
     }
@@ -600,7 +522,7 @@ btnCancel.addEventListener("click", ()=>{
   btnCancel.disabled = true;
 });
 
-/* ====== Exportar (igual) ====== */
+/* ====== Exportar ====== */
 function printHTML(html){
   const iframe=document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
@@ -687,12 +609,13 @@ btnNew.addEventListener("click", ()=>{
 q.addEventListener("keydown",(e)=>{ if((e.ctrlKey||e.metaKey) && e.key==="Enter") ask(); });
 q.addEventListener("input", ()=>{ q.style.height="38px"; });
 
-/* Captura errores JS (queda oculto el status inferior) */
+/* Mostrar errores JS en pantalla */
 window.addEventListener("error",(e)=>{
-  // solo limpiamos el indicador top si hubiera un error persistente
-  clearStatus();
+  const msg=(e?.error?.stack||e?.message||String(e)).slice(0,600);
+  statusEl.innerHTML = '<span class="loader" role="status" aria-busy="true">'
+    + '<span class="dot"></span><span class="dot"></span><span class="dot"></span>'
+    + ('JS error: ' + msg) + '</span>';
 },{once:false});
 </script>
 </body>
 </html>
-
