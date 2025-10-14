@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+<!DOCTYPE html> 
 <html lang="es">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Lexium Sudamérica</title>
-<style>
+<title>Lexium Sudamérica OK</title>
+<style> 
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
     --ok:#16a34a; --err:#b91c1c;
@@ -292,15 +292,47 @@ const PREFERRED_NAMES=[
 const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
 const EN_LANGS=["en","en-US","en-GB","en-CA","en-AU","en-IN"];
 let selectedVoice=null; let langHint="es";
+
+/* === NUEVA pickVoice: estrictamente femenina por idioma === */
 function pickVoice(lang){
-  if(typeof speechSynthesis==="undefined") return null;
-  const vs = speechSynthesis.getVoices()||[];
-  const prefList = (lang==="en") ? ["Microsoft Jenny","Microsoft Aria","Microsoft Zira","Google US English"] : PREFERRED_NAMES;
+  if (typeof speechSynthesis === "undefined") return null;
+  const vs = speechSynthesis.getVoices() || [];
+
+  const prefList = (lang==="en")
+    ? ["Microsoft Jenny","Microsoft Aria","Microsoft Zira","Google US English"]
+    : PREFERRED_NAMES; // todas femeninas
+
   const langList = (lang==="en") ? EN_LANGS : SP_LANGS;
-  for(const name of prefList){ const m=vs.find(v=>v.name && v.name.toLowerCase().includes(name.toLowerCase())); if(m) return m; }
-  const byLang = vs.find(v=>langList.some(l=>(v.lang||"").toLowerCase().startsWith(l.toLowerCase())));
-  return byLang || vs[0] || null;
+
+  // 1) Preferidas (todas femeninas)
+  for (const name of prefList) {
+    const m = vs.find(v => v.name && v.name.toLowerCase().includes(name.toLowerCase()));
+    if (m && vMatchesLang(m, langList)) return m;
+  }
+
+  // 2) Voces del idioma que "parezcan femeninas" por nombre
+  const FEMALE_HINTS = [/female/i, /femenina/i, /woman/i, /mujer/i];
+  const FEMALE_NAMES = [
+    "aria","jenny","zira","sara","samantha","eva","joanna","laura","sabina","helena","dalia","elvira",
+    "paloma","maria","lucia","monica","paulina","camila","sofia","elena","isabella","carla","olivia","emma"
+  ];
+
+  const byLang = vs.filter(v => vMatchesLang(v, langList));
+  const femByHint = byLang.find(v =>
+    (v.name && (FEMALE_HINTS.some(rx => rx.test(v.name)) ||
+                FEMALE_NAMES.some(n => v.name.toLowerCase().includes(n))))
+  );
+  if (femByHint) return femByHint;
+
+  // 3) SIN fallback masculino
+  return null;
+
+  function vMatchesLang(voice, list){
+    const L = (voice.lang || "").toLowerCase();
+    return list.some(l => L.startsWith(l.toLowerCase()));
+  }
 }
+
 function initVoice(){ selectedVoice=pickVoice(langHint||"es"); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=()=>{ if(!selectedVoice){ initVoice(); } }; setTimeout(initVoice,150); }
 
@@ -341,7 +373,6 @@ async function verifyLinks(container, timeoutMs=3500){
   const results = await Promise.all(checks);
   results.forEach(({a, ok})=>{
     if(!ok){
-      // Omitir enlaces no disponibles
       a.replaceWith(document.createTextNode(a.getAttribute('href')));
     }else{
       a.removeAttribute('data-pending-link');
@@ -387,6 +418,14 @@ const TTS={
   loadFromOut(){ this.textCache=buildTTSTextFromOut(); this.chunks=this.makeChunks(this.textCache); this.i=0; },
   speakNext(){
     if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
+
+    /* === Salvaguarda: si no hay voz femenina disponible, no hablar === */
+    if (!selectedVoice) {
+      console.warn("No hay voz femenina disponible para el idioma actual.");
+      this.finish();
+      return;
+    }
+
     const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
     if(selectedVoice) u.voice=selectedVoice;
     u.lang=(selectedVoice?.lang)||(langHint==="en"?"en-US":"es-ES");
@@ -548,7 +587,7 @@ async function ask(){
   // controlador para cancelar
   inFlightController = new AbortController();
 
-  // headers que sugieren el idioma al backend (no rompen nada)
+  // headers que sugieren el idioma al backend
   const headers = {
     "Content-Type":"application/json",
     "Accept":"application/json",
@@ -689,12 +728,8 @@ q.addEventListener("input", ()=>{ q.style.height="38px"; });
 
 /* Captura errores JS (queda oculto el status inferior) */
 window.addEventListener("error",(e)=>{
-  // solo limpiamos el indicador top si hubiera un error persistente
   clearStatus();
 },{once:false});
 </script>
 </body>
 </html>
-
-
-
