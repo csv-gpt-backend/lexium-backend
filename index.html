@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>6Lexium Sudamérica</title>
+<title>OK Lexium Sudamérica</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -93,6 +93,13 @@
     padding:6px 10px; display:none;
   }
   .statusTop.show{ display:block; }
+
+  /* Badges verificación enlaces */
+  .badge{display:inline-block;font-size:12px;line-height:1;border:1px solid var(--bd);
+    border-radius:999px;padding:3px 6px;margin-left:6px;color:#555;background:#fff}
+  .badge.ok{border-color:#16a34a;color:#166534}
+  .badge.warn{border-color:#f59e0b;color:#92400e}
+  .deadLink{display:inline-block;margin-left:4px;color:#92400e;font-size:13px}
 </style>
 </head>
 <body>
@@ -142,6 +149,7 @@
     </div>
 
     <div id="out" class="out" aria-live="polite"></div>
+    <!-- status inferior oculto -->
     <div id="status" class="muted" style="display:none"></div>
   </div>
 
@@ -282,16 +290,14 @@ function toggleDict(){
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
 }
 
-/* ====== Voz (femenina prioritaria ES/EN) ====== */
-const FEMALE_PREFERRED_ES=[
+/* ====== Voz (prioridad femenina ES/EN) ====== */
+const PREFERRED_ES=[
   "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma",
-  "Microsoft Maria","Microsoft Lucia",
-  "Google español","Google español de Estados","Google US Español",
+  "Microsoft Maria","Microsoft Lucia","Google español","Google español de Estados","Google US Español",
   "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"
 ];
-const FEMALE_PREFERRED_EN=[
-  "Microsoft Jenny","Microsoft Aria","Microsoft Zira","Microsoft Sara",
-  "Google US English","Google UK English Female"
+const PREFERRED_EN=[
+  "Microsoft Jenny","Microsoft Aria","Microsoft Zira","Google US English"
 ];
 const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
 const EN_LANGS=["en","en-US","en-GB","en-CA","en-AU","en-IN"];
@@ -299,23 +305,22 @@ let selectedVoice=null; let langHint="es";
 
 function pickVoice(lang){
   if(typeof speechSynthesis==="undefined") return null;
-  const vs = (speechSynthesis.getVoices()||[]).filter(v=>{
-    const n=(v.name||"").toLowerCase();
-    return !/male\b/i.test(n) && !/Man\b/i.test(n); // evita voces marcadas como “male”
-  });
-  const prefList = (lang==="en") ? FEMALE_PREFERRED_EN : FEMALE_PREFERRED_ES;
+  const vs = speechSynthesis.getVoices()||[];
+  const prefList = (lang==="en") ? PREFERRED_EN : PREFERRED_ES;
   const langList = (lang==="en") ? EN_LANGS : SP_LANGS;
-
+  // 1) por nombre femenino conocido
   for(const name of prefList){
     const m=vs.find(v=>v.name && v.name.toLowerCase().includes(name.toLowerCase()));
     if(m) return m;
   }
+  // 2) por idioma (puede variar el timbre, pero suele ser femenina en estos locales)
   const byLang = vs.find(v=>langList.some(l=>(v.lang||"").toLowerCase().startsWith(l.toLowerCase())));
   return byLang || vs[0] || null;
 }
 function initVoice(){ selectedVoice=pickVoice(langHint||"es"); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=()=>{ if(!selectedVoice){ initVoice(); } }; setTimeout(initVoice,150); }
 
+/* ====== Listas/HTML ====== */
 const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
 function generalToOrderedListHTML(g){
   if (!g) return "";
@@ -338,26 +343,61 @@ function linkifyHTML(html){
     return `<a href="${safe}" target="_blank" rel="noopener noreferrer" data-pending-link="1">${safe}</a>`;
   });
 }
-async function verifyLinks(container, timeoutMs=3500){
+function extractYouTubeId(url){
+  try{
+    const u = new URL(url);
+    if (/^(www\.)?youtube\.com$/i.test(u.hostname)) {
+      if (u.pathname.startsWith('/watch')) return u.searchParams.get('v');
+      if (u.pathname.startsWith('/shorts/')) return u.pathname.split('/')[2];
+      if (u.pathname.startsWith('/embed/')) return u.pathname.split('/')[2];
+    }
+    if (/^(www\.)?youtu\.be$/i.test(u.hostname)) {
+      return u.pathname.split('/')[1];
+    }
+  }catch(_){}
+  return null;
+}
+async function verifyLinks(container){
   const anchors = Array.from(container.querySelectorAll('a[data-pending-link="1"]'));
-  const checks = anchors.map(a=>{
-    const url = a.getAttribute('href');
-    return new Promise((resolve)=>{
-      const ctl = new AbortController();
-      const to = setTimeout(()=>{ ctl.abort(); resolve({a, ok:false}); }, timeoutMs);
-      fetch(url, {method:"HEAD", mode:"no-cors", signal: ctl.signal})
-        .then(()=>{ clearTimeout(to); resolve({a, ok:true}); })
-        .catch(()=>{ clearTimeout(to); resolve({a, ok:false}); });
-    });
-  });
-  const results = await Promise.all(checks);
-  results.forEach(({a, ok})=>{
-    if(!ok){ a.replaceWith(document.createTextNode(a.getAttribute('href'))); }
-    else { a.removeAttribute('data-pending-link'); }
+  if (!anchors.length) return;
+
+  function addBadge(a, kind){
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + (kind==='ok' ? 'ok' : 'warn');
+    badge.textContent = (kind==='ok') ? 'Verificado' : 'No verificado';
+    a.insertAdjacentElement('afterend', badge);
+    a.removeAttribute('data-pending-link');
+  }
+
+  anchors.forEach(a=>{
+    const href = a.getAttribute('href') || '';
+    const ytId = extractYouTubeId(href);
+
+    if (ytId) {
+      const testImg = new Image();
+      const done = (ok)=>{
+        if (ok) {
+          addBadge(a, 'ok');
+        } else {
+          const warn = document.createElement('span');
+          warn.className = 'deadLink';
+          warn.textContent = '⚠ Video no disponible';
+          const txt = document.createTextNode(' ' + href);
+          a.replaceWith(txt);
+          txt.parentNode.insertBefore(warn, txt.nextSibling);
+        }
+      };
+      testImg.onload = ()=> done(true);
+      testImg.onerror = ()=> done(false);
+      testImg.src = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+      setTimeout(()=>{ if(!testImg.complete) testImg.src = `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`; }, 1200);
+    } else {
+      addBadge(a, 'warn');
+    }
   });
 }
 
-/* === TTS helpers === */
+/* === TTS === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
@@ -475,10 +515,10 @@ function renderAnswer(data, originalUserForMemory){
   html = linkifyHTML(html);
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
-  // 3) verificar enlaces y omitir no disponibles
+  // 3) verificar enlaces y omitir no disponibles (YouTube), otros “No verificado”
   verifyLinks(out).catch(()=>{});
 
-  // 4) memoria (sin cambios)
+  // 4) memoria
   if (originalUserForMemory){
     const plainParts=[generalTxt].filter(Boolean);
     lists.forEach(l=>{ const block = l.items.map((it,i)=>`${i+1}. ${it}`).join("\n"); if(block) plainParts.push(block); });
@@ -492,7 +532,7 @@ function renderAnswer(data, originalUserForMemory){
     sessionStorage.setItem(HS_KEY, JSON.stringify(historyTurns.slice(-20)));
   }
 
-  // 5) Narración + video (sin cambios)
+  // 5) Narración + video
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 }
 
@@ -516,18 +556,13 @@ function detectLangStrong(text){
   const nonASCII=(t.match(/[áéíóúñü]/g)||[]).length;
   return nonASCII>0 ? "es":"en";
 }
-function seemsSpanish(text){
-  const t=(text||"").toLowerCase();
-  const esHits=(t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por|una|un|los|las|como|si|también|además)\b/g)||[]).length;
-  const enHits=(t.match(/\b(the|and|of|to|in|is|are|for|with|as|if|also|moreover)\b/g)||[]).length;
-  return esHits>enHits+2;
-}
 
-/* ====== Backend (memoria, cancelación y forzar idioma + REINTENTO ÚNICO) ====== */
+/* ====== Backend (memoria, cancelación y forzar idioma) ====== */
 async function ask(){
   if(isBusy) return;
   const text=q.value.trim(); if(!text) return;
 
+  // idioma → fuerza respuesta SOLO en ese idioma
   langHint = detectLangStrong(text);
   selectedVoice = pickVoice(langHint);
 
@@ -558,13 +593,10 @@ async function ask(){
     langHint==="en" ? `CURRENT QUESTION:\n${text}` : `PREGUNTA ACTUAL:\n${text}`
   ].filter(Boolean).join("\n\n");
 
-  // Banner de idioma
-  const langBanner = (langHint==="en") ? "[LANG:EN]\n" : "[LANG:ES]\n";
-
   // controlador para cancelar
   inFlightController = new AbortController();
 
-  // headers que sugieren el idioma al backend (no rompen nada)
+  // headers que sugieren el idioma al backend
   const headers = {
     "Content-Type":"application/json",
     "Accept":"application/json",
@@ -573,47 +605,21 @@ async function ask(){
     "Prefer": `respond-language=${langHint}`
   };
 
-  let didRetry=false;
-
   try{
-    // 1° intento
     let r = await fetch(`${API_BASE}${GPT_PATH}`, {
       method:"POST",
       headers,
-      body: JSON.stringify({ q: langBanner + prompt, force_lang:true, system_hint: forceHint }),
+      body: JSON.stringify({ q: prompt, force_lang:true, system_hint: forceHint }),
       signal: inFlightController.signal
     });
     if(r.status===404 || r.status===405){
-      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(langBanner + prompt)}`, {
+      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(prompt)}`, {
         headers:{ "Accept":"application/json" },
         signal: inFlightController.signal
       });
     }
-    let data = await r.json().catch(()=>({}));
-
-    // Si preguntaron en inglés pero llegó texto mayormente en español, reintentar una sola vez
-    if (langHint==="en" && data && typeof data==="object" && !didRetry){
-      const txt = String(data.general || data.answer || data.text || "");
-      if (txt && seemsSpanish(txt)){
-        didRetry = true;
-        const stronger = "[STRICT ENGLISH ONLY]\n";
-        let r2 = await fetch(`${API_BASE}${GPT_PATH}`, {
-          method:"POST",
-          headers,
-          body: JSON.stringify({ q: "[LANG:EN]\n" + stronger + prompt, force_lang:true, system_hint: "Answer in English only. Do not output Spanish." }),
-          signal: inFlightController.signal
-        });
-        if(r2.status===404 || r2.status===405){
-          r2 = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent("[LANG:EN]\n" + stronger + prompt)}`, {
-            headers:{ "Accept":"application/json" },
-            signal: inFlightController.signal
-          });
-        }
-        data = await r2.json().catch(()=>data);
-      }
-    }
-
-    if(!r.ok && !didRetry) throw new Error(data?.error || data?.general || `HTTP ${r.status}`);
+    const data = await r.json().catch(()=>({}));
+    if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
 
     renderAnswer(data, /*for memory*/ text);
     saveSession(text, data);
@@ -642,7 +648,7 @@ btnCancel.addEventListener("click", ()=>{
   btnCancel.disabled = true;
 });
 
-/* ====== Exportar (igual) ====== */
+/* ====== Exportar ====== */
 function printHTML(html){
   const iframe=document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
@@ -729,7 +735,7 @@ btnNew.addEventListener("click", ()=>{
 q.addEventListener("keydown",(e)=>{ if((e.ctrlKey||e.metaKey) && e.key==="Enter") ask(); });
 q.addEventListener("input", ()=>{ q.style.height="38px"; });
 
-/* Captura errores JS */
+/* Captura errores JS (status inferior oculto) */
 window.addEventListener("error",()=>{ clearStatus(); },{once:false});
 </script>
 </body>
