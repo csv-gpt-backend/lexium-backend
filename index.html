@@ -604,9 +604,12 @@ async function ask(){
       signal: inFlightController.signal
     });
     if(r.status===404 || r.status===405){
-      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(prompt)}`, {
-        headers:{ "Accept":"application/json" },
-        signal: inFlightController.signal
+   
+        r = await fetch(
+  `${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(prompt)}&lang=${encodeURIComponent(langHint)}&force_lang=true`,
+  { headers, signal: inFlightController.signal }
+);
+
       });
     }
     const data = await r.json().catch(()=>({}));
@@ -733,3 +736,4 @@ window.addEventListener("error",(e)=>{
 </script>
 </body>
 </html>
+
