@@ -1,9 +1,9 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Lexium Sudamérica3</title>
+<title>6Lexium Sudamérica</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -142,7 +142,6 @@
     </div>
 
     <div id="out" class="out" aria-live="polite"></div>
-    <!-- status inferior eliminado: se conserva el nodo pero no se usa -->
     <div id="status" class="muted" style="display:none"></div>
   </div>
 
@@ -208,7 +207,7 @@ try{
 }catch{}
 
 /* ====== Utils ====== */
-function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
+function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;","&gt;":"&gt;"}[m])); }
 function setStatusLoading(msg="Generando…"){
   const html = `<span class="loader" role="status" aria-busy="true" aria-live="polite">
       <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}
@@ -283,21 +282,34 @@ function toggleDict(){
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
 }
 
-/* ====== Voz ====== */
-const PREFERRED_NAMES=[
-  "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
+/* ====== Voz (femenina prioritaria ES/EN) ====== */
+const FEMALE_PREFERRED_ES=[
+  "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma",
+  "Microsoft Maria","Microsoft Lucia",
   "Google español","Google español de Estados","Google US Español",
   "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"
+];
+const FEMALE_PREFERRED_EN=[
+  "Microsoft Jenny","Microsoft Aria","Microsoft Zira","Microsoft Sara",
+  "Google US English","Google UK English Female"
 ];
 const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
 const EN_LANGS=["en","en-US","en-GB","en-CA","en-AU","en-IN"];
 let selectedVoice=null; let langHint="es";
+
 function pickVoice(lang){
   if(typeof speechSynthesis==="undefined") return null;
-  const vs = speechSynthesis.getVoices()||[];
-  const prefList = (lang==="en") ? ["Microsoft Jenny","Microsoft Aria","Microsoft Zira","Google US English"] : PREFERRED_NAMES;
+  const vs = (speechSynthesis.getVoices()||[]).filter(v=>{
+    const n=(v.name||"").toLowerCase();
+    return !/male\b/i.test(n) && !/Man\b/i.test(n); // evita voces marcadas como “male”
+  });
+  const prefList = (lang==="en") ? FEMALE_PREFERRED_EN : FEMALE_PREFERRED_ES;
   const langList = (lang==="en") ? EN_LANGS : SP_LANGS;
-  for(const name of prefList){ const m=vs.find(v=>v.name && v.name.toLowerCase().includes(name.toLowerCase())); if(m) return m; }
+
+  for(const name of prefList){
+    const m=vs.find(v=>v.name && v.name.toLowerCase().includes(name.toLowerCase()));
+    if(m) return m;
+  }
   const byLang = vs.find(v=>langList.some(l=>(v.lang||"").toLowerCase().startsWith(l.toLowerCase())));
   return byLang || vs[0] || null;
 }
@@ -340,11 +352,8 @@ async function verifyLinks(container, timeoutMs=3500){
   });
   const results = await Promise.all(checks);
   results.forEach(({a, ok})=>{
-    if(!ok){
-      a.replaceWith(document.createTextNode(a.getAttribute('href')));
-    }else{
-      a.removeAttribute('data-pending-link');
-    }
+    if(!ok){ a.replaceWith(document.createTextNode(a.getAttribute('href'))); }
+    else { a.removeAttribute('data-pending-link'); }
   });
 }
 
@@ -487,7 +496,7 @@ function renderAnswer(data, originalUserForMemory){
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 }
 
-/* ====== Compactador de contexto (sin cambios) ====== */
+/* ====== Compactador de contexto ====== */
 function summarizeHistoryCompact(h, maxTurns=6){
   const tail = h.slice(-maxTurns);
   return tail.map((t,i)=>{
@@ -497,7 +506,7 @@ function summarizeHistoryCompact(h, maxTurns=6){
   }).join("\n");
 }
 
-/* ====== Detección de idioma fuerte ====== */
+/* ====== Detección fuerte de idioma ====== */
 function detectLangStrong(text){
   const t=(text||"").toLowerCase();
   const enHits=(t.match(/\b(the|and|you|your|please|could|would|with|from|to|of|in|on|are|is|can|help|explain|summary|benefits|analysis|report|for|about)\b/g)||[]).length;
@@ -507,15 +516,19 @@ function detectLangStrong(text){
   const nonASCII=(t.match(/[áéíóúñü]/g)||[]).length;
   return nonASCII>0 ? "es":"en";
 }
+function seemsSpanish(text){
+  const t=(text||"").toLowerCase();
+  const esHits=(t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por|una|un|los|las|como|si|también|además)\b/g)||[]).length;
+  const enHits=(t.match(/\b(the|and|of|to|in|is|are|for|with|as|if|also|moreover)\b/g)||[]).length;
+  return esHits>enHits+2;
+}
 
-/* ====== Backend (con memoria, cancelación y forzar idioma) ====== */
+/* ====== Backend (memoria, cancelación y forzar idioma + REINTENTO ÚNICO) ====== */
 async function ask(){
   if(isBusy) return;
   const text=q.value.trim(); if(!text) return;
 
-  // detectar idioma → forzar respuesta SOLO en ese idioma
-  const lang = detectLangStrong(text);
-  langHint = lang;
+  langHint = detectLangStrong(text);
   selectedVoice = pickVoice(langHint);
 
   isBusy = true;
@@ -545,6 +558,9 @@ async function ask(){
     langHint==="en" ? `CURRENT QUESTION:\n${text}` : `PREGUNTA ACTUAL:\n${text}`
   ].filter(Boolean).join("\n\n");
 
+  // Banner de idioma
+  const langBanner = (langHint==="en") ? "[LANG:EN]\n" : "[LANG:ES]\n";
+
   // controlador para cancelar
   inFlightController = new AbortController();
 
@@ -557,24 +573,47 @@ async function ask(){
     "Prefer": `respond-language=${langHint}`
   };
 
+  let didRetry=false;
+
   try{
+    // 1° intento
     let r = await fetch(`${API_BASE}${GPT_PATH}`, {
       method:"POST",
       headers,
-      body: JSON.stringify({ q: prompt, force_lang:true, system_hint: forceHint }),
+      body: JSON.stringify({ q: langBanner + prompt, force_lang:true, system_hint: forceHint }),
       signal: inFlightController.signal
     });
-
     if(r.status===404 || r.status===405){
-      // *** FIX: fallback con los mismos headers + lang en query ***
-      r = await fetch(
-        `${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(prompt)}&lang=${encodeURIComponent(langHint)}&force_lang=true`,
-        { headers, signal: inFlightController.signal }
-      );
+      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(langBanner + prompt)}`, {
+        headers:{ "Accept":"application/json" },
+        signal: inFlightController.signal
+      });
+    }
+    let data = await r.json().catch(()=>({}));
+
+    // Si preguntaron en inglés pero llegó texto mayormente en español, reintentar una sola vez
+    if (langHint==="en" && data && typeof data==="object" && !didRetry){
+      const txt = String(data.general || data.answer || data.text || "");
+      if (txt && seemsSpanish(txt)){
+        didRetry = true;
+        const stronger = "[STRICT ENGLISH ONLY]\n";
+        let r2 = await fetch(`${API_BASE}${GPT_PATH}`, {
+          method:"POST",
+          headers,
+          body: JSON.stringify({ q: "[LANG:EN]\n" + stronger + prompt, force_lang:true, system_hint: "Answer in English only. Do not output Spanish." }),
+          signal: inFlightController.signal
+        });
+        if(r2.status===404 || r2.status===405){
+          r2 = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent("[LANG:EN]\n" + stronger + prompt)}`, {
+            headers:{ "Accept":"application/json" },
+            signal: inFlightController.signal
+          });
+        }
+        data = await r2.json().catch(()=>data);
+      }
     }
 
-    const data = await r.json().catch(()=>({}));
-    if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
+    if(!r.ok && !didRetry) throw new Error(data?.error || data?.general || `HTTP ${r.status}`);
 
     renderAnswer(data, /*for memory*/ text);
     saveSession(text, data);
@@ -690,10 +729,8 @@ btnNew.addEventListener("click", ()=>{
 q.addEventListener("keydown",(e)=>{ if((e.ctrlKey||e.metaKey) && e.key==="Enter") ask(); });
 q.addEventListener("input", ()=>{ q.style.height="38px"; });
 
-/* Captura errores JS (queda oculto el status inferior) */
-window.addEventListener("error",(e)=>{
-  clearStatus();
-},{once:false});
+/* Captura errores JS */
+window.addEventListener("error",()=>{ clearStatus(); },{once:false});
 </script>
 </body>
 </html>
