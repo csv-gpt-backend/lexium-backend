@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>19 15 Asistente Lexium</title>
+<title> Asistente Lexium OK </title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -200,31 +200,31 @@ let isBusy = false;
 let inFlightController = null;
 let historyTurns = []; // [{role:"user"|"assistant", content:"texto"}]
 const HS_KEY = "lexium_sess_history_v1";
-const LANG_KEY = "lexium_session_lang_v1";
+const LANG_KEY = "lexium_lang_v1";
+let sessLang = null; // "es" | "en"
 
-/* Cargar historial e idioma de la pestaña */
+/* Cargar historial y lengua de la pestaña */
 try{
   const h = JSON.parse(sessionStorage.getItem(HS_KEY) || "[]");
   if (Array.isArray(h)) historyTurns = h;
+  const L = sessionStorage.getItem(LANG_KEY);
+  if (L === "es" || L === "en") sessLang = L;
 }catch{}
-let langHint = sessionStorage.getItem(LANG_KEY) || ""; // "" => aún no se fija idioma
 
 /* ====== Utils ====== */
 function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;","&gt;":"&gt;"}[m])); }
-
-/* SOLO badge superior */
 function setStatusLoading(msg="Generando…"){
   const html = `<span class="loader" role="status" aria-busy="true">
       <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}
     </span>`;
-  statusTop.innerHTML = html;
+  statusEl.innerHTML = html;     // lo mantengo por compatibilidad
+  statusTop.innerHTML = html;    // visible arriba izq
   statusTop.classList.add("show");
-  statusEl.textContent = ""; // no mostrar abajo
 }
 function clearStatus(){
+  statusEl.textContent = "";
   statusTop.textContent = "";
   statusTop.classList.remove("show");
-  statusEl.textContent = ""; // aseguramos vacío abajo
 }
 
 /* ====== Historial (overlay) ====== */
@@ -272,8 +272,7 @@ function toggleDict(){
   const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
   if(!SR){ alert("Dictado no soportado en este navegador."); return; }
   if(!recognizer){
-    recognizer=new SR();
-    recognizer.lang=(langHint==="en"?"en-US":"es-ES");
+    recognizer=new SR(); recognizer.lang=(sessLang==="en"?"en-US":"es-ES");
     recognizer.continuous=false; recognizer.interimResults=false;
     recognizer.onresult=e=>{
       const t=Array.from(e.results).map(r=>r[0].transcript).join(" ");
@@ -281,7 +280,7 @@ function toggleDict(){
     };
   }
   if(recognizer.listening){ recognizer.stop(); recognizer.listening=false; btnDict.textContent="🎤 Dictar"; }
-  else { recognizer.lang=(langHint==="en"?"en-US":"es-ES"); recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
+  else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
 }
 
 /* ====== Voz ====== */
@@ -302,7 +301,7 @@ function pickVoice(lang){
   const byLang = vs.find(v=>langList.some(l=>(v.lang||"").toLowerCase().startsWith(l.toLowerCase())));
   return byLang || vs[0] || null;
 }
-function initVoice(){ selectedVoice=pickVoice(langHint||"es"); }
+function initVoice(){ selectedVoice=pickVoice(sessLang||"es"); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=()=>{ if(!selectedVoice){ initVoice(); } }; setTimeout(initVoice,150); }
 
 const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
@@ -318,6 +317,8 @@ function generalToOrderedListHTML(g){
   }
   return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
 }
+
+/* ====== TTS helpers ====== */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
@@ -357,7 +358,7 @@ const TTS={
     if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
     const u=new SpeechSynthesisUtterance(this.chunks[this.i++]);
     if(selectedVoice) u.voice=selectedVoice;
-    u.lang=(selectedVoice?.lang)||(langHint==="en"?"en-US":"es-ES");
+    u.lang=(selectedVoice?.lang)||((sessLang==="en")?"en-US":"es-ES");
     u.rate=0.98; u.pitch=1.08; u.volume=1;
     u.onstart=()=>{ this.speaking=true; this.paused=false; if(vid){ vid.loop=true; vid.play().catch(()=>{});} };
     u.onend =()=>{ this.speakNext(); };
@@ -393,13 +394,62 @@ function normalizeLists(lists){
   });
 }
 
+/* ====== Post-procesado: links + quitar aviso ====== */
+function urlifyAndValidate(el){
+  // 1) Convertir URLs de texto a <a>
+  const URL_RE = /\bhttps?:\/\/[^\s<>"')]+/g;
+  function linkify(node){
+    if(node.nodeType!==3) return; // solo text nodes
+    const text=node.nodeValue;
+    const parts=text.split(URL_RE);
+    const matches=text.match(URL_RE);
+    if(!matches) return;
+    const frag=document.createDocumentFragment();
+    for(let i=0;i<parts.length;i++){
+      frag.appendChild(document.createTextNode(parts[i]));
+      if(matches[i]){
+        const a=document.createElement("a");
+        a.href=matches[i];
+        a.target="_blank";
+        a.rel="noopener";
+        a.textContent=matches[i];
+        frag.appendChild(a);
+      }
+    }
+    node.parentNode.replaceChild(frag,node);
+  }
+  // recorrer todos los nodos de texto
+  const walker=document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null);
+  const toProcess=[];
+  while(walker.nextNode()) toProcess.push(walker.currentNode);
+  toProcess.forEach(linkify);
+
+  // 2) Validar enlaces de YouTube (omitir no disponibles)
+  const anchors=[...el.querySelectorAll("a[href]")];
+  const youTubeHosts=["youtube.com","www.youtube.com","youtu.be","m.youtube.com"];
+  anchors.forEach(async (a)=>{
+    try{
+      const u=new URL(a.href);
+      if(!youTubeHosts.includes(u.hostname)) return;
+      const oembed=`https://www.youtube.com/oembed?url=${encodeURIComponent(a.href)}&format=json`;
+      const r=await fetch(oembed,{method:"GET",mode:"cors"});
+      if(!r.ok){ a.replaceWith(document.createTextNode("")); }
+    }catch{ /* si falla, no lo borramos */ }
+  });
+}
+
+function stripClinicalDisclaimer(){
+  const patterns=[
+    /no constituye un diagn[óo]stico cl[ií]nico ni psicol[óo]gico/gi,
+    /this (does not|doesn’t) constitute a (clinical|medical|psychological) diagnosis/gi
+  ];
+  let html=out.innerHTML;
+  patterns.forEach(rx=>{ html=html.replace(rx,""); });
+  out.innerHTML=html;
+}
+
 /* ====== Render ====== */
 function renderAnswer(data, originalUserForMemory){
-  // quitar cláusula clínica si apareció
-  if (typeof data.general === "string") {
-    data.general = data.general.replace(/no constituye un diagn[óo]stico cl[ií]nico ni psicol[óo]gico.?/ig, "").trim();
-  }
-
   let html="";
   const generalTxt = data.general || data.answer || data.text || "";
   if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
@@ -412,6 +462,10 @@ function renderAnswer(data, originalUserForMemory){
     html += `</tbody></table>`;
   });
   out.innerHTML = html || "<em>Sin contenido.</em>";
+
+  // Post-procesado requerido
+  stripClinicalDisclaimer();
+  urlifyAndValidate(out);
 
   // Guardar respuesta plana p/memoria
   if (originalUserForMemory){
@@ -435,77 +489,69 @@ function renderAnswer(data, originalUserForMemory){
 function summarizeHistoryCompact(h, maxTurns=6){
   const tail = h.slice(-maxTurns);
   return tail.map((t,i)=>{
-    const r = t.role === "user" ? "Q" : "R";
+    const r = t.role === "user" ? (sessLang==="en"?"Q":"P") : (sessLang==="en"?"A":"R");
     const txt = String(t.content||"").replace(/\s+/g," ").trim().slice(0, 500);
     return `${r}${i+1}: ${txt}`;
   }).join("\n");
 }
 
-/* ====== Backend (memoria + cancelación + idioma bloqueado) ====== */
+/* ====== Backend (con memoria, cancelación y lengua de sesión) ====== */
 async function ask(){
   if(isBusy) return;
   const text=q.value.trim(); if(!text) return;
 
-  // 1) Detectar idioma SOLO si no está fijado aún
-  if(!langHint){
+  // Fijar idioma de sesión SOLO si aún no está
+  if(!sessLang){
     const t=text.toLowerCase();
-    const enHits=(t.match(/\b(the|and|you|your|please|could|would|with|from|to|of|in|on|are|is|can|help|explain|summary|benefits|score|student)\b/g)||[]).length;
-    const esHits=(t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por favor|podría|sería|ayuda|explica|resumen|beneficios|puntaje|estudiante)\b/g)||[]).length;
-    langHint = (enHits>esHits) ? "en" : "es";
-    sessionStorage.setItem(LANG_KEY, langHint);
+    const enHits=(t.match(/\b(the|and|you|your|please|could|would|with|from|to|of|in|on|are|is|can|help|explain|summary|benefits)\b/g)||[]).length;
+    const esHits=(t.match(/\b(el|la|de|y|que|para|con|desde|a|en|son|es|por favor|podría|sería|ayuda|explica|resumen|beneficios)\b/g)||[]).length;
+    sessLang=(enHits>esHits)?"en":"es";
+    sessionStorage.setItem(LANG_KEY, sessLang);
   }
-  // preparar TTS según idioma ya fijado
-  selectedVoice = pickVoice(langHint);
+  selectedVoice = pickVoice(sessLang);
 
-  // 2) preparar estado UI
+  // preparar estado UI
   isBusy = true;
   btnSend.disabled = true;
   btnCancel.disabled = false;
   const old=btnSend.textContent; btnSend.textContent="Enviando…";
-  setStatusLoading(langHint==="en" ? "Processing…" : "Consultando…");
+  setStatusLoading(sessLang==="en" ? "Processing…" : "Consulting…");
 
-  // 3) memoria: agrego turno de usuario (provisional)
+  // memoria: agrego turno de usuario (provisional)
   historyTurns.push({ role:"user", content: text });
   sessionStorage.setItem(HS_KEY, JSON.stringify(historyTurns.slice(-20)));
 
-  // 4) resumen + últimos turnos crudos
+  // resumen + últimos 2 turnos crudos
   const compact = summarizeHistoryCompact(historyTurns.slice(0,-1), 6);
   const recentRaw = historyTurns.slice(-3, -1)
-    .map(t => `${t.role === "user" ? (langHint==="en"?"Last user:":"Usuario:") : (langHint==="en"?"Last reply:":"Respuesta:")} ${t.content.slice(0,1200)}`)
+    .map(t => `${t.role === "user" ? (sessLang==="en"?"Last user:":"Usuario:") : (sessLang==="en"?"Last reply:":"Respuesta:")} ${t.content.slice(0,1200)}`)
     .join("\n");
 
-  const hasCarryWordsES = /\b(tambi[eé]n|adem[aá]s|igual|la misma|el mismo|como antes|otra vez)\b/i.test(text);
-  const hasCarryWordsEN = /\b(also|again|same|as before|another time)\b/i.test(text);
   const carryHintES = "Si la pregunta usa 'también/además' o pronombres, conserva el mismo estudiante/variable del turno anterior salvo que se indique otro explícitamente.";
-  const carryHintEN = "If the question uses 'also/further' or pronouns, keep the same student/variable from the previous turn unless another is explicitly specified.";
+  const carryHintEN = "If the question uses 'also/further' or pronouns, keep the same student/variable from the previous turn unless another one is explicitly specified.";
 
   const prompt = [
-    compact ? (langHint==="en" ? `PREVIOUS CONVERSATION (brief):\n${compact}` : `CONVERSACIÓN ANTERIOR (breve):\n${compact}`) : "",
-    recentRaw ? (langHint==="en" ? `RECENT CONTEXT (raw):\n${recentRaw}` : `CONTEXTO RECIENTE (crudo):\n${recentRaw}`) : "",
-    (langHint==="en" ? carryHintEN : carryHintES) && (hasCarryWordsEN || hasCarryWordsES) ? (langHint==="en" ? carryHintEN : carryHintES) : "",
-    langHint==="en" ? `CURRENT QUESTION:\n${text}` : `PREGUNTA ACTUAL:\n${text}`
+    compact ? (sessLang==="en" ? `PREVIOUS CONVERSATION (brief):\n${compact}` : `CONVERSACIÓN ANTERIOR (breve):\n${compact}`) : "",
+    recentRaw ? (sessLang==="en" ? `RECENT CONTEXT (raw):\n${recentRaw}` : `CONTEXTO RECIENTE (crudo):\n${recentRaw}`) : "",
+    (sessLang==="en" ? carryHintEN : carryHintES),
+    (sessLang==="en" ? "Answer strictly in English. Do not mix Spanish." : "Responde estrictamente en español. No mezcles inglés."),
+    sessLang==="en" ? `CURRENT QUESTION:\n${text}` : `PREGUNTA ACTUAL:\n${text}`
   ].filter(Boolean).join("\n\n");
 
-  // 5) controlador para cancelar
+  // controlador para cancelar
   inFlightController = new AbortController();
-
-  // 6) headers para FORZAR idioma de respuesta (sin tocar modelo)
-  const headers = {
-    "Content-Type":"application/json",
-    "Accept":"application/json",
-    "Accept-Language": langHint==="en" ? "en-US,en;q=0.9" : "es-ES,es;q=0.9",
-    "X-Force-Language": langHint,
-    "Prefer": `respond-language=${langHint}`
-  };
-  const system_hint = (langHint==="en"
-    ? "Answer strictly in English. Do not use Spanish."
-    : "Responde estrictamente en español. No uses inglés.");
 
   try{
     let r = await fetch(`${API_BASE}${GPT_PATH}`, {
       method:"POST",
-      headers,
-      body: JSON.stringify({ q: prompt, system_hint, force_lang:true }),
+      headers:{
+        "Content-Type":"application/json",
+        "Accept":"application/json",
+        "Accept-Language": (sessLang==="en" ? "en-US,en;q=0.9" : "es-ES,es;q=0.9"),
+        "X-Force-Language": sessLang,
+        "Prefer": `respond-language=${sessLang}`
+      },
+      body: JSON.stringify({ q: prompt }),
       signal: inFlightController.signal
     });
     if(r.status===404 || r.status===405){
@@ -516,11 +562,6 @@ async function ask(){
     }
     const data = await r.json().catch(()=>({}));
     if(!r.ok || data.ok===false) throw new Error(data.error || data.general || `HTTP ${r.status}`);
-
-    // 7) limpiar aviso clínico si viniera
-    if (typeof data.general === "string") {
-      data.general = data.general.replace(/no constituye un diagn[óo]stico cl[ií]nico ni psicol[óo]gico.?/ig, "").trim();
-    }
 
     renderAnswer(data, /*for memory*/ text);
     saveSession(text, data);
@@ -629,8 +670,9 @@ btnClear.addEventListener("click", ()=>{ q.value=""; out.innerHTML=""; clearStat
 btnNew.addEventListener("click", ()=>{
   saveSession(q.value.trim()||"(sin pregunta)", {});
   TTS.stopAll(); q.value=""; out.innerHTML=""; clearStatus();
-  historyTurns = []; sessionStorage.removeItem(HS_KEY); sessionStorage.removeItem(LANG_KEY);
-  langHint = ""; // desbloquear para nueva sesión
+  historyTurns = []; sessionStorage.removeItem(HS_KEY);
+  sessionStorage.removeItem(LANG_KEY);
+  sessLang = null; selectedVoice = pickVoice("es");
 });
 
 /* ====== UX ====== */
@@ -640,11 +682,9 @@ q.addEventListener("input", ()=>{ q.style.height="38px"; });
 /* Mostrar errores JS en pantalla */
 window.addEventListener("error",(e)=>{
   const msg=(e?.error?.stack||e?.message||String(e)).slice(0,600);
-  statusEl.innerHTML = ''; // no usar parte inferior
-  statusTop.innerHTML = '<span class="loader" role="status" aria-busy="true">'
+  statusEl.innerHTML = '<span class="loader" role="status" aria-busy="true">'
     + '<span class="dot"></span><span class="dot"></span><span class="dot"></span>'
     + ('JS error: ' + msg) + '</span>';
-  statusTop.classList.add("show");
 },{once:false});
 </script>
 </body>
