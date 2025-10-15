@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>OK Lexium Sudamérica</title>
+<title>1 Lexium Sudamérica</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -93,13 +93,6 @@
     padding:6px 10px; display:none;
   }
   .statusTop.show{ display:block; }
-
-  /* Badges verificación enlaces */
-  .badge{display:inline-block;font-size:12px;line-height:1;border:1px solid var(--bd);
-    border-radius:999px;padding:3px 6px;margin-left:6px;color:#555;background:#fff}
-  .badge.ok{border-color:#16a34a;color:#166534}
-  .badge.warn{border-color:#f59e0b;color:#92400e}
-  .deadLink{display:inline-block;margin-left:4px;color:#92400e;font-size:13px}
 </style>
 </head>
 <body>
@@ -215,7 +208,7 @@ try{
 }catch{}
 
 /* ====== Utils ====== */
-function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;","&gt;":"&gt;"}[m])); }
+function esc(x){ return String(x).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
 function setStatusLoading(msg="Generando…"){
   const html = `<span class="loader" role="status" aria-busy="true" aria-live="polite">
       <span class="dot"></span><span class="dot"></span><span class="dot"></span>${esc(msg)}
@@ -290,37 +283,27 @@ function toggleDict(){
   else { recognizer.start(); recognizer.listening=true; btnDict.textContent="⏹ Detener dictado"; }
 }
 
-/* ====== Voz (prioridad femenina ES/EN) ====== */
-const PREFERRED_ES=[
-  "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma",
-  "Microsoft Maria","Microsoft Lucia","Google español","Google español de Estados","Google US Español",
+/* ====== Voz ====== */
+const PREFERRED_NAMES=[
+  "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
+  "Google español","Google español de Estados","Google US Español",
   "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"
-];
-const PREFERRED_EN=[
-  "Microsoft Jenny","Microsoft Aria","Microsoft Zira","Google US English"
 ];
 const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
 const EN_LANGS=["en","en-US","en-GB","en-CA","en-AU","en-IN"];
 let selectedVoice=null; let langHint="es";
-
 function pickVoice(lang){
   if(typeof speechSynthesis==="undefined") return null;
   const vs = speechSynthesis.getVoices()||[];
-  const prefList = (lang==="en") ? PREFERRED_EN : PREFERRED_ES;
+  const prefList = (lang==="en") ? ["Microsoft Jenny","Microsoft Aria","Microsoft Zira","Google US English"] : PREFERRED_NAMES;
   const langList = (lang==="en") ? EN_LANGS : SP_LANGS;
-  // 1) por nombre femenino conocido
-  for(const name of prefList){
-    const m=vs.find(v=>v.name && v.name.toLowerCase().includes(name.toLowerCase()));
-    if(m) return m;
-  }
-  // 2) por idioma (puede variar el timbre, pero suele ser femenina en estos locales)
+  for(const name of prefList){ const m=vs.find(v=>v.name && v.name.toLowerCase().includes(name.toLowerCase())); if(m) return m; }
   const byLang = vs.find(v=>langList.some(l=>(v.lang||"").toLowerCase().startsWith(l.toLowerCase())));
   return byLang || vs[0] || null;
 }
 function initVoice(){ selectedVoice=pickVoice(langHint||"es"); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=()=>{ if(!selectedVoice){ initVoice(); } }; setTimeout(initVoice,150); }
 
-/* ====== Listas/HTML ====== */
 const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
 function generalToOrderedListHTML(g){
   if (!g) return "";
@@ -343,61 +326,30 @@ function linkifyHTML(html){
     return `<a href="${safe}" target="_blank" rel="noopener noreferrer" data-pending-link="1">${safe}</a>`;
   });
 }
-function extractYouTubeId(url){
-  try{
-    const u = new URL(url);
-    if (/^(www\.)?youtube\.com$/i.test(u.hostname)) {
-      if (u.pathname.startsWith('/watch')) return u.searchParams.get('v');
-      if (u.pathname.startsWith('/shorts/')) return u.pathname.split('/')[2];
-      if (u.pathname.startsWith('/embed/')) return u.pathname.split('/')[2];
-    }
-    if (/^(www\.)?youtu\.be$/i.test(u.hostname)) {
-      return u.pathname.split('/')[1];
-    }
-  }catch(_){}
-  return null;
-}
-async function verifyLinks(container){
+async function verifyLinks(container, timeoutMs=3500){
   const anchors = Array.from(container.querySelectorAll('a[data-pending-link="1"]'));
-  if (!anchors.length) return;
-
-  function addBadge(a, kind){
-    const badge = document.createElement('span');
-    badge.className = 'badge ' + (kind==='ok' ? 'ok' : 'warn');
-    badge.textContent = (kind==='ok') ? 'Verificado' : 'No verificado';
-    a.insertAdjacentElement('afterend', badge);
-    a.removeAttribute('data-pending-link');
-  }
-
-  anchors.forEach(a=>{
-    const href = a.getAttribute('href') || '';
-    const ytId = extractYouTubeId(href);
-
-    if (ytId) {
-      const testImg = new Image();
-      const done = (ok)=>{
-        if (ok) {
-          addBadge(a, 'ok');
-        } else {
-          const warn = document.createElement('span');
-          warn.className = 'deadLink';
-          warn.textContent = '⚠ Video no disponible';
-          const txt = document.createTextNode(' ' + href);
-          a.replaceWith(txt);
-          txt.parentNode.insertBefore(warn, txt.nextSibling);
-        }
-      };
-      testImg.onload = ()=> done(true);
-      testImg.onerror = ()=> done(false);
-      testImg.src = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
-      setTimeout(()=>{ if(!testImg.complete) testImg.src = `https://img.youtube.com/vi/${ytId}/mqdefault.jpg`; }, 1200);
-    } else {
-      addBadge(a, 'warn');
+  const checks = anchors.map(a=>{
+    const url = a.getAttribute('href');
+    return new Promise((resolve)=>{
+      const ctl = new AbortController();
+      const to = setTimeout(()=>{ ctl.abort(); resolve({a, ok:false}); }, timeoutMs);
+      fetch(url, {method:"HEAD", mode:"no-cors", signal: ctl.signal})
+        .then(()=>{ clearTimeout(to); resolve({a, ok:true}); })
+        .catch(()=>{ clearTimeout(to); resolve({a, ok:false}); });
+    });
+  });
+  const results = await Promise.all(checks);
+  results.forEach(({a, ok})=>{
+    if(!ok){
+      // Omitir enlaces no disponibles
+      a.replaceWith(document.createTextNode(a.getAttribute('href')));
+    }else{
+      a.removeAttribute('data-pending-link');
     }
   });
 }
 
-/* === TTS === */
+/* === TTS helpers === */
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
@@ -515,10 +467,10 @@ function renderAnswer(data, originalUserForMemory){
   html = linkifyHTML(html);
   out.innerHTML = html || "<em>Sin contenido.</em>";
 
-  // 3) verificar enlaces y omitir no disponibles (YouTube), otros “No verificado”
+  // 3) verificar enlaces y omitir no disponibles
   verifyLinks(out).catch(()=>{});
 
-  // 4) memoria
+  // 4) memoria (sin cambios)
   if (originalUserForMemory){
     const plainParts=[generalTxt].filter(Boolean);
     lists.forEach(l=>{ const block = l.items.map((it,i)=>`${i+1}. ${it}`).join("\n"); if(block) plainParts.push(block); });
@@ -532,7 +484,7 @@ function renderAnswer(data, originalUserForMemory){
     sessionStorage.setItem(HS_KEY, JSON.stringify(historyTurns.slice(-20)));
   }
 
-  // 5) Narración + video
+  // 5) Narración + video (sin cambios)
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 }
 
@@ -546,7 +498,7 @@ function summarizeHistoryCompact(h, maxTurns=6){
   }).join("\n");
 }
 
-/* ====== Detección fuerte de idioma ====== */
+/* ====== Detección de idioma fuerte ====== */
 function detectLangStrong(text){
   const t=(text||"").toLowerCase();
   const enHits=(t.match(/\b(the|and|you|your|please|could|would|with|from|to|of|in|on|are|is|can|help|explain|summary|benefits|analysis|report|for|about)\b/g)||[]).length;
@@ -557,12 +509,12 @@ function detectLangStrong(text){
   return nonASCII>0 ? "es":"en";
 }
 
-/* ====== Backend (memoria, cancelación y forzar idioma) ====== */
+/* ====== Backend (con memoria, cancelación y forzar idioma) ====== */
 async function ask(){
   if(isBusy) return;
   const text=q.value.trim(); if(!text) return;
 
-  // idioma → fuerza respuesta SOLO en ese idioma
+  // detectar idioma → forzar respuesta SOLO en ese idioma
   langHint = detectLangStrong(text);
   selectedVoice = pickVoice(langHint);
 
@@ -586,7 +538,13 @@ async function ask(){
     ? "Answer strictly in English. Do not include Spanish words."
     : "Responde estrictamente en español. No incluyas palabras en inglés.";
 
+  // Banner de idioma muy visible para el modelo (clave del fix)
+  const langBanner = langHint==="en"
+    ? "[LANG:EN]\nYou must answer ONLY in English.\n"
+    : "[LANG:ES]\nDebes responder SOLO en español.\n";
+
   const prompt = [
+    langBanner,
     compact ? (langHint==="en" ? `PREVIOUS CONVERSATION (brief):\n${compact}` : `CONVERSACIÓN ANTERIOR (breve):\n${compact}`) : "",
     recentRaw ? (langHint==="en" ? `RECENT CONTEXT (raw):\n${recentRaw}` : `CONTEXTO RECIENTE (crudo):\n${recentRaw}`) : "",
     forceHint,
@@ -596,7 +554,7 @@ async function ask(){
   // controlador para cancelar
   inFlightController = new AbortController();
 
-  // headers que sugieren el idioma al backend
+  // headers que sugieren el idioma al backend (no rompen nada)
   const headers = {
     "Content-Type":"application/json",
     "Accept":"application/json",
@@ -648,7 +606,7 @@ btnCancel.addEventListener("click", ()=>{
   btnCancel.disabled = true;
 });
 
-/* ====== Exportar ====== */
+/* ====== Exportar (igual) ====== */
 function printHTML(html){
   const iframe=document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
@@ -735,7 +693,7 @@ btnNew.addEventListener("click", ()=>{
 q.addEventListener("keydown",(e)=>{ if((e.ctrlKey||e.metaKey) && e.key==="Enter") ask(); });
 q.addEventListener("input", ()=>{ q.style.height="38px"; });
 
-/* Captura errores JS (status inferior oculto) */
+/* Captura errores JS */
 window.addEventListener("error",()=>{ clearStatus(); },{once:false});
 </script>
 </body>
