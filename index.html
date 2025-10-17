@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>GLexium Sudamérica</title>
+<title>1 Lexium Sudamérica</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -39,18 +39,18 @@
   .hist{position:fixed; right:14px; top:10px; z-index:60}
   .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
-  /* Caja de texto 1 línea (como lo tienes) */
+  /* Caja de texto DOS líneas (fijo) */
   .query{
     width:100%;
     box-sizing:border-box;
-    height:38px; min-height:38px; max-height:38px;
+    height:56px; min-height:56px; max-height:56px;
     margin-top:8px;
     resize:none; overflow:auto;
     border:1px solid var(--bd); border-radius:10px;
     padding:8px 12px; font-size:16px; line-height:1.4;
   }
 
-  .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh;}
+  .out{margin:8px 0; border:1px solid var(--bd); border-radius:12px; padding:12px; overflow:auto; white-space:pre-wrap; max-height:65vh; text-align:left;}
   .muted{color:var(--muted); font-size:.9rem}
 
   table{width:100%; border-collapse:collapse; margin:10px 0}
@@ -84,31 +84,18 @@
   /* Vista detalle historial */
   #histDetailView{display:none;}
   .histQuestion{margin:0 0 8px 0}
-  .histContent{border:1px solid var(--bd); border-radius:10px; padding:12px; overflow:auto}
+  .histContent{border:1px solid var(--bd); border-radius:10px; padding:12px; overflow:auto; max-height:60vh}
 
-  /* ÚNICO badge superior izq para “Consultando…” */
+  /* Controles de exportación en detalle */
+  .histExportBar{display:flex; gap:8px; margin:8px 0}
+
+  /* Badge superior izq para “Consultando…” */
   .statusTop{
     position:fixed; top:10px; left:10px; z-index:70;
     background:#fff; border:1px solid var(--bd); border-radius:10px;
     padding:6px 10px; display:none;
   }
   .statusTop.show{ display:block; }
-
-  /* ====== Reglas SOLO para impresión (PDF/DOC) ====== */
-  @media print{
-    @page{ size: A4 landscape; margin: 12mm; }
-    body{ font-size: 12px; }
-    table{ table-layout: fixed; width: 100%; }
-    th, td{
-      white-space: normal !important;
-      word-break: break-word !important;
-      overflow-wrap: anywhere !important;
-    }
-    thead { display: table-header-group; }
-    tfoot { display: table-row-group; }
-    tr, img { page-break-inside: avoid; }
-    h1,h2,h3 { page-break-after: avoid; }
-  }
 </style>
 </head>
 <body>
@@ -138,7 +125,7 @@
 
   <div class="contentWrap">
     <div style="margin:10px 0 6px">
-      <textarea id="q" class="query" rows="1" placeholder="ESCRIBE O HABLA PARA PREGUNTAR...."></textarea>
+      <textarea id="q" class="query" rows="2" placeholder="ESCRIBE O HABLA PARA PREGUNTAR...."></textarea>
     </div>
 
     <div class="toolbar">
@@ -176,6 +163,14 @@
         <div id="histListView"><div id="histBody"></div></div>
         <div id="histDetailView">
           <h3 class="histQuestion"></h3>
+
+          <!-- NUEVO: barra de exportación del detalle -->
+          <div class="histExportBar">
+            <button id="histExpPdf" title="Exportar este resultado a PDF">Exportar PDF</button>
+            <button id="histExpCsv" title="Exportar este resultado a CSV">Exportar CSV</button>
+            <button id="histExpDoc" title="Exportar este resultado a DOC">Exportar DOC</button>
+          </div>
+
           <div class="histContent" id="histContent"></div>
         </div>
       </div>
@@ -237,23 +232,17 @@ function clearStatus(){
   statusTop.classList.remove("show");
 }
 
-/* — Limpia frases de descargo si aparecen (ampliado) — */
+/* — Filtro de descargos (ampliado) — */
 function stripDisclaimers(txt){
   if(!txt) return txt;
-  const re = new RegExp(
-    [
-      // variantes frecuentes
-      'no\\s+constituye\\s+un\\s+diagn[oó]stico\\s+cl[ií]nico(?:\\s+ni\\s+psicol[oó]gico)?',
-      'no\\s+constituye\\s+un\\s+informe\\s+(?:cl[ií]nico|psicol[oó]gico|m[eé]dico)',
-      'este\\s+documento\\s+es\\s+orientativo',
-      'no\\s+cl[ií]nico',
-      'no\\s+psicol[oó]gico',
-      'no\\s+m[eé]dico',
-      'no\\s+sustituye\\s+una?\\s+evaluaci[oó]n\\s+profesional'
-    ].join('|'),
-    'gimi'
-  );
-  return String(txt).replace(re, '').replace(/\n{3,}/g, "\n\n").trim();
+  // elimina frases típicas de “no clínico / orientativo”
+  const patterns = [
+    /(no\s+constituye\s+un\s+diagn[oó]stico\s+cl[ií]nico\s+ni\s+psicol[oó]gico.*)$/gmi,
+    /(documento\s+orientativo.*(no\s+cl[ií]nico|no\s+diagn[oó]stico).*)$/gmi
+  ];
+  let out = txt;
+  for(const re of patterns){ out = out.replace(re, ""); }
+  return out.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 /* ====== Historial (overlay) ====== */
@@ -295,6 +284,62 @@ histBody.addEventListener("click",(e)=>{
   }
 });
 
+/* ====== Exportar desde detalle de historial ====== */
+function exportFromHtml(title, html, kind){
+  if(!html.trim()){ alert("No hay contenido que exportar."); return; }
+  if(kind==="pdf"){
+    const docHtml = `<!doctype html><html><head><meta charset="utf-8"><title>${esc(title)}</title>
+      <style>
+        body{font:16px/1.5 system-ui;margin:28px;color:#111}
+        h3{margin-top:0}
+        .wrap{overflow-x:auto}
+        table{border-collapse:collapse;width:100%; display:block; overflow:auto; white-space:nowrap}
+        td,th{border:1px solid #ddd;padding:6px;text-align:left}
+      </style></head><body>
+      <h3>${esc(title)}</h3>
+      <div class="wrap">${html}</div>
+      </body></html>`;
+    printHTML(docHtml); return;
+  }
+  if(kind==="csv"){
+    const tmp=document.createElement('div'); tmp.innerHTML=html;
+    let rows=[];
+    tmp.querySelectorAll("p").forEach(p=>{ const t=p.textContent.trim(); if(t) rows.push(["TEXTO", t]); });
+    tmp.querySelectorAll("ol,ul").forEach(list=>{
+      const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}`);
+      if(items.length){ rows.push(["LISTA", items.join(" \\ ")]); }
+    });
+    tmp.querySelectorAll("table").forEach(tbl=>{
+      const head=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
+      if(head.length) rows.push(["TABLA CABECERAS", ...head]);
+      const trs=[...tbl.querySelectorAll("tbody tr")];
+      trs.forEach((tr,ri)=>{ const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim()); rows.push([`FILA ${ri+1}`, ...cells]); });
+    });
+    const csv = rows.map(r => r.map(cell=>{
+      const v=String(cell??"");
+      if (/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`;
+      return v;
+    }).join(",")).join("\n");
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob); a.download="historial.csv"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),500);
+    return;
+  }
+  if(kind==="doc"){
+    const docHtml = `<!doctype html><html><head><meta charset="utf-8"></head><body>
+      <h3>${esc(title)}</h3>
+      <div style="overflow-x:auto">${html}</div>
+    </body></html>`;
+    const blob=new Blob([docHtml],{type:"application/msword"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="historial.doc"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),500);
+  }
+}
+document.getElementById("histExpPdf").addEventListener("click", ()=>exportFromHtml(histQuestion.textContent||"Sesión", histContent.innerHTML, "pdf"));
+document.getElementById("histExpCsv").addEventListener("click", ()=>exportFromHtml(histQuestion.textContent||"Sesión", histContent.innerHTML, "csv"));
+document.getElementById("histExpDoc").addEventListener("click", ()=>exportFromHtml(histQuestion.textContent||"Sesión", histContent.innerHTML, "doc"));
+
 /* ====== Dictado ====== */
 let recognizer=null;
 function toggleDict(){
@@ -332,69 +377,38 @@ function pickVoice(lang){
 function initVoice(){ selectedVoice=pickVoice(langHint||"es"); }
 if(typeof speechSynthesis!=="undefined"){ speechSynthesis.onvoiceschanged=()=>{ if(!selectedVoice){ initVoice(); } }; setTimeout(initVoice,150); }
 
-const BULLET_RE = /^(?:[•\-–*]|\d+\.)\s+/u;
-function generalToOrderedListHTML(g){
-  if (!g) return "";
-  const lines = g.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
-  const bulletLike = lines.filter(s=>BULLET_RE.test(s)).length;
-  const manyPlainLines = lines.filter(s=>!/[.!?;:]\s*$/.test(s) && s.length<=80).length;
-  const shouldNumber = (lines.length>=3) && (bulletLike>0 || manyPlainLines >= Math.ceil(lines.length*0.6));
-  if (shouldNumber) {
-    const items = lines.map(s=>s.replace(BULLET_RE,"")).filter(Boolean);
-    return `<ol>${items.map(it=>`<li>${esc(it)}</li>`).join("")}</ol>`;
-  }
-  return `<p>${esc(g).replace(/\n/g,"<br>")}</p>`;
-}
-
-/* ====== Linkificación + verificación (no tocado) ====== */
-const URL_RE = /\bhttps?:\/\/[^\s<>"')]+/gi;
-function linkifyHTML(html){
-  return html.replace(URL_RE, (u)=>{
-    const safe = esc(u);
-    return `<a href="${safe}" target="_blank" rel="noopener noreferrer" data-pending-link="1">${safe}</a>`;
-  });
-}
-async function verifyLinks(container, timeoutMs=3500){
-  const anchors = Array.from(container.querySelectorAll('a[data-pending-link="1"]'));
-  const checks = anchors.map(a=>{
-    const url = a.getAttribute('href');
-    return new Promise((resolve)=>{
-      const ctl = new AbortController();
-      const to = setTimeout(()=>{ ctl.abort(); resolve({a, ok:false}); }, timeoutMs);
-      fetch(url, {method:"HEAD", mode:"no-cors", signal: ctl.signal})
-        .then(()=>{ clearTimeout(to); resolve({a, ok:true}); })
-        .catch(()=>{ clearTimeout(to); resolve({a, ok:false}); });
-    });
-  });
-  const results = await Promise.all(checks);
-  results.forEach(({a, ok})=>{
-    if(!ok){
-      a.replaceWith(document.createTextNode(a.getAttribute('href')));
-    }else{
-      a.removeAttribute('data-pending-link');
-    }
-  });
-}
-
-/* === TTS helpers === */
+/* ====== TTS (lectura ordenada, con títulos) ====== */
 function buildTTSTextFromOut(){
-  const c=document.createElement("div"); c.innerHTML=out.innerHTML;
+  const container=document.createElement("div"); container.innerHTML=out.innerHTML;
   const parts=[];
-  c.querySelectorAll("p").forEach(p=>{ const t=p.textContent.trim(); if(t) parts.push(t); });
-  c.querySelectorAll("ol,ul").forEach(list=>{
-    const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. — ${li.textContent.trim()}`).filter(Boolean);
-    if(items.length){ parts.push(items.join("\n\n")); }
-  });
-  c.querySelectorAll("table").forEach(tbl=>{
-    const rows=[...tbl.querySelectorAll("tbody tr")]; if(!rows.length) return;
-    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
-    if(headers.length){ parts.push(`Tabla: ${headers.join(", ")}`); }
-    const items=rows.map((tr,i)=>{
-      const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
-      return `${i+1}. — ${cells.join(" | ")}`;
-    }).join("\n\n");
-    if(items) parts.push(items);
-  });
+  const walkers = Array.from(container.children);
+  for(const node of walkers){
+    const tag = (node.tagName||"").toLowerCase();
+    if(tag==="h1"||tag==="h2"||tag==="h3"||tag==="h4"){
+      const t=node.textContent.trim(); if(t) parts.push(t);
+      continue;
+    }
+    if(tag==="p"){
+      const t=node.textContent.trim(); if(t) parts.push(t);
+      continue;
+    }
+    if(tag==="ol"||tag==="ul"){
+      const items=[...node.querySelectorAll(":scope > li")].map((li,i)=>`${i+1}. — ${li.textContent.trim()}`).filter(Boolean);
+      if(items.length) parts.push(items.join("\n\n"));
+      continue;
+    }
+    if(tag==="table"){
+      const rows=[...node.querySelectorAll("tbody tr")]; if(!rows.length) continue;
+      const headers=[...node.querySelectorAll("thead th")].map(th=>th.textContent.trim());
+      if(headers.length){ parts.push(`Tabla: ${headers.join(", ")}`); }
+      const items=rows.map((tr,i)=>{
+        const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
+        return `${i+1}. — ${cells.join(" | ")}`;
+      }).join("\n\n");
+      if(items) parts.push(items);
+      continue;
+    }
+  }
   return parts.join("\n\n");
 }
 const TTS={
@@ -437,6 +451,37 @@ const TTS={
   stopAll(){ this.enabled=false; this.paused=false; this.speaking=false; this.utter=null; if(typeof speechSynthesis!=="undefined") speechSynthesis.cancel(); if(vid){ vid.loop=false; vid.pause(); } }
 };
 
+/* ====== Linkificación + verificación ====== */
+const URL_RE = /\bhttps?:\/\/[^\s<>"')]+/gi;
+function linkifyHTML(html){
+  return html.replace(URL_RE, (u)=>{
+    const safe = esc(u);
+    return `<a href="${safe}" target="_blank" rel="noopener noreferrer" data-pending-link="1">${safe}</a>`;
+  });
+}
+async function verifyLinks(container, timeoutMs=3500){
+  const anchors = Array.from(container.querySelectorAll('a[data-pending-link="1"]'));
+  const checks = anchors.map(a=>{
+    const url = a.getAttribute('href');
+    return new Promise((resolve)=>{
+      const ctl = new AbortController();
+      const to = setTimeout(()=>{ ctl.abort(); resolve({a, ok:false}); }, timeoutMs);
+      fetch(url, {method:"HEAD", mode:"no-cors", signal: ctl.signal})
+        .then(()=>{ clearTimeout(to); resolve({a, ok:true}); })
+        .catch(()=>{ clearTimeout(to); resolve({a, ok:false}); });
+    });
+  });
+  const results = await Promise.all(checks);
+  results.forEach(({a, ok})=>{
+    if(!ok){
+      // Omitir enlaces no disponibles (muestra texto sin clic)
+      a.replaceWith(document.createTextNode(a.getAttribute('href')));
+    }else{
+      a.removeAttribute('data-pending-link');
+    }
+  });
+}
+
 /* ====== Normalizar listas ====== */
 function normalizeLists(lists){
   if(!Array.isArray(lists)) return [];
@@ -454,7 +499,7 @@ function normalizeLists(lists){
 
 /* ====== Render ====== */
 function renderAnswer(data, originalUserForMemory){
-  // 1) limpiar descargos (ampliado)
+  // 1) limpiar descargos
   if (data && typeof data === "object"){
     if (typeof data.general === "string") data.general = stripDisclaimers(data.general);
     if (Array.isArray(data.lists)){
@@ -476,7 +521,7 @@ function renderAnswer(data, originalUserForMemory){
 
   let html="";
   const generalTxt = data.general || data.answer || data.text || "";
-  if(generalTxt){ html += generalToOrderedListHTML(generalTxt); }
+  if(generalTxt){ html += `<p>${esc(stripDisclaimers(generalTxt)).replace(/\n/g,"<br>")}</p>`; }
 
   const lists=normalizeLists(data.lists||[]);
   lists.forEach(l=>{
@@ -485,17 +530,19 @@ function renderAnswer(data, originalUserForMemory){
 
   (data.tables||[]).forEach(t=>{
     const cols=t.columns||[]; const rows=t.rows||[];
-    html += `<h3>${esc(t.title||"Tabla")}</h3><table><thead><tr>` + cols.map(c=>`<th>${esc(c)}</th>`).join("") + `</tr></thead><tbody>`;
+    html += `<h3>${esc(t.title||"Tabla")}</h3><div style="overflow-x:auto"><table><thead><tr>` + cols.map(c=>`<th>${esc(c)}</th>`).join("") + `</tr></thead><tbody>`;
     rows.forEach(r=>{ html += `<tr>` + r.map(x=>`<td>${esc(x)}</td>`).join("") + `</tr>`; });
-    html += `</tbody></table>`;
+    html += `</tbody></table></div>`;
   });
 
-  // 2) linkificar y verificar
+  // 2) linkificar (y luego verificar)
   html = linkifyHTML(html);
   out.innerHTML = html || "<em>Sin contenido.</em>";
+
+  // 3) verificar enlaces y omitir no disponibles
   verifyLinks(out).catch(()=>{});
 
-  // 3) memoria (igual)
+  // 4) memoria
   if (originalUserForMemory){
     const plainParts=[generalTxt].filter(Boolean);
     lists.forEach(l=>{ const block = l.items.map((it,i)=>`${i+1}. ${it}`).join("\n"); if(block) plainParts.push(block); });
@@ -509,11 +556,11 @@ function renderAnswer(data, originalUserForMemory){
     sessionStorage.setItem(HS_KEY, JSON.stringify(historyTurns.slice(-20)));
   }
 
-  // 4) Narración + video (igual)
+  // 5) Narración + video
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 }
 
-/* ====== Compactador de contexto (igual) ====== */
+/* ====== Compactador de contexto ====== */
 function summarizeHistoryCompact(h, maxTurns=6){
   const tail = h.slice(-maxTurns);
   return tail.map((t,i)=>{
@@ -534,7 +581,7 @@ function detectLangStrong(text){
   return nonASCII>0 ? "es":"en";
 }
 
-/* ====== Backend (con memoria, cancelación y forzado idioma) ====== */
+/* ====== Backend (con memoria, cancelación y forzar idioma) ====== */
 async function ask(){
   if(isBusy) return;
   const text=q.value.trim(); if(!text) return;
@@ -563,19 +610,23 @@ async function ask(){
     ? "Answer strictly in English. Do not include Spanish words."
     : "Responde estrictamente en español. No incluyas palabras en inglés.";
 
-  const langBanner = langHint==="en" ? "[LANG:EN]\n" : "[LANG:ES]\n";
+  // Banner de idioma muy visible para el modelo
+  const langBanner = langHint==="en"
+    ? "[LANG:EN]\nYou must answer ONLY in English.\n"
+    : "[LANG:ES]\nDebes responder SOLO en español.\n";
 
   const prompt = [
-    langBanner + forceHint,
+    langBanner,
     compact ? (langHint==="en" ? `PREVIOUS CONVERSATION (brief):\n${compact}` : `CONVERSACIÓN ANTERIOR (breve):\n${compact}`) : "",
     recentRaw ? (langHint==="en" ? `RECENT CONTEXT (raw):\n${recentRaw}` : `CONTEXTO RECIENTE (crudo):\n${recentRaw}`) : "",
+    forceHint,
     langHint==="en" ? `CURRENT QUESTION:\n${text}` : `PREGUNTA ACTUAL:\n${text}`
   ].filter(Boolean).join("\n\n");
 
   // controlador para cancelar
   inFlightController = new AbortController();
 
-  // headers de idioma
+  // headers que sugieren el idioma al backend
   const headers = {
     "Content-Type":"application/json",
     "Accept":"application/json",
@@ -592,9 +643,8 @@ async function ask(){
       signal: inFlightController.signal
     });
     if(r.status===404 || r.status===405){
-      // Fallback: también enviamos banner y headers para mantener el idioma
-      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(langBanner + forceHint + "\n\n" + text)}`, {
-        headers,
+      r = await fetch(`${API_BASE}${FALLBACK_PATH}?q=${encodeURIComponent(prompt)}`, {
+        headers:{ "Accept":"application/json" },
         signal: inFlightController.signal
       });
     }
@@ -628,7 +678,7 @@ btnCancel.addEventListener("click", ()=>{
   btnCancel.disabled = true;
 });
 
-/* ====== Exportar ====== */
+/* ====== Exportar (pantalla actual) ====== */
 function printHTML(html){
   const iframe=document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
@@ -637,7 +687,7 @@ function printHTML(html){
   const doc=iframe.contentWindow||iframe.contentDocument;
   const idoc=doc.document||doc;
   idoc.open(); idoc.write(html); idoc.close();
-  setTimeout(()=>{ try{ (iframe.contentWindow||iframe).focus(); (iframe.contentWindow||iframe).print(); }catch{} }, 80);
+  setTimeout(()=>{ try{ (iframe.contentWindow||iframe).focus(); (iframe.contentWindow||iframe).print(); }catch{} }, 60);
   setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
 }
 selExport.addEventListener("change", ()=>{
@@ -648,17 +698,15 @@ selExport.addEventListener("change", ()=>{
   if(v==="pdf"){
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
       <style>
-        @page{ size: A4 landscape; margin: 12mm; }
-        body{font:12px/1.45 system-ui;margin:0;color:#111}
-        h3{margin:10px 0 6px 0}
-        table{border-collapse:collapse;width:100%; table-layout:fixed}
-        td,th{border:1px solid #ddd;padding:6px;white-space:normal;word-break:break-word;overflow-wrap:anywhere}
-        thead{display:table-header-group}
-        tr{page-break-inside:avoid}
+        body{font:16px/1.5 system-ui;margin:28px;color:#111}
+        h3{margin-top:0}
+        .wrap{overflow-x:auto}
+        table{border-collapse:collapse;width:100%; display:block; overflow:auto; white-space:nowrap}
+        td,th{border:1px solid #ddd;padding:6px;text-align:left}
       </style>
       </head><body>
       ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
-      ${out.innerHTML}
+      <div class="wrap">${out.innerHTML}</div>
       </body></html>`;
     try{ printHTML(html); }catch(_){}
     return;
@@ -667,12 +715,13 @@ selExport.addEventListener("change", ()=>{
   if(v==="csv"){
     let rows=[];
     if(questionText){ rows.push(["PREGUNTA", questionText]); }
-    out.querySelectorAll("p").forEach(p=>{ const t=p.textContent.trim(); if(t) rows.push(["TEXTO", t]); });
-    out.querySelectorAll("ol,ul").forEach(list=>{
+    const tmp=document.createElement('div'); tmp.innerHTML=out.innerHTML;
+    tmp.querySelectorAll("p").forEach(p=>{ const t=p.textContent.trim(); if(t) rows.push(["TEXTO", t]); });
+    tmp.querySelectorAll("ol,ul").forEach(list=>{
       const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}`);
       if(items.length){ rows.push(["LISTA", items.join(" \\ ")]); }
     });
-    out.querySelectorAll("table").forEach(tbl=>{
+    tmp.querySelectorAll("table").forEach(tbl=>{
       const head=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
       if(head.length) rows.push(["TABLA CABECERAS", ...head]);
       const trs=[...tbl.querySelectorAll("tbody tr")];
@@ -684,23 +733,16 @@ selExport.addEventListener("change", ()=>{
       return v;
     }).join(",")).join("\n");
     const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
-    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="export.csv"; a.click();
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob); a.download="export.csv"; a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href),500);
     return;
   }
 
   if(v==="doc"){
-    const html = `<!doctype html><html><head><meta charset="utf-8">
-      <style>
-        @page{ size: A4 landscape; margin: 12mm; }
-        body{font:12px/1.45 system-ui;margin:0;color:#111}
-        table{border-collapse:collapse;width:100%; table-layout:fixed}
-        td,th{border:1px solid #ddd;padding:6px;white-space:normal;word-break:break-word;overflow-wrap:anywhere}
-        thead{display:table-header-group}
-      </style>
-      </head><body>
+    const html = `<!doctype html><html><head><meta charset="utf-8"></head><body>
       ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
-      ${out.innerHTML}
+      <div style="overflow-x:auto">${out.innerHTML}</div>
     </body></html>`;
     const blob=new Blob([html],{type:"application/msword"});
     const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="export.doc"; a.click();
@@ -727,12 +769,10 @@ btnNew.addEventListener("click", ()=>{
 
 /* ====== UX ====== */
 q.addEventListener("keydown",(e)=>{ if((e.ctrlKey||e.metaKey) && e.key==="Enter") ask(); });
-q.addEventListener("input", ()=>{ q.style.height="38px"; });
+q.addEventListener("input", ()=>{ q.style.height="56px"; });
 
-/* Captura errores JS (status inferior oculto) */
-window.addEventListener("error",(e)=>{
-  clearStatus();
-},{once:false});
+/* Captura errores JS */
+window.addEventListener("error",()=>{ clearStatus(); },{once:false});
 </script>
 </body>
 </html>
