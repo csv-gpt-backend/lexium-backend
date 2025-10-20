@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Lexium V2 Sudamérica</title>
+<title>Lexium V3 Sudamérica</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -369,35 +369,54 @@ async function verifyLinks(container, timeoutMs=3500){
 /* === TTS helpers === */
 /* PATCH: TTS debe leer desde la primera palabra visible, SIN títulos ni thead */
 function buildTTSTextFromOut(){
-  const c=document.createElement("div"); 
-  c.innerHTML = out.innerHTML;
-  const parts=[];
+  const root = document.createElement("div");
+  root.innerHTML = out.innerHTML;
 
-  // Solo cuerpo: párrafos, listas y filas de tablas (excluye h1..h6 y thead)
-  c.querySelectorAll("p, ol, ul, table tbody").forEach(node=>{
-    if(node.tagName==="P"){
-      const t=node.textContent.trim();
-      if(t) parts.push(t);
-    }else if(node.tagName==="OL"||node.tagName==="UL"){
-      const items=[...node.querySelectorAll("li")]
-        .map((li,i)=>`${i+1}. — ${li.textContent.trim()}`)
-        .filter(Boolean);
-      if(items.length) parts.push(items.join("\n\n"));
-    }else if(node.tagName==="TBODY"){
-      const rows=[...node.querySelectorAll("tr")];
-      if(rows.length){
-        const items=rows.map((tr,i)=>{
-          const cells=[...tr.querySelectorAll("td")]
-            .map(td=>td.textContent.trim());
+  const parts = [];
+  const add = (t)=>{ t = (t||"").trim(); if(t) parts.push(t); };
+
+  const collect = (el)=>{
+    for (const node of el.children){
+      const tag = (node.tagName||"").toLowerCase();
+
+      if (/^h[1-6]$/.test(tag)){
+        add(node.textContent);
+      }
+      else if (tag === "p"){
+        add(node.textContent);
+      }
+      else if (tag === "ol" || tag === "ul"){
+        // Si hay un título inmediatamente antes, anúncialo (una sola vez)
+        const prev = node.previousElementSibling;
+        if (prev && /^h[1-6]$/.test(prev.tagName.toLowerCase())){
+          const head = prev.textContent.trim();
+          if (head && parts[parts.length-1] !== head) add(head);
+        }
+        const items = [...node.querySelectorAll(":scope > li")]
+          .map((li,i)=>`${i+1}. — ${li.textContent.trim()}`)
+          .filter(Boolean);
+        if (items.length) add(items.join("\n\n"));
+      }
+      else if (tag === "table"){
+        const headers = [...node.querySelectorAll("thead th")].map(th=>th.textContent.trim());
+        if (headers.length) add(`Tabla: ${headers.join(", ")}`);
+        const rows = [...node.querySelectorAll("tbody tr")].map((tr,i)=>{
+          const cells = [...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
           return `${i+1}. — ${cells.join(" | ")}`;
-        }).join("\n\n");
-        if(items) parts.push(items);
+        }).filter(Boolean);
+        if (rows.length) add(rows.join("\n\n"));
+      }
+      else {
+        if (node.children && node.children.length) collect(node);
       }
     }
-  });
+  };
 
+  collect(root);
   return parts.join("\n\n");
 }
+
+ 
 
 /* FIN DE  TTS HELPERS */  
 const TTS={
@@ -813,5 +832,6 @@ window.addEventListener("error",()=>{ clearStatus(); },{once:false});
 </script>
 </body>
 </html>
+
 
 
