@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>101 Lexium Sudamérica</title>
+<title>102 Lexium Sudamérica</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -28,8 +28,8 @@
 
   .contentWrap{
     max-width:var(--wrapW); margin:0 auto; padding:12px;
-    /* CAMBIO: acercar caja al video (antes +20px) */
-    padding-top:calc(var(--heroH) + 8px);
+    /* subo un poco para que NO lo tape el video */
+    padding-top:calc(var(--heroH) + 24px);
   }
 
   .toolbar{display:flex; gap:10px; justify-content:center; align-items:center; flex-wrap:wrap; margin:8px 0}
@@ -40,13 +40,12 @@
   .hist{position:fixed; right:14px; top:10px; z-index:60}
   .hist button{padding:8px 12px; border:1px solid var(--bd); border-radius:10px; background:#fff}
 
-  /* Caja de texto 1 línea */
+  /* Caja de texto: 2 líneas fijas */
   .query{
     width:100%;
     box-sizing:border-box;
-    height:38px; min-height:38px; max-height:38px;
-    /* CAMBIO: menos separación (antes 8px) */
-    margin-top:2px;
+    height:64px; min-height:64px; max-height:64px; /* ← 2 líneas */
+    margin-top:6px;
     resize:none; overflow:auto;
     border:1px solid var(--bd); border-radius:10px;
     padding:8px 12px; font-size:16px; line-height:1.4;
@@ -86,6 +85,7 @@
   /* Vista detalle historial */
   #histDetailView{display:none;}
   .histQuestion{margin:0 0 8px 0}
+  .histTools{display:flex; gap:8px; margin:8px 0 10px}
   .histContent{border:1px solid var(--bd); border-radius:10px; padding:12px; overflow:auto}
 
   /* Badge superior izq para “Consultando…” */
@@ -124,7 +124,8 @@
 
   <div class="contentWrap">
     <div style="margin:10px 0 6px">
-      <textarea id="q" class="query" rows="1" placeholder="ESCRIBE O HABLA PARA PREGUNTAR...."></textarea>
+      <!-- 2 líneas fijas -->
+      <textarea id="q" class="query" rows="2" placeholder="ESCRIBE O HABLA PARA PREGUNTAR...."></textarea>
     </div>
 
     <div class="toolbar">
@@ -162,6 +163,12 @@
         <div id="histListView"><div id="histBody"></div></div>
         <div id="histDetailView">
           <h3 class="histQuestion"></h3>
+          <!-- NUEVO: herramientas de exportación dentro de “Ver” -->
+          <div class="histTools" id="histTools" style="display:none">
+            <button id="histPdfBtn"   title="Exportar esta vista a PDF">PDF</button>
+            <button id="histCsvBtn"   title="Exportar esta vista a CSV">CSV</button>
+            <button id="histDocBtn"   title="Exportar esta vista a DOC">DOC</button>
+          </div>
           <div class="histContent" id="histContent"></div>
         </div>
       </div>
@@ -196,6 +203,10 @@ const histListView = document.getElementById("histListView");
 const histDetailView = document.getElementById("histDetailView");
 const histQuestion = document.querySelector(".histQuestion");
 const histContent = document.getElementById("histContent");
+const histTools = document.getElementById("histTools");
+const histPdfBtn = document.getElementById("histPdfBtn");
+const histCsvBtn = document.getElementById("histCsvBtn");
+const histDocBtn = document.getElementById("histDocBtn");
 
 /* ====== Estado ====== */
 let isBusy = false;
@@ -265,7 +276,10 @@ histBody.addEventListener("click",(e)=>{
   if(match){
     histQuestion.textContent = `Pregunta: ${match.question}`;
     histContent.innerHTML = match.html || "<em>Vacío</em>";
-    histListView.style.display="none"; histDetailView.style.display="block"; backHist.style.display="inline-block";
+    histListView.style.display="none"; 
+    histDetailView.style.display="block"; 
+    backHist.style.display="inline-block";
+    histTools.style.display="flex"; // mostrar botones de exportar
   }
 });
 
@@ -289,7 +303,8 @@ function toggleDict(){
 const PREFERRED_NAMES=[
   "Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia",
   "Google español","Google español de Estados","Google US Español",
-  "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"
+  "Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla",
+  "Microsoft Jenny","Microsoft Aria","Microsoft Zira","Google US English"
 ];
 const SP_LANGS=["es","es-ES","es-MX","es-US","es-419","es-AR","es-CL","es-CO","es-PE","es-EC"];
 const EN_LANGS=["en","en-US","en-GB","en-CA","en-AU","en-IN"];
@@ -297,7 +312,7 @@ let selectedVoice=null; let langHint="es";
 function pickVoice(lang){
   if(typeof speechSynthesis==="undefined") return null;
   const vs = speechSynthesis.getVoices()||[];
-  const prefList = (lang==="en") ? ["Microsoft Jenny","Microsoft Aria","Microsoft Zira","Google US English"] : PREFERRED_NAMES;
+  const prefList = (lang==="en") ? ["Microsoft Jenny","Microsoft Aria","Microsoft Zira","Google US English"] : ["Microsoft Sabina","Microsoft Helena","Microsoft Laura","Microsoft Dalia","Microsoft Elvira","Microsoft Paloma","Microsoft Maria","Microsoft Lucia","Google español","Google español de Estados","Google US Español","Monica","Paulina","Camila","Sofia","Elena","Isabella","Lucia","Maria","Carla"];
   const langList = (lang==="en") ? EN_LANGS : SP_LANGS;
   for(const name of prefList){ const m=vs.find(v=>v.name && v.name.toLowerCase().includes(name.toLowerCase())); if(m) return m; }
   const byLang = vs.find(v=>langList.some(l=>(v.lang||"").toLowerCase().startsWith(l.toLowerCase())));
@@ -355,6 +370,7 @@ async function verifyLinks(container, timeoutMs=3500){
 function buildTTSTextFromOut(){
   const c=document.createElement("div"); c.innerHTML=out.innerHTML;
   const parts=[];
+  c.querySelectorAll("h1,h2,h3").forEach(h=>{ const t=h.textContent.trim(); if(t) parts.push(t); });
   c.querySelectorAll("p").forEach(p=>{ const t=p.textContent.trim(); if(t) parts.push(t); });
   c.querySelectorAll("ol,ul").forEach(list=>{
     const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. — ${li.textContent.trim()}`).filter(Boolean);
@@ -472,7 +488,7 @@ function renderAnswer(data, originalUserForMemory){
   // 3) verificar enlaces y omitir no disponibles
   verifyLinks(out).catch(()=>{});
 
-  // 4) memoria (sin cambios)
+  // 4) memoria
   if (originalUserForMemory){
     const plainParts=[generalTxt].filter(Boolean);
     lists.forEach(l=>{ const block = l.items.map((it,i)=>`${i+1}. ${it}`).join("\n"); if(block) plainParts.push(block); });
@@ -486,11 +502,11 @@ function renderAnswer(data, originalUserForMemory){
     sessionStorage.setItem(HS_KEY, JSON.stringify(historyTurns.slice(-20)));
   }
 
-  // 5) Narración + video (sin cambios)
+  // 5) Narración + video
   TTS.enabled = true; TTS.loadFromOut(); TTS.start(0);
 }
 
-/* ====== Compactador de contexto ====== */
+/* ====== Compactador ====== */
 function summarizeHistoryCompact(h, maxTurns=6){
   const tail = h.slice(-maxTurns);
   return tail.map((t,i)=>{
@@ -511,7 +527,7 @@ function detectLangStrong(text){
   return nonASCII>0 ? "es":"en";
 }
 
-/* ====== Backend (con memoria, cancelación y forzar idioma) ====== */
+/* ====== Backend (memoria, cancelación, forzar idioma) ====== */
 async function ask(){
   if(isBusy) return;
   const text=q.value.trim(); if(!text) return;
@@ -540,7 +556,6 @@ async function ask(){
     ? "Answer strictly in English. Do not include Spanish words."
     : "Responde estrictamente en español. No incluyas palabras en inglés.";
 
-  // Banner de idioma muy visible
   const langBanner = langHint==="en"
     ? "[LANG:EN]\nYou must answer ONLY in English.\n"
     : "[LANG:ES]\nDebes responder SOLO en español.\n";
@@ -556,7 +571,6 @@ async function ask(){
   // controlador para cancelar
   inFlightController = new AbortController();
 
-  // headers que sugieren el idioma al backend
   const headers = {
     "Content-Type":"application/json",
     "Accept":"application/json",
@@ -588,7 +602,6 @@ async function ask(){
       out.innerHTML = `<pre style="color:#b45309">Consulta cancelada.</pre>`;
     } else {
       out.innerHTML = `<pre style="color:var(--err)">${String(e)}</pre>`;
-      // revertir último user en memoria si falló
       historyTurns.pop();
       sessionStorage.setItem(HS_KEY, JSON.stringify(historyTurns.slice(-20)));
     }
@@ -608,7 +621,7 @@ btnCancel.addEventListener("click", ()=>{
   btnCancel.disabled = true;
 });
 
-/* ====== Exportar (PDF con orientación/escala automáticas) ====== */
+/* ====== Exportar (pantalla principal) ====== */
 function printHTML(html){
   const iframe=document.createElement('iframe');
   iframe.style.position='fixed'; iframe.style.right='0'; iframe.style.bottom='0';
@@ -620,44 +633,57 @@ function printHTML(html){
   setTimeout(()=>{ try{ (iframe.contentWindow||iframe).focus(); (iframe.contentWindow||iframe).print(); }catch{} }, 60);
   setTimeout(()=>{ try{ document.body.removeChild(iframe); }catch{} }, 30000);
 }
+
+function buildPdfHTMLFromContainer(containerHTML, questionText, opts){
+  // calcular columnas máximas
+  const tmp = document.createElement('div');
+  tmp.innerHTML = containerHTML;
+  const tables = Array.from(tmp.querySelectorAll('table'));
+  const maxCols = tables.reduce((mx,t)=>{
+    const headCount = t.querySelectorAll('thead th').length;
+    const bodyFirst = t.querySelector('tbody tr');
+    const bodyCount = bodyFirst ? bodyFirst.querySelectorAll('td').length : 0;
+    return Math.max(mx, headCount || bodyCount);
+  }, 0);
+
+  // Heurística: A4 landscape para ≥7, A3 landscape para ≥12
+  const useA3 = maxCols >= 12;
+  const useLandscape = maxCols >= 7;
+  // Escala tipografía
+  let baseFont = 16, cellFont = 16;
+  if (maxCols >= 10){ baseFont = 14; cellFont = 13; }
+  if (maxCols >= 12){ baseFont = 13; cellFont = 12; }
+  if (maxCols >= 14){ baseFont = 12; cellFont = 11; }
+
+  const pageCSS = useLandscape 
+    ? `@page{ size: ${useA3? 'A3' : 'A4'} landscape; margin: 12mm; }`
+    : `@page{ size: A4 portrait; margin: 14mm; }`;
+
+  const baseCSS = `
+    body{font:${baseFont}px/1.5 system-ui;margin:0;color:#111}
+    h3{margin:0 0 8px 0}
+    table{border-collapse:collapse;width:100%; table-layout:auto}
+    td,th{border:1px solid #ddd;padding:6px; font-size:${cellFont}px; word-break:break-word}
+    thead th{background:#f8fafc;text-align:left}
+    table, tr, td, th{ page-break-inside: avoid; }
+  `;
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
+    <style>${pageCSS} ${baseCSS}</style>
+    </head><body>
+    ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
+    ${containerHTML}
+    </body></html>`;
+  return html;
+}
+
 selExport.addEventListener("change", ()=>{
   const v=selExport.value; selExport.value="";
   if(!out.innerHTML.trim()){ alert("No hay contenido que exportar."); return; }
   const questionText=(q.value||"").trim();
 
   if(v==="pdf"){
-    // === Detectar tablas anchas para decidir orientación/escala ===
-    const tmp = document.createElement('div');
-    tmp.innerHTML = out.innerHTML;
-    const tables = Array.from(tmp.querySelectorAll('table'));
-    const maxCols = tables.reduce((mx,t)=>{
-      const headCount = t.querySelectorAll('thead th').length;
-      const bodyFirst = t.querySelector('tbody tr');
-      const bodyCount = bodyFirst ? bodyFirst.querySelectorAll('td').length : 0;
-      return Math.max(mx, headCount || bodyCount);
-    }, 0);
-
-    const useLandscape = maxCols >= 7;    // horizontal si hay ≥7 columnas
-    const shrinkFonts   = maxCols >= 10;  // además reducir fuente si ≥10
-
-    const baseCSS = `
-      body{font:${shrinkFonts? '14px' : '16px'}/1.5 system-ui;margin:28px;color:#111}
-      h3{margin-top:0}
-      table{border-collapse:collapse;width:100%; table-layout:auto}
-      td,th{border:1px solid #ddd;padding:6px; ${shrinkFonts? 'font-size:13px' : ''}}
-      thead th{background:#f8fafc;text-align:left}
-      /* Evitar cortes feos */
-      table, tr, td, th{ page-break-inside: avoid; }
-    `;
-
-    const pageCSS = useLandscape ? '@page{ size: A4 landscape; margin: 14mm; }' : '@page{ size: A4 portrait; margin: 14mm; }';
-
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Lexium - Export PDF</title>
-      <style>${pageCSS} ${baseCSS}</style>
-      </head><body>
-      ${questionText ? `<h3>Pregunta</h3><p>${esc(questionText)}</p>` : ""}
-      ${out.innerHTML}
-      </body></html>`;
+    const html = buildPdfHTMLFromContainer(out.innerHTML, questionText, {});
     try{ printHTML(html); }catch(_){}
     return;
   }
@@ -698,6 +724,57 @@ selExport.addEventListener("change", ()=>{
   }
 });
 
+/* ====== Exportar (dentro de “Ver” del historial) ====== */
+function histExport(kind){
+  const contentHTML = histContent.innerHTML || "";
+  const title = (histQuestion.textContent||"").trim();
+
+  if(kind==="pdf"){
+    const html = buildPdfHTMLFromContainer(contentHTML, title, {});
+    try{ printHTML(html); }catch(_){}
+    return;
+  }
+  if(kind==="csv"){
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = contentHTML;
+    let rows=[];
+    if(title){ rows.push(["PREGUNTA", title]); }
+    wrapper.querySelectorAll("p").forEach(p=>{ const t=p.textContent.trim(); if(t) rows.push(["TEXTO", t]); });
+    wrapper.querySelectorAll("ol,ul").forEach(list=>{
+      const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. ${li.textContent.trim()}`);
+      if(items.length){ rows.push(["LISTA", items.join(" \\ ")]); }
+    });
+    wrapper.querySelectorAll("table").forEach(tbl=>{
+      const head=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
+      if(head.length) rows.push(["TABLA CABECERAS", ...head]);
+      const trs=[...tbl.querySelectorAll("tbody tr")];
+      trs.forEach((tr,ri)=>{ const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim()); rows.push([`FILA ${ri+1}`, ...cells]); });
+    });
+    const csv = rows.map(r => r.map(cell=>{
+      const v=String(cell??"");
+      if (/[",\n]/.test(v)) return `"${v.replace(/"/g,'""')}"`;
+      return v;
+    }).join(",")).join("\n");
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="historial.csv"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),500);
+    return;
+  }
+  if(kind==="doc"){
+    const html = `<!doctype html><html><head><meta charset="utf-8"></head><body>
+      ${title ? `<h3>Pregunta</h3><p>${esc(title)}</p>` : ""}
+      ${contentHTML}
+    </body></html>`;
+    const blob=new Blob([html],{type:"application/msword"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="historial.doc"; a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),500);
+    return;
+  }
+}
+histPdfBtn.addEventListener("click", ()=>histExport("pdf"));
+histCsvBtn.addEventListener("click", ()=>histExport("csv"));
+histDocBtn.addEventListener("click", ()=>histExport("doc"));
+
 /* ====== Botones ====== */
 btnSend.addEventListener("click", ask);
 btnDict.addEventListener("click", toggleDict);
@@ -717,7 +794,7 @@ btnNew.addEventListener("click", ()=>{
 
 /* ====== UX ====== */
 q.addEventListener("keydown",(e)=>{ if((e.ctrlKey||e.metaKey) && e.key==="Enter") ask(); });
-q.addEventListener("input", ()=>{ q.style.height="38px"; });
+q.addEventListener("input", ()=>{ /* altura fija 2 líneas */ });
 
 /* Captura errores JS */
 window.addEventListener("error",()=>{ clearStatus(); },{once:false});
