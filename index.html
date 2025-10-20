@@ -560,9 +560,12 @@ async function ask(){
   langHint = detectLangStrong(text);
   selectedVoice = pickVoice(langHint);
 
-  isBusy = true;
-  btnSend.disabled = true;
-  btnCancel.disabled = false;
+// --- hotfix estado inicial botones ---
+btnSend.disabled = false;
+btnCancel.disabled = true;
+isBusy = false;
+
+  
   const old=btnSend.textContent; btnSend.textContent="Enviando…";
   setStatusLoading(langHint==="en" ? "Processing…" : "Consultando…");
 
@@ -825,6 +828,7 @@ window.addEventListener("error",()=>{ clearStatus(); },{once:false});
 </script>
 </body>
 </html>
+
 
 
 
