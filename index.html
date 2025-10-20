@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>102 Lexium Sudamérica</title>
+<title>Lexium V1 Sudamérica</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -366,42 +366,63 @@ async function verifyLinks(container, timeoutMs=3500){
   });
 }
 
-/* === TTS helpers === */
+/* === TTS helpers === desde aqui haci abajo*/
 function buildTTSTextFromOut(){
-  const c=document.createElement("div"); c.innerHTML=out.innerHTML;
-  const parts=[];
-  c.querySelectorAll("h1,h2,h3").forEach(h=>{ const t=h.textContent.trim(); if(t) parts.push(t); });
-  c.querySelectorAll("p").forEach(p=>{ const t=p.textContent.trim(); if(t) parts.push(t); });
-  c.querySelectorAll("ol,ul").forEach(list=>{
-    const items=[...list.querySelectorAll("li")].map((li,i)=>`${i+1}. — ${li.textContent.trim()}`).filter(Boolean);
-    if(items.length){ parts.push(items.join("\n\n")); }
-  });
-  c.querySelectorAll("table").forEach(tbl=>{
-    const rows=[...tbl.querySelectorAll("tbody tr")]; if(!rows.length) return;
-    const headers=[...tbl.querySelectorAll("thead th")].map(th=>th.textContent.trim());
-    if(headers.length){ parts.push(`Tabla: ${headers.join(", ")}`); }
-    const items=rows.map((tr,i)=>{
-      const cells=[...tr.querySelectorAll("td")].map(td=>td.textContent.trim());
-      return `${i+1}. — ${cells.join(" | ")}`;
-    }).join("\n\n");
-    if(items) parts.push(items);
-  });
+  const c = document.createElement("div");
+  c.innerHTML = out.innerHTML;
+  const parts = [];
+
+  // Recorre en orden visual real
+  function walk(el){
+    for (const node of el.childNodes){
+      if (node.nodeType !== Node.ELEMENT_NODE) continue;
+      const tag = node.tagName.toLowerCase();
+
+      if (tag === "p"){
+        const t = node.textContent.trim();
+        if (t) parts.push(t);
+      }
+      else if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4"){
+        const t = node.textContent.trim();
+        if (t) parts.push(t);
+      }
+      else if (tag === "ol" || tag === "ul"){
+        // Solo los <li> directos para no duplicar textos internos
+        const items = Array.from(node.querySelectorAll(":scope > li"))
+          .map((li, i) => `${i+1}. — ${li.textContent.trim()}`)
+          .filter(Boolean);
+        if (items.length) parts.push(items.join("\n\n"));
+        // No recurses dentro del ol/ul para evitar duplicar <p> internos
+        continue;
+      }
+      else if (tag === "table"){
+        const thead = node.querySelector(":scope > thead");
+        const tbody = node.querySelector(":scope > tbody") || node;
+        const headers = thead ? Array.from(thead.querySelectorAll("th")).map(th => th.textContent.trim()) : [];
+        if (headers.length) parts.push(`Tabla: ${headers.join(", ")}`);
+        const rows = Array.from(tbody.querySelectorAll(":scope > tr, :scope > tr > td"))
+          .map((tr, i) => {
+            const cells = Array.from(tr.querySelectorAll("td")).map(td => td.textContent.trim());
+            return cells.length ? `${i+1}. — ${cells.join(" | ")}` : "";
+          })
+          .filter(Boolean)
+          .join("\n\n");
+        if (rows) parts.push(rows);
+        // No recurses dentro de table para evitar duplicados
+        continue;
+      }
+
+      // Recurse para el resto de elementos contenedores
+      walk(node);
+    }
+  }
+
+  walk(c);
   return parts.join("\n\n");
 }
-const TTS={
-  enabled:false, chunks:[], i:0, utter:null, paused:false, speaking:false, textCache:"",
-  makeChunks(text,maxLen=360){
-    const blocks = String(text).split(/\n{2,}/); const res=[];
-    for(const block of blocks){
-      const parts=String(block).split(/(\.|\?|!|\n)/); let buf="";
-      for(let i=0;i<parts.length;i+=2){
-        const seg=(parts[i]||"")+(parts[i+1]||"");
-        if((buf+seg).length<=maxLen) buf+=seg; else{ if(buf.trim()) res.push(buf.trim()); buf=seg; }
-      }
-      if(buf.trim()) res.push(buf.trim());
-    }
-    return res;
-  },
+
+
+  /* hasta aqui */ 
   loadFromOut(){ this.textCache=buildTTSTextFromOut(); this.chunks=this.makeChunks(this.textCache); this.i=0; },
   speakNext(){
     if(!this.enabled || this.i>=this.chunks.length){ this.finish(); return; }
@@ -801,3 +822,4 @@ window.addEventListener("error",()=>{ clearStatus(); },{once:false});
 </script>
 </body>
 </html>
+
