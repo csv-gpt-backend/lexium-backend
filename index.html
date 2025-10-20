@@ -648,6 +648,7 @@ btnCancel.addEventListener("click", ()=>{
   btnCancel.disabled = true;
 });
 
+  
 /* ====== Exportar (pantalla principal) ====== */
 function printHTML(html){
   const iframe=document.createElement('iframe');
@@ -824,10 +825,18 @@ q.addEventListener("keydown",(e)=>{ if((e.ctrlKey||e.metaKey) && e.key==="Enter"
 q.addEventListener("input", ()=>{ /* altura fija 2 líneas */ });
 
 /* Captura errores JS */
-window.addEventListener("error",()=>{ clearStatus(); },{once:false});
+
+  window.addEventListener("error", () => {
+  isBusy = false;
+  btnSend.disabled = false;
+  btnCancel.disabled = true;
+  clearStatus();
+}, { once:false });
+
 </script>
 </body>
 </html>
+
 
 
 
