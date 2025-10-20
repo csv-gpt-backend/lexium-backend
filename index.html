@@ -368,57 +368,60 @@ async function verifyLinks(container, timeoutMs=3500){
 
 /* === TTS helpers === desde aqui haci abajo*/
 function buildTTSTextFromOut(){
-  const c = document.createElement("div");
-  c.innerHTML = out.innerHTML;
-  const parts = [];
+  try{
+    const c = document.createElement("div");
+    c.innerHTML = out.innerHTML;
+    const parts = [];
 
-  // Recorre en orden visual real
-  function walk(el){
-    for (const node of el.childNodes){
-      if (node.nodeType !== Node.ELEMENT_NODE) continue;
-      const tag = node.tagName.toLowerCase();
+    function textOf(el){ return (el.textContent || "").trim(); }
 
-      if (tag === "p"){
-        const t = node.textContent.trim();
-        if (t) parts.push(t);
-      }
-      else if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4"){
-        const t = node.textContent.trim();
-        if (t) parts.push(t);
-      }
-      else if (tag === "ol" || tag === "ul"){
-        // Solo los <li> directos para no duplicar textos internos
-        const items = Array.from(node.querySelectorAll(":scope > li"))
-          .map((li, i) => `${i+1}. — ${li.textContent.trim()}`)
-          .filter(Boolean);
-        if (items.length) parts.push(items.join("\n\n"));
-        // No recurses dentro del ol/ul para evitar duplicar <p> internos
-        continue;
-      }
-      else if (tag === "table"){
-        const thead = node.querySelector(":scope > thead");
-        const tbody = node.querySelector(":scope > tbody") || node;
-        const headers = thead ? Array.from(thead.querySelectorAll("th")).map(th => th.textContent.trim()) : [];
-        if (headers.length) parts.push(`Tabla: ${headers.join(", ")}`);
-        const rows = Array.from(tbody.querySelectorAll(":scope > tr, :scope > tr > td"))
-          .map((tr, i) => {
-            const cells = Array.from(tr.querySelectorAll("td")).map(td => td.textContent.trim());
+    function walk(el){
+      for(const node of el.children){
+        const tag = node.tagName ? node.tagName.toLowerCase() : "";
+
+        if(tag === "p"){
+          const t = textOf(node); if(t) parts.push(t);
+        }
+        else if(tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4"){
+          const t = textOf(node); if(t) parts.push(t);
+        }
+        else if(tag === "ol" || tag === "ul"){
+          const items = Array.from(node.children)
+            .filter(ch => ch.tagName && ch.tagName.toLowerCase()==="li")
+            .map((li,i)=>`${i+1}. — ${textOf(li)}`)
+            .filter(Boolean);
+          if(items.length) parts.push(items.join("\n\n"));
+          // no recursar dentro de la lista para no duplicar
+          continue;
+        }
+        else if(tag === "table"){
+          // encabezados
+          const thead = node.querySelector("thead");
+          if(thead){
+            const headers = Array.from(thead.querySelectorAll("th")).map(th=>textOf(th)).filter(Boolean);
+            if(headers.length) parts.push(`Tabla: ${headers.join(", ")}`);
+          }
+          // filas
+          const tbody = node.querySelector("tbody") || node;
+          const rows = Array.from(tbody.querySelectorAll("tr")).map((tr,i)=>{
+            const cells = Array.from(tr.querySelectorAll("td")).map(td=>textOf(td)).filter(Boolean);
             return cells.length ? `${i+1}. — ${cells.join(" | ")}` : "";
-          })
-          .filter(Boolean)
-          .join("\n\n");
-        if (rows) parts.push(rows);
-        // No recurses dentro de table para evitar duplicados
-        continue;
+          }).filter(Boolean);
+          if(rows.length) parts.push(rows.join("\n\n"));
+          continue; // no recursar dentro de la tabla
+        }else{
+          // contenedores: seguir recorriendo
+          walk(node);
+        }
       }
-
-      // Recurse para el resto de elementos contenedores
-      walk(node);
     }
-  }
 
-  walk(c);
-  return parts.join("\n\n");
+    walk(c);
+    return parts.join("\n\n");
+  }catch(_){
+    // fallback ultra seguro si algo falla
+    return (out.textContent || "").trim();
+  }
 }
 
 
@@ -822,4 +825,5 @@ window.addEventListener("error",()=>{ clearStatus(); },{once:false});
 </script>
 </body>
 </html>
+
 
