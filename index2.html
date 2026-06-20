@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Lexium Sudamérica</title>
+<title>ADALAM, Sudamérica V1</title>
 <style>
   :root{
     --bg:#fff; --fg:#111; --muted:#6b7280; --pri:#0d6efd; --bd:#e5e7eb;
@@ -20,8 +20,10 @@
   }
   .mediaBar *{ pointer-events:none; }
   .mediaInner{max-width:var(--wrapW); margin:0 auto; padding:12px;}
-  .heroGrid{display:flex; justify-content:center; align-items:center;}
-  .videoBox{height:var(--heroH); width:min(58%,720px); margin:0 auto;}
+  .heroGrid{display:grid; grid-template-columns:1fr 3fr 1.16fr; align-items:center; gap:8px;}
+  .sideImg{display:flex; justify-content:center; height:var(--heroH); margin:0;}
+  .sideImg img{max-width:100%; height:100%; object-fit:contain; opacity:.95}
+  .videoBox{height:var(--heroH); margin:0;}
   .videoBox video{width:100%; height:100%; object-fit:cover; border:none; display:block; border-radius:10px}
 
   .contentWrap{
@@ -107,8 +109,14 @@
   <div class="mediaBar" aria-label="cabecera">
     <div class="mediaInner">
       <div class="heroGrid">
+        <div class="sideImg left">
+          <img src="left.png" alt="Logo izquierdo"/>
+        </div>
         <div class="videoBox">
           <video id="vid" preload="auto" muted playsinline src="https://xsmr71ubix2w6tve.public.blob.vercel-storage.com/OLIVIA%20IN%20CASUAL.mp4"></video>
+        </div>
+        <div class="sideImg right">
+          <img src="right.png" alt="Logo derecho"/>
         </div>
       </div>
     </div>
